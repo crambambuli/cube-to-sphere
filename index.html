@@ -27,17 +27,12 @@
     min-height: 0;
   }
   #stats {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    background: rgba(16,33,64,0.85);
-    padding: 10px 14px;
-    border-radius: 8px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    padding: 6px 0;
     font-size: 0.8rem;
-    line-height: 1.7;
-    border: 1px solid #0f3460;
-    z-index: 5;
-    pointer-events: none;
+    flex-shrink: 0;
   }
   #stats span { color: #7ec8e3; font-weight: bold; }
   #controls {
@@ -65,7 +60,7 @@
     font-size: 1.1rem;
     color: #7ec8e3;
     font-weight: bold;
-    min-width: 120px;
+    min-width: 140px;
     text-align: center;
   }
 </style>
@@ -74,17 +69,17 @@
 
 <div id="header">
   <h1>Iterative Eckenabschneidung</h1>
-  <p>Seiten halbieren, Ecken abschneiden &mdash; Pfeiltasten oder Buttons</p>
+  <p>Seiten halbieren, Ecken abschneiden &mdash; Maus ziehen zum Drehen, Scrollrad zum Zoomen</p>
 </div>
 
-<div id="scene-container">
-  <div id="stats">
-    Iteration: <span id="s-iter">0</span><br>
-    Ecken: <span id="s-verts">8</span><br>
-    Kanten: <span id="s-edges">12</span><br>
-    Flächen: <span id="s-faces">6</span>
-  </div>
+<div id="stats">
+  Iteration: <span id="s-iter">0</span> &middot;
+  Ecken: <span id="s-verts">8</span> &middot;
+  Kanten: <span id="s-edges">12</span> &middot;
+  Flächen: <span id="s-faces">6</span>
 </div>
+
+<div id="scene-container"></div>
 
 <div id="controls">
   <button id="btn-reset">Reset</button>
@@ -108,7 +103,6 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 
 const container = document.getElementById('scene-container');
-
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.position.set(3, 2.5, 3);
@@ -129,11 +123,7 @@ dl2.position.set(-5, -2, -5);
 scene.add(dl2);
 
 // ---- Geometry ----
-const EPS = 1e-6;
-
-function makeEdgeKey(i, j) {
-  return i < j ? `${i}_${j}` : `${j}_${i}`;
-}
+function makeEdgeKey(i, j) { return i < j ? `${i}_${j}` : `${j}_${i}`; }
 
 function analyzeHull(vertices) {
   const geom = new ConvexGeometry(vertices);
@@ -151,11 +141,10 @@ function analyzeHull(vertices) {
   }
 
   const triCount = idx ? idx.length / 3 : pos.count / 3;
-  const triangles = [];
+  const edgeTriNormals = new Map();
+
   for (let t = 0; t < triCount; t++) {
-    const ia = idx ? idx[t * 3] : t * 3;
-    const ib = idx ? idx[t * 3 + 1] : t * 3 + 1;
-    const ic = idx ? idx[t * 3 + 2] : t * 3 + 2;
+    const ia = idx ? idx[t*3] : t*3, ib = idx ? idx[t*3+1] : t*3+1, ic = idx ? idx[t*3+2] : t*3+2;
     const pa = new THREE.Vector3(pos.getX(ia), pos.getY(ia), pos.getZ(ia));
     const pb = new THREE.Vector3(pos.getX(ib), pos.getY(ib), pos.getZ(ib));
     const pc = new THREE.Vector3(pos.getX(ic), pos.getY(ic), pos.getZ(ic));
@@ -163,56 +152,39 @@ function analyzeHull(vertices) {
     const vb = findVertex(pb.x, pb.y, pb.z);
     const vc = findVertex(pc.x, pc.y, pc.z);
     const n = new THREE.Vector3().subVectors(pb, pa).cross(new THREE.Vector3().subVectors(pc, pa)).normalize();
-    triangles.push({ verts: [va, vb, vc], normal: n });
-  }
-
-  const edgeTriNormals = new Map();
-  for (const tri of triangles) {
-    const [a, b, c] = tri.verts;
-    for (const [i, j] of [[a, b], [b, c], [c, a]]) {
+    for (const [i, j] of [[va,vb],[vb,vc],[vc,va]]) {
       const key = makeEdgeKey(i, j);
       if (!edgeTriNormals.has(key)) edgeTriNormals.set(key, []);
-      edgeTriNormals.get(key).push(tri.normal);
+      edgeTriNormals.get(key).push(n);
     }
   }
 
   const realEdges = [];
   for (const [key, normals] of edgeTriNormals) {
-    if (normals.length === 1) {
-      realEdges.push(key.split('_').map(Number));
-    } else if (normals.length === 2) {
-      if (Math.abs(normals[0].dot(normals[1])) < 1 - 1e-3) {
-        realEdges.push(key.split('_').map(Number));
-      }
-    } else {
+    let isReal = normals.length === 1;
+    if (!isReal && normals.length === 2) isReal = Math.abs(normals[0].dot(normals[1])) < 1 - 1e-8;
+    if (!isReal && normals.length > 2) {
       const n0 = normals[0];
-      if (!normals.every(n => Math.abs(n0.dot(n)) > 1 - 1e-3)) {
-        realEdges.push(key.split('_').map(Number));
-      }
+      isReal = !normals.every(n => Math.abs(n0.dot(n)) > 1 - 1e-8);
     }
-  }
-
-  const faceNormalSet = new Set();
-  for (const tri of triangles) {
-    const n = tri.normal;
-    faceNormalSet.add(`${n.x.toFixed(3)}_${n.y.toFixed(3)}_${n.z.toFixed(3)}`);
+    if (isReal) realEdges.push(key.split('_').map(Number));
   }
 
   geom.dispose();
-  return { edges: realEdges, faceCount: faceNormalSet.size };
+  return realEdges;
 }
 
 function rectify(vertices) {
-  const { edges } = analyzeHull(vertices);
+  const edges = analyzeHull(vertices);
   const midpoints = [];
   const seen = new Set();
   for (const [a, b] of edges) {
     const mid = new THREE.Vector3().addVectors(vertices[a], vertices[b]).multiplyScalar(0.5);
-    const key = `${mid.x.toFixed(6)}_${mid.y.toFixed(6)}_${mid.z.toFixed(6)}`;
+    const key = `${mid.x.toFixed(10)}_${mid.y.toFixed(10)}_${mid.z.toFixed(10)}`;
     if (!seen.has(key)) { seen.add(key); midpoints.push(mid); }
   }
   const maxR = midpoints.reduce((m, v) => Math.max(m, v.length()), 0);
-  if (maxR > EPS) for (const v of midpoints) v.multiplyScalar(1.0 / maxR);
+  if (maxR > 1e-6) for (const v of midpoints) v.multiplyScalar(1 / maxR);
   return midpoints;
 }
 
@@ -227,11 +199,11 @@ function makeCube() {
 }
 
 // ---- State ----
+const MAX_ITER = 56;
 const history = [makeCube()];
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
-
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
 
 function buildMesh(vertices) {
@@ -247,56 +219,65 @@ function buildMesh(vertices) {
     color: palette[currentIdx % palette.length],
     transparent: true, opacity: 0.55, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
   })));
-
   meshGroup.add(new THREE.LineSegments(
     new THREE.EdgesGeometry(solidGeom, 1),
     new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.7 })
   ));
 
-  const dotGeom = new THREE.SphereGeometry(0.018, 8, 8);
+  const dotGeom = new THREE.SphereGeometry(0.004, 4, 4);
   const dotMat = new THREE.MeshBasicMaterial({ color: 0xffff88 });
   for (const v of vertices) {
     const dot = new THREE.Mesh(dotGeom, dotMat);
     dot.position.copy(v);
     meshGroup.add(dot);
   }
+  updateStats();
+}
 
-  const { edges: realEdges, faceCount } = analyzeHull(vertices);
+function updateStats() {
+  const stats = { V: 8, E: 12, F: 6 };
+  for (let i = 0; i < currentIdx; i++) {
+    const { V, E, F } = stats;
+    stats.V = E; stats.E = 2 * E; stats.F = V + F;
+  }
   document.getElementById('s-iter').textContent = currentIdx;
-  document.getElementById('s-verts').textContent = vertices.length;
-  document.getElementById('s-edges').textContent = realEdges.length;
-  document.getElementById('s-faces').textContent = faceCount;
+  document.getElementById('s-verts').textContent = stats.V.toLocaleString();
+  document.getElementById('s-edges').textContent = stats.E.toLocaleString();
+  document.getElementById('s-faces').textContent = stats.F.toLocaleString();
   document.getElementById('iteration-label').textContent = `Iteration ${currentIdx}`;
   document.getElementById('btn-prev').disabled = currentIdx === 0;
-  document.getElementById('btn-next').disabled = currentIdx >= 20;
+  document.getElementById('btn-next').disabled = currentIdx >= MAX_ITER;
 }
 
 function showCurrent() { buildMesh(history[currentIdx]); }
 
 function goNext() {
-  if (currentIdx >= 20) return;
+  if (currentIdx >= MAX_ITER) return;
   currentIdx++;
-  if (currentIdx >= history.length) history.push(rectify(history[history.length - 1]));
+  if (currentIdx >= history.length) {
+    history.push(rectify(history[history.length - 1]));
+  }
   showCurrent();
 }
 function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
 function resetAll() {
-  currentIdx = 0; history.length = 1; history[0] = makeCube();
-  showCurrent(); stopAuto();
+  currentIdx = 0;
+  showCurrent();
+  stopAuto();
 }
 
 let autoInterval = null;
 function toggleAuto() {
   if (autoInterval) { stopAuto(); return; }
   document.getElementById('btn-auto').textContent = 'Stop \u23f8';
-  autoInterval = setInterval(() => { if (currentIdx >= 20) { stopAuto(); return; } goNext(); }, 1200);
+  autoInterval = setInterval(() => { if (currentIdx >= MAX_ITER) { stopAuto(); return; } goNext(); }, 2500);
 }
 function stopAuto() {
   clearInterval(autoInterval); autoInterval = null;
   document.getElementById('btn-auto').textContent = 'Auto \u25b6';
 }
 
-// ---- Events (both pointerdown and click for max compatibility) ----
+// ---- Events ----
 function btnEvent(id, fn) {
   const el = document.getElementById(id);
   let handled = false;
@@ -323,12 +304,34 @@ window.addEventListener('resize', () => {
 
 showCurrent();
 
-// Auto-rotate camera around the object
-let angle = 0.7;
+// ---- Mouse orbit ----
+let theta = 0.7, phi = 0.6, radius = 4;
+let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  autoRotate = false;
+});
+window.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  theta -= (e.clientX - lastX) * 0.007;
+  phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + (e.clientY - lastY) * 0.007));
+  lastX = e.clientX; lastY = e.clientY;
+});
+window.addEventListener('pointerup', () => { dragging = false; });
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  radius = Math.max(1.5, Math.min(10, radius + e.deltaY * 0.005));
+}, { passive: false });
+
 (function animate() {
   requestAnimationFrame(animate);
-  angle += 0.003;
-  camera.position.set(Math.cos(angle) * 3.5, 2, Math.sin(angle) * 3.5);
+  if (autoRotate) theta += 0.003;
+  camera.position.set(
+    radius * Math.sin(phi) * Math.cos(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta)
+  );
   camera.lookAt(0, 0, 0);
   renderer.render(scene, camera);
 })();
