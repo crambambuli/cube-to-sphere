@@ -102,6 +102,37 @@
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 
+// ---- Worker ----
+const worker = new Worker('worker.js');
+const pendingCallbacks = new Map();
+
+worker.onmessage = (e) => {
+  const { iter, coords } = e.data;
+  const vertices = [];
+  for (let i = 0; i < coords.length; i += 3) {
+    vertices.push(new THREE.Vector3(coords[i], coords[i+1], coords[i+2]));
+  }
+  history[iter] = vertices;
+  pendingCompute.delete(iter);
+
+  const cb = pendingCallbacks.get(iter);
+  if (cb) { pendingCallbacks.delete(iter); cb(); }
+
+  precomputeNext();
+};
+
+function requestCompute(iter) {
+  if (history[iter] || pendingCompute.has(iter)) return;
+  pendingCompute.add(iter);
+  const prev = history[iter - 1];
+  const coords = new Float64Array(prev.length * 3);
+  for (let i = 0; i < prev.length; i++) {
+    coords[i*3] = prev[i].x; coords[i*3+1] = prev[i].y; coords[i*3+2] = prev[i].z;
+  }
+  worker.postMessage({ iter, coords }, [coords.buffer]);
+}
+
+// ---- Scene ----
 const container = document.getElementById('scene-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
@@ -122,72 +153,8 @@ const dl2 = new THREE.DirectionalLight(0x8888ff, 0.6);
 dl2.position.set(-5, -2, -5);
 scene.add(dl2);
 
-// ---- Geometry ----
-function makeEdgeKey(i, j) { return i < j ? `${i}_${j}` : `${j}_${i}`; }
-
-function analyzeHull(vertices) {
-  const geom = new ConvexGeometry(vertices);
-  const idx = geom.index ? geom.index.array : null;
-  const pos = geom.attributes.position;
-
-  function findVertex(x, y, z) {
-    let bestIdx = 0, bestDist = Infinity;
-    for (let i = 0; i < vertices.length; i++) {
-      const dx = vertices[i].x - x, dy = vertices[i].y - y, dz = vertices[i].z - z;
-      const d = dx * dx + dy * dy + dz * dz;
-      if (d < bestDist) { bestDist = d; bestIdx = i; }
-    }
-    return bestIdx;
-  }
-
-  const triCount = idx ? idx.length / 3 : pos.count / 3;
-  const edgeTriNormals = new Map();
-
-  for (let t = 0; t < triCount; t++) {
-    const ia = idx ? idx[t*3] : t*3, ib = idx ? idx[t*3+1] : t*3+1, ic = idx ? idx[t*3+2] : t*3+2;
-    const pa = new THREE.Vector3(pos.getX(ia), pos.getY(ia), pos.getZ(ia));
-    const pb = new THREE.Vector3(pos.getX(ib), pos.getY(ib), pos.getZ(ib));
-    const pc = new THREE.Vector3(pos.getX(ic), pos.getY(ic), pos.getZ(ic));
-    const va = findVertex(pa.x, pa.y, pa.z);
-    const vb = findVertex(pb.x, pb.y, pb.z);
-    const vc = findVertex(pc.x, pc.y, pc.z);
-    const n = new THREE.Vector3().subVectors(pb, pa).cross(new THREE.Vector3().subVectors(pc, pa)).normalize();
-    for (const [i, j] of [[va,vb],[vb,vc],[vc,va]]) {
-      const key = makeEdgeKey(i, j);
-      if (!edgeTriNormals.has(key)) edgeTriNormals.set(key, []);
-      edgeTriNormals.get(key).push(n);
-    }
-  }
-
-  const realEdges = [];
-  for (const [key, normals] of edgeTriNormals) {
-    let isReal = normals.length === 1;
-    if (!isReal && normals.length === 2) isReal = Math.abs(normals[0].dot(normals[1])) < 1 - 1e-8;
-    if (!isReal && normals.length > 2) {
-      const n0 = normals[0];
-      isReal = !normals.every(n => Math.abs(n0.dot(n)) > 1 - 1e-8);
-    }
-    if (isReal) realEdges.push(key.split('_').map(Number));
-  }
-
-  geom.dispose();
-  return realEdges;
-}
-
-function rectify(vertices) {
-  const edges = analyzeHull(vertices);
-  const midpoints = [];
-  const seen = new Set();
-  for (const [a, b] of edges) {
-    const mid = new THREE.Vector3().addVectors(vertices[a], vertices[b]).multiplyScalar(0.5);
-    const key = `${mid.x.toFixed(10)}_${mid.y.toFixed(10)}_${mid.z.toFixed(10)}`;
-    if (!seen.has(key)) { seen.add(key); midpoints.push(mid); }
-  }
-  const maxR = midpoints.reduce((m, v) => Math.max(m, v.length()), 0);
-  if (maxR > 1e-6) for (const v of midpoints) v.multiplyScalar(1 / maxR);
-  return midpoints;
-}
-
+// ---- State ----
+const MAX_ITER = 56;
 function makeCube() {
   const s = 1;
   return [
@@ -198,14 +165,24 @@ function makeCube() {
   ];
 }
 
-// ---- State ----
-const MAX_ITER = 56;
 const history = [makeCube()];
+const pendingCompute = new Set();
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
 
+function precomputeNext() {
+  for (let i = 1; i <= MAX_ITER; i++) {
+    if (!history[i] && !pendingCompute.has(i) && history[i-1]) {
+      requestCompute(i);
+      return;
+    }
+  }
+}
+precomputeNext();
+
+// ---- Rendering ----
 function buildMesh(vertices) {
   while (meshGroup.children.length) {
     const c = meshGroup.children[0];
@@ -217,24 +194,24 @@ function buildMesh(vertices) {
   const solidGeom = new ConvexGeometry(vertices);
   meshGroup.add(new THREE.Mesh(solidGeom, new THREE.MeshPhysicalMaterial({
     color: palette[currentIdx % palette.length],
-    transparent: true, opacity: 0.55, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.25, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
   })));
   meshGroup.add(new THREE.LineSegments(
     new THREE.EdgesGeometry(solidGeom, 1),
     new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.7 })
   ));
 
-  const dotGeom = new THREE.SphereGeometry(0.004, 4, 4);
+  const dotGeom = new THREE.SphereGeometry(0.003, 4, 4);
   const dotMat = new THREE.MeshBasicMaterial({ color: 0xffff88 });
   for (const v of vertices) {
     const dot = new THREE.Mesh(dotGeom, dotMat);
     dot.position.copy(v);
     meshGroup.add(dot);
   }
-  updateStats();
+  updateStats(false);
 }
 
-function updateStats() {
+function updateStats(computing) {
   const stats = { V: 8, E: 12, F: 6 };
   for (let i = 0; i < currentIdx; i++) {
     const { V, E, F } = stats;
@@ -244,27 +221,32 @@ function updateStats() {
   document.getElementById('s-verts').textContent = stats.V.toLocaleString();
   document.getElementById('s-edges').textContent = stats.E.toLocaleString();
   document.getElementById('s-faces').textContent = stats.F.toLocaleString();
-  document.getElementById('iteration-label').textContent = `Iteration ${currentIdx}`;
+  document.getElementById('iteration-label').textContent =
+    computing ? `Iteration ${currentIdx} \u23f3` : `Iteration ${currentIdx}`;
   document.getElementById('btn-prev').disabled = currentIdx === 0;
   document.getElementById('btn-next').disabled = currentIdx >= MAX_ITER;
 }
 
-function showCurrent() { buildMesh(history[currentIdx]); }
+function showCurrent() {
+  if (history[currentIdx]) {
+    buildMesh(history[currentIdx]);
+  } else {
+    updateStats(true);
+    if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
+    pendingCallbacks.set(currentIdx, () => {
+      if (history[currentIdx]) buildMesh(history[currentIdx]);
+    });
+  }
+}
 
+// ---- Controls ----
 function goNext() {
   if (currentIdx >= MAX_ITER) return;
   currentIdx++;
-  if (currentIdx >= history.length) {
-    history.push(rectify(history[history.length - 1]));
-  }
   showCurrent();
 }
 function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
-function resetAll() {
-  currentIdx = 0;
-  showCurrent();
-  stopAuto();
-}
+function resetAll() { currentIdx = 0; showCurrent(); stopAuto(); }
 
 let autoInterval = null;
 function toggleAuto() {
@@ -277,7 +259,6 @@ function stopAuto() {
   document.getElementById('btn-auto').textContent = 'Auto \u25b6';
 }
 
-// ---- Events ----
 function btnEvent(id, fn) {
   const el = document.getElementById(id);
   let handled = false;

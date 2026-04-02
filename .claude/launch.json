@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cube",
+      "runtimeExecutable": "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "runtimeArgs": ["-m", "http.server", "8766", "-d", "/Users/lars/Projekte/cube"],
+      "port": 8766
+    }
+  ]
+}
