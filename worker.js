@@ -1,8 +1,9 @@
 // Optimized 3D Convex Hull with conflict lists + rectify
-// Pure JS — no Three.js dependency
+// Async computation with progress reporting
 
 const EPS = 1e-10;
 const COPLANAR = 1 - 1e-8;
+const YIELD_EVERY = 100; // yield to event loop every N points
 
 function cross(a, b) {
   return [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
@@ -15,7 +16,10 @@ function computeNormal(pts, v) {
   return norm(cross(sub(pts[v[1]], pts[v[0]]), sub(pts[v[2]], pts[v[0]])));
 }
 
-function convexHull(pts) {
+function yield_() { return new Promise(r => setTimeout(r, 0)); }
+
+// ---- Async Convex Hull ----
+async function convexHull(pts, onProgress) {
   const n = pts.length;
   if (n < 4) return [];
 
@@ -88,7 +92,7 @@ function convexHull(pts) {
 
   for (const v of initVerts) addFace(v);
 
-  // Assign points to conflict faces
+  const conflictFaces = new Set();
   for (let oi = 0; oi < n; oi++) {
     const pi = order[oi];
     if (usedInTet.has(pi)) continue;
@@ -100,18 +104,26 @@ function convexHull(pts) {
     }
     if (bestDist > EPS) {
       faces[bestFace].conflict.push(pi);
+      conflictFaces.add(bestFace);
     }
   }
 
-  // Main loop
-  for (let mainIter = 0; mainIter < n * 4; mainIter++) {
-    let seedFace = -1;
-    for (let fi = 0; fi < faces.length; fi++) {
-      if (faces[fi].alive && faces[fi].conflict.length > 0) { seedFace = fi; break; }
-    }
-    if (seedFace < 0) break;
+  let processed = 0;
+  const total = n - 4;
+  console.log(`[Worker] Hull start: ${n} pts, ${total} to insert`);
 
-    // Pick farthest point
+  while (conflictFaces.size > 0) {
+    processed++;
+
+    // Yield to event loop periodically so postMessage gets delivered
+    if (processed % YIELD_EVERY === 0) {
+      console.log(`[Worker] Hull progress: ${processed}/${total}`);
+      if (onProgress) onProgress(processed, total);
+      await yield_();
+    }
+
+    const seedFace = conflictFaces.values().next().value;
+
     let bestPt = -1, bestD = -Infinity;
     const sf = faces[seedFace];
     for (const pi of sf.conflict) {
@@ -121,7 +133,6 @@ function convexHull(pts) {
 
     const p = pts[bestPt];
 
-    // BFS visible faces
     const visible = [seedFace];
     const visSet = new Set([seedFace]);
     const horizon = [];
@@ -143,16 +154,12 @@ function convexHull(pts) {
       }
     }
 
-    // Collect orphans
     const orphans = [];
     for (const fi of visible) {
       for (const pi of faces[fi].conflict) {
         if (pi !== bestPt) orphans.push(pi);
       }
-    }
-
-    // Remove visible faces
-    for (const fi of visible) {
+      conflictFaces.delete(fi);
       const f = faces[fi];
       f.alive = false;
       f.conflict = [];
@@ -161,7 +168,6 @@ function convexHull(pts) {
       }
     }
 
-    // Fix adjacency
     for (const fi of visible) {
       const f = faces[fi];
       for (let e = 0; e < 3; e++) {
@@ -180,36 +186,39 @@ function convexHull(pts) {
       }
     }
 
-    // New faces
     const newFaces = [];
     for (const [a, b] of horizon) {
       newFaces.push(addFace([a, b, bestPt]));
     }
 
-    // Reassign orphans
     for (const opi of orphans) {
       for (const nfi of newFaces) {
         const f = faces[nfi];
         if (dot(f.n, sub(pts[opi], pts[f.v[0]])) > EPS) {
           f.conflict.push(opi);
+          conflictFaces.add(nfi);
           break;
         }
       }
     }
   }
 
+  if (onProgress) onProgress(total, total);
   return faces.filter(f => f.alive).map(f => f.v);
 }
 
-// ---- Rectify ----
-function rectify(coords) {
+// ---- Async Rectify ----
+async function rectify(coords, onProgress) {
   const V = coords.length / 3;
   const pts = [];
   for (let i = 0; i < V; i++) {
     pts.push([coords[i*3], coords[i*3+1], coords[i*3+2]]);
   }
 
-  const hullFaces = convexHull(pts);
+  if (onProgress) onProgress('hull1', 0, 1);
+  const hullFaces = await convexHull(pts, (done, total) => {
+    if (onProgress) onProgress('hull1', done, total);
+  });
 
   const edgeNormals = new Map();
   for (const f of hullFaces) {
@@ -242,17 +251,49 @@ function rectify(coords) {
     }
   }
 
-  let maxR = 0;
+  // Radiale Projektion: jeden Punkt auf die Einheitskugel projizieren
   for (let i = 0; i < midpoints.length; i += 3) {
     const r = Math.sqrt(midpoints[i]**2 + midpoints[i+1]**2 + midpoints[i+2]**2);
-    if (r > maxR) maxR = r;
+    if (r > 1e-12) {
+      midpoints[i] /= r;
+      midpoints[i+1] /= r;
+      midpoints[i+2] /= r;
+    }
   }
-  if (maxR > 1e-6) for (let i = 0; i < midpoints.length; i++) midpoints[i] /= maxR;
 
-  return new Float64Array(midpoints);
+  const outCoords = new Float64Array(midpoints);
+
+  const midPts = [];
+  for (let i = 0; i < midpoints.length; i += 3) {
+    midPts.push([midpoints[i], midpoints[i+1], midpoints[i+2]]);
+  }
+  if (onProgress) onProgress('hull2', 0, 1);
+  const outputFaces = await convexHull(midPts, (done, total) => {
+    if (onProgress) onProgress('hull2', done, total);
+  });
+  const faces = new Uint32Array(outputFaces.length * 3);
+  for (let i = 0; i < outputFaces.length; i++) {
+    faces[i*3] = outputFaces[i][0];
+    faces[i*3+1] = outputFaces[i][1];
+    faces[i*3+2] = outputFaces[i][2];
+  }
+
+  return { coords: outCoords, faces };
 }
 
-self.onmessage = function(e) {
-  const result = rectify(e.data.coords);
-  self.postMessage({ iter: e.data.iter, coords: result }, [result.buffer]);
+self.onmessage = async function(e) {
+  try {
+    const iter = e.data.iter;
+    const t0 = performance.now();
+    const { coords, faces } = await rectify(e.data.coords, (phase, done, total) => {
+      self.postMessage({ type: 'progress', iter, phase, done, total });
+    });
+    const duration = performance.now() - t0;
+    self.postMessage({ type: 'result', iter, coords, faces, duration }, [coords.buffer, faces.buffer]);
+  } catch(err) {
+    console.error('Worker rectify error:', err.message, err.stack);
+    const empty = new Float64Array(0);
+    const emptyF = new Uint32Array(0);
+    self.postMessage({ type: 'result', iter: e.data.iter, coords: empty, faces: emptyF, duration: 0 });
+  }
 };

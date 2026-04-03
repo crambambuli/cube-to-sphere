@@ -2,6 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="apple-touch-icon" sizes="64x64" href="favicon.png">
 <title>Iterative Eckenabschneidung eines Würfels</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -154,7 +157,7 @@ dl2.position.set(-5, -2, -5);
 scene.add(dl2);
 
 // ---- State ----
-const MAX_ITER = 56;
+const MAX_ITER = 13;
 function makeCube() {
   const s = 1;
   return [
