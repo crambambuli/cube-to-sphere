@@ -92,6 +92,21 @@ Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die Oh-Symmetrie erzwingt, dass
 
 **Konvergenzrate:** σₙ ≈ σ₀ · (1/2)ⁿ · C. Bei σ₀ ≈ 0.18 (Würfel) ist σ₁₂ ≈ 0.0001, also ca. 0.01% Abweichung.
 
+### Sind die Schnittflächen immer plan?
+
+Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1) oder Sechsecke in späteren Iterationen. Die Frage ist: Liegen diese Punkte exakt in einer Ebene, oder sind die Flächen "verbogen"?
+
+**Antwort: Ja, alle Flächen sind exakt plan.**
+
+Das folgt direkt aus der Konstruktion: Das Ergebnis jeder Iteration ist die konvexe Hülle der Kantenmittelpunkte. Die konvexe Hülle eines endlichen Punktsatzes ist ein konvexes Polyeder, und jede Fläche eines konvexen Polyeders liegt in einer Stützebene — einer Ebene, die den Körper berührt, aber nicht schneidet. Punkte, die in derselben Stützebene liegen, sind automatisch koplanar.
+
+Geometrisch betrachtet entstehen bei jeder Iteration zwei Typen von Flächen:
+
+- **Vertex-Flächen:** Jede alte Ecke mit Grad d wird zu einem planaren d-Eck (beim Würfel: 3 Kanten pro Ecke → Dreieck)
+- **Geschrumpfte Original-Flächen:** Jede alte n-Eck-Fläche wird zu einem kleineren n-Eck (beim Würfel: Quadrat → kleineres Quadrat)
+
+Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische Notwendigkeit der konvexen Hülle.
+
 ### Bemerkenswerte Zwischenkörper
 
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
