@@ -1,7 +1,7 @@
 // Optimized 3D Convex Hull with conflict lists + rectify
 // Async computation with progress reporting
 
-const EPS = 1e-10;
+const EPS = 1e-14;
 const COPLANAR = 1 - 1e-8;
 const YIELD_EVERY = 100; // yield to event loop every N points
 
@@ -23,11 +23,8 @@ async function convexHull(pts, onProgress) {
   const n = pts.length;
   if (n < 4) return [];
 
+  // Deterministic order (no shuffle) to preserve Oh symmetry
   const order = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    [order[i], order[j]] = [order[j], order[i]];
-  }
 
   let i0 = order[0], i1 = -1, i2 = -1, i3 = -1, maxD = 0;
   for (let i = 1; i < n; i++) {
@@ -251,14 +248,14 @@ async function rectify(coords, onProgress) {
     }
   }
 
-  // Radiale Projektion: jeden Punkt auf die Einheitskugel projizieren
+  // maxR-Normalisierung: uniforme Skalierung, erhält die exakte Geometrie
+  let maxR = 0;
   for (let i = 0; i < midpoints.length; i += 3) {
     const r = Math.sqrt(midpoints[i]**2 + midpoints[i+1]**2 + midpoints[i+2]**2);
-    if (r > 1e-12) {
-      midpoints[i] /= r;
-      midpoints[i+1] /= r;
-      midpoints[i+2] /= r;
-    }
+    if (r > maxR) maxR = r;
+  }
+  if (maxR > 1e-12) {
+    for (let i = 0; i < midpoints.length; i++) midpoints[i] /= maxR;
   }
 
   const outCoords = new Float64Array(midpoints);

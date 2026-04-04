@@ -79,7 +79,10 @@
   Iteration: <span id="s-iter">0</span> &middot;
   Ecken: <span id="s-verts">8</span> &middot;
   Kanten: <span id="s-edges">12</span> &middot;
-  Flächen: <span id="s-faces">6</span>
+  Flächen: <span id="s-faces">6</span> &middot;
+  Dauer: <span id="s-time">-</span> &middot;
+  Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">14</span> &middot;
+  <span id="s-progress"></span>
 </div>
 
 <div id="scene-container"></div>
@@ -106,17 +109,31 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 
 // ---- Worker ----
-const worker = new Worker('worker.js');
+const worker = new Worker('worker.js?v=' + Date.now());
 const pendingCallbacks = new Map();
+const computeStartTimes = new Map();
 
 worker.onmessage = (e) => {
+  if (e.data.type === 'progress') {
+    const { iter, phase, done, total } = e.data;
+    const phaseLabel = phase === 'hull1' ? 'Hull (Kanten)' : 'Hull (Render)';
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    document.getElementById('s-progress').textContent =
+      `Iter ${iter}: ${phaseLabel} ${pct}%`;
+    return;
+  }
+
   const { iter, coords } = e.data;
+  const elapsed = computeStartTimes.has(iter) ? performance.now() - computeStartTimes.get(iter) : null;
+  computeStartTimes.delete(iter);
   const vertices = [];
   for (let i = 0; i < coords.length; i += 3) {
     vertices.push(new THREE.Vector3(coords[i], coords[i+1], coords[i+2]));
   }
-  history[iter] = vertices;
+  history[iter] = { vertices, duration: elapsed };
   pendingCompute.delete(iter);
+  document.getElementById('s-progress').textContent = '';
+  updatePrecomp();
 
   const cb = pendingCallbacks.get(iter);
   if (cb) { pendingCallbacks.delete(iter); cb(); }
@@ -127,7 +144,8 @@ worker.onmessage = (e) => {
 function requestCompute(iter) {
   if (history[iter] || pendingCompute.has(iter)) return;
   pendingCompute.add(iter);
-  const prev = history[iter - 1];
+  computeStartTimes.set(iter, performance.now());
+  const prev = history[iter - 1].vertices;
   const coords = new Float64Array(prev.length * 3);
   for (let i = 0; i < prev.length; i++) {
     coords[i*3] = prev[i].x; coords[i*3+1] = prev[i].y; coords[i*3+2] = prev[i].z;
@@ -157,7 +175,7 @@ dl2.position.set(-5, -2, -5);
 scene.add(dl2);
 
 // ---- State ----
-const MAX_ITER = 13;
+const MAX_ITER = 14;
 function makeCube() {
   const s = 1;
   return [
@@ -168,12 +186,25 @@ function makeCube() {
   ];
 }
 
-const history = [makeCube()];
+const history = [{ vertices: makeCube(), duration: null }];
 const pendingCompute = new Set();
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
+
+function updatePrecomp() {
+  document.getElementById('s-precomp').textContent = history.length - 1;
+}
+
+function formatDuration(ms) {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const remSec = sec % 60;
+  return `${min}:${String(remSec).padStart(2, '0')}`;
+}
 
 function precomputeNext() {
   for (let i = 1; i <= MAX_ITER; i++) {
@@ -224,6 +255,8 @@ function updateStats(computing) {
   document.getElementById('s-verts').textContent = stats.V.toLocaleString();
   document.getElementById('s-edges').textContent = stats.E.toLocaleString();
   document.getElementById('s-faces').textContent = stats.F.toLocaleString();
+  const d = history[currentIdx]?.duration;
+  document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
   document.getElementById('iteration-label').textContent =
     computing ? `Iteration ${currentIdx} \u23f3` : `Iteration ${currentIdx}`;
   document.getElementById('btn-prev').disabled = currentIdx === 0;
@@ -232,12 +265,12 @@ function updateStats(computing) {
 
 function showCurrent() {
   if (history[currentIdx]) {
-    buildMesh(history[currentIdx]);
+    buildMesh(history[currentIdx].vertices);
   } else {
     updateStats(true);
     if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
     pendingCallbacks.set(currentIdx, () => {
-      if (history[currentIdx]) buildMesh(history[currentIdx]);
+      if (history[currentIdx]) buildMesh(history[currentIdx].vertices);
     });
   }
 }
@@ -291,10 +324,17 @@ showCurrent();
 // ---- Mouse orbit ----
 let theta = 0.7, phi = 0.6, radius = 4;
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
+let autoRotateTimer = null;
+
+function pauseAutoRotate() {
+  autoRotate = false;
+  clearTimeout(autoRotateTimer);
+  autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
+}
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   dragging = true; lastX = e.clientX; lastY = e.clientY;
-  autoRotate = false;
+  pauseAutoRotate();
 });
 window.addEventListener('pointermove', (e) => {
   if (!dragging) return;
@@ -306,6 +346,7 @@ window.addEventListener('pointerup', () => { dragging = false; });
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
   radius = Math.max(1.5, Math.min(10, radius + e.deltaY * 0.005));
+  pauseAutoRotate();
 }, { passive: false });
 
 (function animate() {

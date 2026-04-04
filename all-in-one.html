@@ -82,7 +82,7 @@
   Kanten: <span id="s-edges">12</span> &middot;
   Flächen: <span id="s-faces">6</span> &middot;
   Dauer: <span id="s-time">-</span> &middot;
-  Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">13</span> &middot;
+  Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">14</span> &middot;
   <span id="s-progress"></span>
 </div>
 
@@ -98,7 +98,7 @@
 
 <!-- Inline Worker Source -->
 <script id="worker-src" type="text/worker">
-const EPS = 1e-10;
+const EPS = 1e-14;
 const COPLANAR = 1 - 1e-8;
 const YIELD_EVERY = 100;
 
@@ -119,11 +119,8 @@ async function convexHull(pts, onProgress) {
   const n = pts.length;
   if (n < 4) return [];
 
+  // Deterministic order (no shuffle) to preserve Oh symmetry
   const order = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    [order[i], order[j]] = [order[j], order[i]];
-  }
 
   let i0 = order[0], i1 = -1, i2 = -1, i3 = -1, maxD = 0;
   for (let i = 1; i < n; i++) {
@@ -336,13 +333,14 @@ async function rectify(coords, onProgress) {
     }
   }
 
+  // maxR-Normalisierung: uniforme Skalierung, erhält die exakte Geometrie
+  let maxR = 0;
   for (let i = 0; i < midpoints.length; i += 3) {
     const r = Math.sqrt(midpoints[i]**2 + midpoints[i+1]**2 + midpoints[i+2]**2);
-    if (r > 1e-12) {
-      midpoints[i] /= r;
-      midpoints[i+1] /= r;
-      midpoints[i+2] /= r;
-    }
+    if (r > maxR) maxR = r;
+  }
+  if (maxR > 1e-12) {
+    for (let i = 0; i < midpoints.length; i++) midpoints[i] /= maxR;
   }
 
   const outCoords = new Float64Array(midpoints);
@@ -467,7 +465,7 @@ dl2.position.set(-5, -2, -5);
 scene.add(dl2);
 
 // ---- State ----
-const MAX_ITER = 13;
+const MAX_ITER = 14;
 const cubePositions = new Float32Array([
   -1,-1,-1, -1,-1,1, -1,1,-1, -1,1,1,
    1,-1,-1,  1,-1,1,  1,1,-1,  1,1,1
