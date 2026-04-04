@@ -112,7 +112,6 @@ Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die Oh-Symmetrie erzwingt, dass
 |-------|-------------|
 | `Wuerfel-zu-Kugel.html` | Standalone — eine einzige HTML-Datei, funktioniert ohne Server |
 | `index.html` + `worker.js` | Zwei-Dateien-Version, braucht HTTP-Server |
-| `all-in-one.html` | Standalone mit Worker als Blob-URL |
 
 ### Lokal starten
 
