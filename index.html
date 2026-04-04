@@ -6,6 +6,14 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="apple-touch-icon" sizes="64x64" href="favicon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="description" content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wie er zur Kugel konvergiert.">
+<meta property="og:title" content="Vom Würfel zur Kugel">
+<meta property="og:description" content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wie er zur Kugel konvergiert.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://crambambuli.github.io/cube-to-sphere/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://crambambuli.github.io/cube-to-sphere/">
 <title>Iterative Eckenabschneidung eines Würfels</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -349,8 +357,8 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 });
 window.addEventListener('pointermove', (e) => {
   if (!dragging) return;
-  theta -= (e.clientX - lastX) * 0.007;
-  phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + (e.clientY - lastY) * 0.007));
+  theta += (e.clientX - lastX) * 0.007;
+  phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi - (e.clientY - lastY) * 0.007));
   lastX = e.clientX; lastY = e.clientY;
 });
 window.addEventListener('pointerup', () => { dragging = false; });
