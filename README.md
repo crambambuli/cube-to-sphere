@@ -2,7 +2,7 @@
 
 Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wie er zur Kugel konvergiert.
 
-**[Live-Demo](https://crambambuli.github.io/cube-to-sphere/Wuerfel-zu-Kugel.html)**
+**[Live-Demo](https://crambambuli.github.io/cube-to-sphere/cube-to-sphere.html)**
 
 ![Vorschau](og-image.jpg)
 
@@ -110,14 +110,14 @@ Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die Oh-Symmetrie erzwingt, dass
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `Wuerfel-zu-Kugel.html` | Standalone — eine einzige HTML-Datei, funktioniert ohne Server |
+| `cube-to-sphere.html` | Standalone — eine einzige HTML-Datei, funktioniert ohne Server |
 | `index.html` + `worker.js` | Zwei-Dateien-Version, braucht HTTP-Server |
 
 ### Lokal starten
 
 ```bash
 # Standalone (Doppelklick oder):
-open Wuerfel-zu-Kugel.html
+open cube-to-sphere.html
 
 # Oder mit Server (für index.html + worker.js):
 python3 -m http.server 8766
