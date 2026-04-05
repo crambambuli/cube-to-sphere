@@ -92,6 +92,22 @@ Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die Oh-Symmetrie erzwingt, dass
 
 **Konvergenzrate:** σₙ ≈ σ₀ · (1/2)ⁿ · C. Bei σ₀ ≈ 0.18 (Würfel) ist σ₁₂ ≈ 0.0001, also ca. 0.01% Abweichung.
 
+### Warum konvergieren die Würfelecken langsamer?
+
+In der Visualisierung sind die 8 Positionen der ursprünglichen Würfelecken noch bei Iteration 10+ als leichte Beulen erkennbar. Das ist kein numerischer Fehler, sondern hat mathematische Gründe.
+
+**Nicht-uniforme Glättung.** Die Rektifikation behandelt verschiedene Regionen der Oberfläche unterschiedlich:
+
+- **Würfelecken** (8 Stück): Hier treffen 3 Kanten im 90°-Winkel aufeinander — starke Krümmung. Bei jeder Iteration wird die Ecke durch ein Polygon ersetzt, aber die lokale Geometrie "erinnert" sich an die Singularität. Die Vertex-Dichte und der Abstand zum Zentrum unterscheiden sich hier von anderen Regionen.
+- **Würfelflächen-Zentren** (6 Stück): Flache Regionen, die bei jeder Iteration flach bleiben und sich kaum verändern.
+- **Würfelkanten-Mitten** (12 Stück): Mittlere Krümmung, konvergieren schneller.
+
+Das ist analog zu **Subdivision Surfaces** in der Computergrafik: sogenannte "extraordinary vertices" (Vertices mit nicht-standardmäßiger Valenz) konvergieren deutlich langsamer gegen die Grenzfläche als reguläre Vertices. Die 8 Würfelecken sind genau solche Singularitäten.
+
+**Die Normalisierung verstärkt den Effekt.** Nach jeder Iteration wird durch max(r) geteilt. Die Vertices nahe den Würfelecken sind tendenziell die am weitesten vom Zentrum entfernten — sie werden auf Abstand 1 normiert, während alle anderen Vertices innerhalb der Einheitskugel liegen. Die Ecken "beulen" sich dadurch systematisch heraus.
+
+**Konvergenzgeschwindigkeit.** Das Verhältnis r_min/r_max verbessert sich nur linear (nicht exponentiell) pro Iteration, sodass bei Iteration 12 die Abweichung noch einige Prozent betragen kann — sichtbar als 8 leichte Beulen an den Oktaeder-Achsen.
+
 ### Sind die Schnittflächen immer plan?
 
 Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1) oder Sechsecke in späteren Iterationen. Die Frage ist: Liegen diese Punkte exakt in einer Ebene, oder sind die Flächen "verbogen"?
