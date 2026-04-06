@@ -32,17 +32,17 @@ Die Kanten verdoppeln sich exakt bei jeder Iteration.
 
 ### Beweis: Konvergenz zur Kugel
 
-**Behauptung:** Sei P<sub>0</sub> ein Würfel. Definiere P<sub>n+1</sub> als die konvexe Hülle der Kantenmittelpunkte von P<sub>n</sub>, normiert so dass max |v| = 1 für alle Vertices v. Dann konvergiert die Folge (P<sub>n</sub>) im Hausdorff-Abstand gegen die Einheitskugel S².
+**Behauptung:** Sei P<sub>0</sub> ein Würfel. Definiere P<sub>n+1</sub> als die konvexe Hülle der Kantenmittelpunkte von P<sub>n</sub>, normiert so dass max |v| = 1 für alle Vertices v. Dann konvergiert die Folge (P<sub>n</sub>) im Hausdorff-Abstand gegen die Einheitskugel S² (die 2-dimensionale Kugeloberfläche im 3D-Raum).
 
 ---
 
 **Teil 1 — Symmetrie bleibt erhalten**
 
-Der Würfel hat die Oktaedersymmetrie Oh (48 Operationen: Drehungen + Spiegelungen).
+Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> (48 Symmetrieoperationen). Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen — zusammen 48 Operationen. Dies ist gleichzeitig die Symmetriegruppe des Würfels und des Oktaeders, da beide duale Körper sind.
 
-Jede Symmetrieoperation bildet Ecken auf Ecken ab, also Kanten auf Kanten, also Kantenmittelpunkte auf Kantenmittelpunkte. Die Menge der Mittelpunkte ist Oh-invariant, also ist die konvexe Hülle auch Oh-symmetrisch.
+Jede Symmetrieoperation bildet Ecken auf Ecken ab, also Kanten auf Kanten, also Kantenmittelpunkte auf Kantenmittelpunkte. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant, also ist die konvexe Hülle auch O<sub>h</sub>-symmetrisch.
 
-→ Jede Iteration erhält die Oh-Symmetrie. ✓
+→ Jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
 ---
 
@@ -86,9 +86,9 @@ Da σ<sub>n</sub> → 0, konvergiert der Hausdorff-Abstand d<sub>H</sub>(P<sub>n
 
 ---
 
-**Warum die Oh-Symmetrie entscheidend ist**
+**Warum die O<sub>h</sub>-Symmetrie entscheidend ist**
 
-Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die Oh-Symmetrie erzwingt, dass der Grenzkörper in allen 48 Orientierungen identisch aussieht. Der einzige glatte konvexe Körper mit dieser Eigenschaft ist die Kugel.
+Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die O<sub>h</sub>-Symmetrie erzwingt, dass der Grenzkörper in allen 48 Orientierungen identisch aussieht. Der einzige glatte konvexe Körper mit dieser Eigenschaft ist die Kugel.
 
 **Konvergenzrate:** σ<sub>n</sub> ≈ σ<sub>0</sub> · (1/2)ⁿ · C. Bei σ<sub>0</sub> ≈ 0,18 (Würfel) ist σ<sub>12</sub> ≈ 0,0001, also ca. 0,01% Abweichung.
 
