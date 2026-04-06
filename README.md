@@ -32,7 +32,7 @@ Die Kanten verdoppeln sich exakt bei jeder Iteration.
 
 ### Beweis: Konvergenz zur Kugel
 
-**Behauptung:** Sei P₀ ein Würfel. Definiere P_{n+1} als die konvexe Hülle der Kantenmittelpunkte von Pₙ, normiert so dass max |v| = 1 für alle Vertices v. Dann konvergiert die Folge (Pₙ) im Hausdorff-Abstand gegen die Einheitskugel S².
+**Behauptung:** Sei P<sub>0</sub> ein Würfel. Definiere P<sub>n+1</sub> als die konvexe Hülle der Kantenmittelpunkte von P<sub>n</sub>, normiert so dass max |v| = 1 für alle Vertices v. Dann konvergiert die Folge (P<sub>n</sub>) im Hausdorff-Abstand gegen die Einheitskugel S².
 
 ---
 
@@ -48,29 +48,29 @@ Jede Symmetrieoperation bildet Ecken auf Ecken ab, also Kanten auf Kanten, also 
 
 **Teil 2 — Abstandsstreuung nimmt ab**
 
-Nach Normierung gilt r_max = 1. Definiere die Sphärizität:
+Nach Normierung gilt r<sub>max</sub> = 1. Definiere die Sphärizität:
 
-    σₙ = 1 − r_min
+σ<sub>n</sub> = 1 − r<sub>min</sub>
 
-Wir zeigen σₙ → 0.
+Wir zeigen σ<sub>n</sub> → 0.
 
-Für zwei benachbarte Vertices a, b mit Abständen rₐ, r_b und Winkelabstand α gilt für den Mittelpunkt m = (a+b)/2:
+Für zwei benachbarte Vertices a, b mit Abständen r<sub>a</sub>, r<sub>b</sub> und Winkelabstand α gilt für den Mittelpunkt m = (a+b)/2:
 
-    |m|² = (rₐ² + r_b² + 2·rₐ·r_b·cos α) / 4
+|m|² = (r<sub>a</sub>² + r<sub>b</sub>² + 2·r<sub>a</sub>·r<sub>b</sub>·cos α) / 4
 
 Die Mittelwertbildung reduziert Extremwerte: der minimale Abstand wird angehoben (gemittelt mit größeren Nachbarn), der maximale wird gesenkt (gemittelt mit kleineren).
 
 Untere Schranke für den neuen Minimalabstand:
 
-    r_min' ≥ (r_min + r_max)/2 · cos(α_max/2)
+r<sub>min</sub>' ≥ (r<sub>min</sub> + r<sub>max</sub>)/2 · cos(α<sub>max</sub>/2)
 
 ---
 
 **Teil 3 — Winkelabstände schrumpfen**
 
-Der maximale Winkelabstand α_max zwischen benachbarten Vertices halbiert sich asymptotisch:
+Der maximale Winkelabstand α<sub>max</sub> zwischen benachbarten Vertices halbiert sich asymptotisch:
 
-    α_max(n+1) ≤ α_max(n) · c   mit c < 1
+α<sub>max</sub>(n+1) ≤ α<sub>max</sub>(n) · c   mit c < 1
 
 Denn: jede Kante wird durch kürzere Kanten ersetzt, die Vertex-Anzahl verdoppelt sich (V' = E, E' = 2E nach Euler), die Punkte liegen immer dichter.
 
@@ -78,11 +78,11 @@ Denn: jede Kante wird durch kürzere Kanten ersetzt, die Vertex-Anzahl verdoppel
 
 **Zusammenführung**
 
-1. σ_{n+1} < σₙ · (1 − δₙ) mit δₙ > 0
-2. α_max → 0 geometrisch, also cos(α_max/2) → 1
-3. Teleskopprodukt: σₙ → 0
+1. σ<sub>n+1</sub> < σ<sub>n</sub> · (1 − δ<sub>n</sub>) mit δ<sub>n</sub> > 0
+2. α<sub>max</sub> → 0 geometrisch, also cos(α<sub>max</sub>/2) → 1
+3. Teleskopprodukt: σ<sub>n</sub> → 0
 
-Da σₙ → 0, konvergiert der Hausdorff-Abstand d_H(Pₙ, S²) → 0. ∎
+Da σ<sub>n</sub> → 0, konvergiert der Hausdorff-Abstand d<sub>H</sub>(P<sub>n</sub>, S²) → 0. ∎
 
 ---
 
@@ -90,7 +90,7 @@ Da σₙ → 0, konvergiert der Hausdorff-Abstand d_H(Pₙ, S²) → 0. ∎
 
 Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die Oh-Symmetrie erzwingt, dass der Grenzkörper in allen 48 Orientierungen identisch aussieht. Der einzige glatte konvexe Körper mit dieser Eigenschaft ist die Kugel.
 
-**Konvergenzrate:** σₙ ≈ σ₀ · (1/2)ⁿ · C. Bei σ₀ ≈ 0.18 (Würfel) ist σ₁₂ ≈ 0.0001, also ca. 0.01% Abweichung.
+**Konvergenzrate:** σ<sub>n</sub> ≈ σ<sub>0</sub> · (1/2)ⁿ · C. Bei σ<sub>0</sub> ≈ 0,18 (Würfel) ist σ<sub>12</sub> ≈ 0,0001, also ca. 0,01% Abweichung.
 
 ### Warum konvergieren die Würfelecken langsamer?
 
@@ -106,7 +106,7 @@ Das ist analog zu **Subdivision Surfaces** in der Computergrafik: sogenannte "ex
 
 **Die Normalisierung verstärkt den Effekt.** Nach jeder Iteration wird durch max(r) geteilt. Die Vertices nahe den Würfelecken sind tendenziell die am weitesten vom Zentrum entfernten — sie werden auf Abstand 1 normiert, während alle anderen Vertices innerhalb der Einheitskugel liegen. Die Ecken "beulen" sich dadurch systematisch heraus.
 
-**Konvergenzgeschwindigkeit.** Das Verhältnis r_min/r_max verbessert sich nur linear (nicht exponentiell) pro Iteration, sodass bei Iteration 12 die Abweichung noch einige Prozent betragen kann — sichtbar als 8 leichte Beulen an den Oktaeder-Achsen.
+**Konvergenzgeschwindigkeit.** Das Verhältnis r<sub>min</sub>/r<sub>max</sub> verbessert sich nur linear (nicht exponentiell) pro Iteration, sodass bei Iteration 12 die Abweichung noch einige Prozent betragen kann — sichtbar als 8 leichte Beulen an den Oktaeder-Achsen.
 
 ### Sind die Schnittflächen immer plan?
 
