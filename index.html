@@ -58,6 +58,8 @@
     flex-shrink: 0;
     background: #1a1a2e;
     flex-wrap: wrap;
+    z-index: 10;
+    position: relative;
   }
   button {
     background: #16213e;
@@ -100,7 +102,9 @@
   Kanten: <span id="s-edges">12</span> &middot;
   Flächen: <span id="s-faces">6</span> &middot;
   Dauer: <span id="s-time">-</span> &middot;
-  Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">13</span> &middot;
+  Outlier: <span id="s-outliers">8</span> &middot;
+  Abweichung: <span id="s-dev">-</span> &middot;
+  Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">20</span> &middot;
   <span id="s-progress"></span>
 </div>
 
@@ -125,7 +129,6 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 
 // ---- Worker ----
 const worker = new Worker('worker.js?v=' + Date.now());
@@ -135,21 +138,25 @@ const computeStartTimes = new Map();
 worker.onmessage = (e) => {
   if (e.data.type === 'progress') {
     const { iter, phase, done, total } = e.data;
-    const phaseLabel = phase === 'hull1' ? 'Hull (Kanten)' : 'Hull (Render)';
     const pct = total > 0 ? Math.round(done / total * 100) : 0;
     document.getElementById('s-progress').textContent =
-      `Iter ${iter}: ${phaseLabel} ${pct}%`;
+      `Iter ${iter}: ${phase} ${pct}%`;
     return;
   }
 
-  const { iter, coords } = e.data;
+  const { iter, coords, triIndices, deviations, rAvg, vertCount, edgeCount, faceCount } = e.data;
   const elapsed = computeStartTimes.has(iter) ? performance.now() - computeStartTimes.get(iter) : null;
   computeStartTimes.delete(iter);
   const vertices = [];
   for (let i = 0; i < coords.length; i += 3) {
     vertices.push(new THREE.Vector3(coords[i], coords[i+1], coords[i+2]));
   }
-  history[iter] = { vertices, duration: elapsed };
+  history[iter] = {
+    vertices, triIndices: new Uint32Array(triIndices),
+    deviations: deviations ? new Float64Array(deviations) : null,
+    rAvg: rAvg || 1, duration: elapsed,
+    vertCount, edgeCount, faceCount,
+  };
   pendingCompute.delete(iter);
   document.getElementById('s-progress').textContent = '';
   updatePrecomp();
@@ -164,12 +171,7 @@ function requestCompute(iter) {
   if (history[iter] || pendingCompute.has(iter)) return;
   pendingCompute.add(iter);
   computeStartTimes.set(iter, performance.now());
-  const prev = history[iter - 1].vertices;
-  const coords = new Float64Array(prev.length * 3);
-  for (let i = 0; i < prev.length; i++) {
-    coords[i*3] = prev[i].x; coords[i*3+1] = prev[i].y; coords[i*3+2] = prev[i].z;
-  }
-  worker.postMessage({ iter, coords }, [coords.buffer]);
+  worker.postMessage({ iter });
 }
 
 // ---- Scene ----
@@ -194,18 +196,9 @@ dl2.position.set(-5, -2, -5);
 scene.add(dl2);
 
 // ---- State ----
-const MAX_ITER = 13;
-function makeCube() {
-  const s = 1;
-  return [
-    new THREE.Vector3(-s,-s,-s), new THREE.Vector3(-s,-s,s),
-    new THREE.Vector3(-s,s,-s), new THREE.Vector3(-s,s,s),
-    new THREE.Vector3(s,-s,-s), new THREE.Vector3(s,-s,s),
-    new THREE.Vector3(s,s,-s), new THREE.Vector3(s,s,s),
-  ];
-}
-
-const history = [{ vertices: makeCube(), duration: null }];
+const MAX_ITER = 20;
+// Worker liefert alle Iterationen (inkl. iter=0 → Cube)
+const history = [];
 const pendingCompute = new Set();
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
@@ -226,8 +219,8 @@ function formatDuration(ms) {
 }
 
 function precomputeNext() {
-  for (let i = 1; i <= MAX_ITER; i++) {
-    if (!history[i] && !pendingCompute.has(i) && history[i-1]) {
+  for (let i = 0; i <= MAX_ITER; i++) {
+    if (!history[i] && !pendingCompute.has(i) && (i === 0 || history[i-1])) {
       requestCompute(i);
       return;
     }
@@ -236,7 +229,9 @@ function precomputeNext() {
 precomputeNext();
 
 // ---- Rendering ----
-function buildMesh(vertices) {
+const OUTLIER_THRESHOLD = 0.01;
+
+function buildMesh(data) {
   while (meshGroup.children.length) {
     const c = meshGroup.children[0];
     c.geometry?.dispose();
@@ -244,36 +239,92 @@ function buildMesh(vertices) {
     meshGroup.remove(c);
   }
 
-  const solidGeom = new ConvexGeometry(vertices);
-  meshGroup.add(new THREE.Mesh(solidGeom, new THREE.MeshPhysicalMaterial({
-    color: palette[currentIdx % palette.length],
-    transparent: true, opacity: 0.25, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
+  const { vertices, triIndices, deviations, rAvg } = data;
+  const color = palette[currentIdx % palette.length];
+  const sphereRadius = rAvg || 1;
+
+  // Referenz-Kugel (Best-Fit-Radius)
+  const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
+  meshGroup.add(new THREE.Mesh(sphereGeom, new THREE.MeshPhysicalMaterial({
+    color, transparent: true, opacity: 0.35, roughness: 0.2, metalness: 0.2, side: THREE.DoubleSide,
   })));
+  // Kugel-Wireframe
   meshGroup.add(new THREE.LineSegments(
-    new THREE.EdgesGeometry(solidGeom, 1),
-    new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.7 })
+    new THREE.EdgesGeometry(sphereGeom, 15),
+    new THREE.LineBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.2 })
   ));
 
-  const dotGeom = new THREE.SphereGeometry(0.003, 4, 4);
-  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffff88 });
-  for (const v of vertices) {
-    const dot = new THREE.Mesh(dotGeom, dotMat);
-    dot.position.copy(v);
+  // Outlier bestimmen: Punkte die signifikant von der Kugel abweichen
+  const dotGeom = new THREE.SphereGeometry(0.004, 4, 4);
+  const dotMatOuter = new THREE.MeshBasicMaterial({ color: 0xff4444 }); // rot: außerhalb
+  const dotMatInner = new THREE.MeshBasicMaterial({ color: 0x44ff88 }); // grün: innerhalb
+
+  // Prüfen ob es überhaupt Outlier gibt
+  let maxAbsDev = 0;
+  if (deviations) {
+    for (let i = 0; i < deviations.length; i++) {
+      const abs = Math.abs(deviations[i]);
+      if (abs > maxAbsDev) maxAbsDev = abs;
+    }
+  }
+  const showAll = !deviations || maxAbsDev <= OUTLIER_THRESHOLD;
+
+  const MAX_OUTLIERS = 32768; // 2^15
+
+  // Kandidaten sammeln
+  const candidates = [];
+  for (let i = 0; i < vertices.length; i++) {
+    const absDev = deviations ? Math.abs(deviations[i]) : 1;
+    if (showAll || absDev > OUTLIER_THRESHOLD) {
+      candidates.push({ i, absDev });
+    }
+  }
+
+  // Bei zu vielen Kandidaten: zufällige Auswahl
+  if (candidates.length > MAX_OUTLIERS) {
+    // Fisher-Yates Shuffle, dann abschneiden
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    candidates.length = MAX_OUTLIERS;
+  }
+
+  let outlierCount = candidates.length;
+  for (const { i } of candidates) {
+    const mat = (deviations && deviations[i] < 0) ? dotMatOuter : dotMatInner;
+    const dot = new THREE.Mesh(dotGeom, mat);
+    dot.position.copy(vertices[i]);
     meshGroup.add(dot);
   }
+
+  document.getElementById('s-outliers').textContent =
+    showAll ? `${outlierCount.toLocaleString()} (alle)` : outlierCount.toLocaleString();
+
+  // Min/Max Abweichung normiert auf rAvg
+  if (deviations && deviations.length > 0) {
+    let minDev = Infinity, maxDev = -Infinity;
+    for (let i = 0; i < deviations.length; i++) {
+      if (deviations[i] < minDev) minDev = deviations[i];
+      if (deviations[i] > maxDev) maxDev = deviations[i];
+    }
+    const r = sphereRadius || 1;
+    const minPct = (minDev / r * 100).toFixed(3);
+    const maxPct = (maxDev / r * 100).toFixed(3);
+    document.getElementById('s-dev').textContent = `${minPct}% .. +${maxPct}%`;
+  } else {
+    document.getElementById('s-dev').textContent = '-';
+  }
+
   updateStats(false);
 }
 
 function updateStats(computing) {
-  const stats = { V: 8, E: 12, F: 6 };
-  for (let i = 0; i < currentIdx; i++) {
-    const { V, E, F } = stats;
-    stats.V = E; stats.E = 2 * E; stats.F = V + F;
-  }
+  const h = history[currentIdx];
   document.getElementById('s-iter').textContent = currentIdx;
-  document.getElementById('s-verts').textContent = stats.V.toLocaleString();
-  document.getElementById('s-edges').textContent = stats.E.toLocaleString();
-  document.getElementById('s-faces').textContent = stats.F.toLocaleString();
+  document.getElementById('s-verts').textContent = h?.vertCount?.toLocaleString() ?? '-';
+  document.getElementById('s-edges').textContent = h?.edgeCount?.toLocaleString() ?? '-';
+  document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
   const d = history[currentIdx]?.duration;
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
   document.getElementById('iteration-label').textContent =
@@ -284,12 +335,12 @@ function updateStats(computing) {
 
 function showCurrent() {
   if (history[currentIdx]) {
-    buildMesh(history[currentIdx].vertices);
+    buildMesh(history[currentIdx]);
   } else {
     updateStats(true);
     if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
     pendingCallbacks.set(currentIdx, () => {
-      if (history[currentIdx]) buildMesh(history[currentIdx].vertices);
+      if (history[currentIdx]) buildMesh(history[currentIdx]);
     });
   }
 }
