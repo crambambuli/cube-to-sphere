@@ -94,19 +94,106 @@ Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische N
 - **Iteration 2:** Rhombikuboctaeder-artig (24 Ecken, 48 Kanten, 26 Flächen)
 - **Ab Iteration 5:** visuell kugelähnlich, aber messbar nicht-sphärisch
 
+## Die Anwendung
+
+### Darstellung
+
+Die Anwendung zeigt den Körper in zwei Modi:
+
+- **Iteration 0–10 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending.
+- **Ab Iteration 11 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel als Referenz. Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten.
+
+### Farbcodierung der Punkte
+
+Jeder Vertex-Punkt ist nach seiner Abweichung von der Best-Fit-Kugel eingefärbt:
+
+- **Rot** — außerhalb der Kugel (Beule, an den Würfelecken-Positionen)
+- **Grün** — innerhalb der Kugel (Delle, an den Flächenzentren)
+- **Grau** — auf der Kugeloberfläche (kaum Abweichung)
+
+Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe.
+
+### Sampling
+
+Bei mehr als 49.152 Vertices wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples.
+
+### Stats-Zeile
+
+| Feld | Bedeutung |
+|------|-----------|
+| Iteration | Aktuelle Rektifikationsstufe (0 = Würfel) |
+| Ecken | Anzahl Vertices (exakt aus Topologie, nicht Euler-Schätzung) |
+| Kanten | Anzahl Kanten (verdoppelt sich pro Iteration: E' = 2E) |
+| Flächen | Anzahl Flächen (F' = V + F) |
+| Dauer | Berechnungszeit der Iteration im Web Worker |
+| Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |
+| Abweichung | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent |
+| Vorberechnet | Anzahl bereits im Hintergrund berechneter Iterationen |
+
+Werte zeigen "-" an, solange die Iteration noch berechnet wird.
+
+### Vorberechnung
+
+Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Der Web Worker berechnet jeweils die nächste Iteration, sobald die vorherige fertig ist. Beim Klick auf "Weiter" wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist.
+
+## Bedienung
+
+| Aktion | Desktop | Mobil |
+|--------|---------|-------|
+| Nächste Iteration | Weiter-Button oder → oder Leertaste | Weiter-Button |
+| Vorherige Iteration | Zurück-Button oder ← | Zurück-Button |
+| Automatisch durchlaufen | Auto-Button oder A | Auto-Button |
+| Reset auf Würfel | Reset-Button oder R | Reset-Button |
+| Körper drehen | Maus ziehen | Finger ziehen |
+| Zoomen | Scrollrad | Pinch-Geste |
+
+Die Auto-Rotation des Körpers pausiert 3 Sekunden nach manueller Interaktion und setzt dann wieder ein.
+
 ## Technische Umsetzung
 
-- **Three.js** für 3D-Rendering (WebGL)
-- **Web Worker** mit topologischer Rektifikation (Polygon-Flächen, exakte Kantenanzahl via Euler)
-- **Best-Fit-Kugel** als Referenz mit Outlier-Visualisierung (rot = außerhalb, grün = innerhalb)
-- **Responsive** — funktioniert auf Desktop und Mobilgeräten (Touch-Rotation, Pinch-to-Zoom)
+### Architektur
+
+```
+┌─────────────────┐    postMessage({iter})     ┌─────────────────┐
+│   Main Thread    │ ──────────────────────── → │   Web Worker    │
+│                  │                            │                 │
+│  Three.js        │    {coords, triIndices,    │  Topologische   │
+│  Rendering       │ ← ──────────────────────── │  Rektifikation  │
+│  UI / Events     │     deviations, stats}     │                 │
+└─────────────────┘                            └─────────────────┘
+```
+
+- **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Keine geometrische Berechnung — nur Darstellung.
+- **Web Worker** (`worker.js`): Topologische Rektifikation mit Polygon-Flächen. Pflegt eigenen Zustand (Vertices + Faces) über Iterationen. Gibt Koordinaten, triangulierte Indizes, Abweichungen und exakte Zählungen zurück.
+
+### Topologische Rektifikation (worker.js)
+
+Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei fast-sphärischen Körpern), führt der Worker die **Flächen-Topologie** explizit mit:
+
+1. **Kanten sammeln:** Aus den Polygon-Flächen werden alle Kanten und deren Mittelpunkte berechnet.
+2. **Geschrumpfte Flächen:** Jede alte Fläche wird durch die Mittelpunkte ihrer Kanten ersetzt.
+3. **Vertex-Figuren:** Für jeden alten Vertex werden die Mittelpunkte seiner Kanten in der richtigen zyklischen Reihenfolge (via Flächen-Adjazenz) zu einem neuen Polygon verbunden.
+4. **Normalisierung:** Alle Vertices werden durch den Durchschnittsradius geteilt (nicht maxR — siehe Diskussion oben).
+5. **Deviations:** Abstand jedes Vertex von der Einheitskugel nach Normalisierung.
+6. **Triangulierung:** Fan-Triangulierung mit konsistenter Winding-Order (Normalen nach außen).
+
+### Rendering (index.html)
+
+- **BufferGeometry** statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
+- **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten, dann Vorderseiten).
+- **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen.
+- **Sphärische Kamerasteuerung** ohne OrbitControls (vermeidet Pointer-Capture-Konflikte).
+- **Auto-Rotation** mit 3s Pause nach manueller Interaktion.
 
 ### Dateien
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `cube-rectification.html` | Standalone — eine einzige HTML-Datei, funktioniert ohne Server |
-| `index.html` + `worker.js` | Zwei-Dateien-Version, braucht HTTP-Server |
+| `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit inline Worker, funktioniert ohne Server |
+| `index.html` | Main Thread: Three.js-Rendering, UI, Kamerasteuerung |
+| `worker.js` | Web Worker: Topologische Rektifikation, Normalisierung, Triangulierung |
+| `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
+| `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Social Media |
 
 ### Lokal starten
 
@@ -118,14 +205,6 @@ open cube-rectification.html
 python3 -m http.server 8766
 # → http://localhost:8766
 ```
-
-## Bedienung
-
-- **Weiter / Zurück** — nächste/vorherige Iteration (oder Pfeiltasten)
-- **Auto** — automatisch durchlaufen
-- **Ziehen** — Körper drehen (Touch oder Maus)
-- **Pinch / Scrollrad** — Zoomen
-- **R** — Reset, **A** — Auto-Modus
 
 ## Lizenz
 
