@@ -378,7 +378,7 @@ function buildMesh(data) {
 
   // Bei hohen Iterationen (>49.152 Vertices) zufälliges Sampling
   // für gleichmäßige Verteilung und Performance
-  const MAX_DOTS = 49152;
+  const MAX_DOTS = 50000;
   const dotGeom = new THREE.SphereGeometry(0.003, 4, 4);
   const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
   if (candidates.length > MAX_DOTS) {
