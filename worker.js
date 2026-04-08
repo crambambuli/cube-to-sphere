@@ -149,10 +149,28 @@ async function rectifyTopological(vertices, faces, onProgress) {
   }
 
   // 7. Flächen triangulieren (Fan) für Rendering
+  // Normale nach außen orientieren (weg vom Ursprung)
   const triIndices = [];
   for (const face of newFaces) {
-    for (let j = 1; j < face.length - 1; j++) {
-      triIndices.push(face[0], face[j], face[j + 1]);
+    if (face.length < 3) continue;
+    const a = newVertices[face[0]], b = newVertices[face[1]], c = newVertices[face[2]];
+    // Flächennormale via Kreuzprodukt
+    const abx = b[0]-a[0], aby = b[1]-a[1], abz = b[2]-a[2];
+    const acx = c[0]-a[0], acy = c[1]-a[1], acz = c[2]-a[2];
+    const nx = aby*acz - abz*acy, ny = abz*acx - abx*acz, nz = abx*acy - aby*acx;
+    // Dot mit Zentroid der Fläche (≈ Richtung vom Ursprung)
+    let cx2 = 0, cy2 = 0, cz2 = 0;
+    for (const vi of face) { cx2 += newVertices[vi][0]; cy2 += newVertices[vi][1]; cz2 += newVertices[vi][2]; }
+    const outward = nx*cx2 + ny*cy2 + nz*cz2;
+    // Wenn Normale nach innen zeigt: Reihenfolge umkehren
+    if (outward >= 0) {
+      for (let j = 1; j < face.length - 1; j++) {
+        triIndices.push(face[0], face[j], face[j + 1]);
+      }
+    } else {
+      for (let j = 1; j < face.length - 1; j++) {
+        triIndices.push(face[0], face[j + 1], face[j]);
+      }
     }
   }
 

@@ -49,6 +49,7 @@
     flex-shrink: 0;
   }
   #stats span { color: #7ec8e3; font-weight: bold; }
+  #s-progress { display: inline-block; min-width: 14em; }
   #controls {
     display: flex;
     gap: 6px;
@@ -79,7 +80,6 @@
     font-size: clamp(0.85rem, 3vw, 1.1rem);
     color: #7ec8e3;
     font-weight: bold;
-    min-width: 100px;
     text-align: center;
   }
   @media (max-width: 480px) {
@@ -102,7 +102,7 @@
   Kanten: <span id="s-edges">12</span> &middot;
   Flächen: <span id="s-faces">6</span> &middot;
   Dauer: <span id="s-time">-</span> &middot;
-  Outlier: <span id="s-outliers">8</span> &middot;
+  Samples: <span id="s-outliers">8</span> &middot;
   Abweichung: <span id="s-dev">-</span> &middot;
   Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">20</span> &middot;
   <span id="s-progress"></span>
@@ -229,7 +229,6 @@ function precomputeNext() {
 precomputeNext();
 
 // ---- Rendering ----
-const OUTLIER_THRESHOLD = 0.01;
 
 function buildMesh(data) {
   while (meshGroup.children.length) {
@@ -243,23 +242,43 @@ function buildMesh(data) {
   const color = palette[currentIdx % palette.length];
   const sphereRadius = rAvg || 1;
 
-  // Referenz-Kugel (Best-Fit-Radius)
-  const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
-  meshGroup.add(new THREE.Mesh(sphereGeom, new THREE.MeshPhysicalMaterial({
-    color, transparent: true, opacity: 0.35, roughness: 0.2, metalness: 0.2, side: THREE.DoubleSide,
-  })));
-  // Kugel-Wireframe
-  meshGroup.add(new THREE.LineSegments(
-    new THREE.EdgesGeometry(sphereGeom, 15),
-    new THREE.LineBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.2 })
-  ));
+  if (currentIdx <= 10 && triIndices && triIndices.length > 0) {
+    // Flächen und Kanten des Polyeders anzeigen
+    const positions = new Float32Array(vertices.length * 3);
+    for (let i = 0; i < vertices.length; i++) {
+      positions[i*3] = vertices[i].x; positions[i*3+1] = vertices[i].y; positions[i*3+2] = vertices[i].z;
+    }
+    const polyGeom = new THREE.BufferGeometry();
+    polyGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    polyGeom.setIndex(new THREE.BufferAttribute(triIndices, 1));
+    polyGeom.computeVertexNormals();
 
-  // Outlier bestimmen: Punkte die signifikant von der Kugel abweichen
-  const dotGeom = new THREE.SphereGeometry(0.004, 4, 4);
-  const dotMatOuter = new THREE.MeshBasicMaterial({ color: 0xff4444 }); // rot: außerhalb
-  const dotMatInner = new THREE.MeshBasicMaterial({ color: 0x44ff88 }); // grün: innerhalb
+    // Zwei Passes: erst Rückseiten, dann Vorderseiten (korrektes Blending)
+    meshGroup.add(new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
+      color, transparent: true, opacity: 0.15, roughness: 0.3, metalness: 0.1,
+      side: THREE.BackSide, depthWrite: false,
+    })));
+    meshGroup.add(new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
+      color, transparent: true, opacity: 0.25, roughness: 0.3, metalness: 0.1,
+      side: THREE.FrontSide, depthWrite: false,
+    })));
+    meshGroup.add(new THREE.LineSegments(
+      new THREE.EdgesGeometry(polyGeom, 1),
+      new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.7 })
+    ));
+  } else {
+    // Ab Iteration 11: Best-Fit-Kugel rendern
+    const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
+    meshGroup.add(new THREE.Mesh(sphereGeom, new THREE.MeshPhysicalMaterial({
+      color: 0x6699cc, transparent: true, opacity: 0.6, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
+    })));
+    meshGroup.add(new THREE.LineSegments(
+      new THREE.EdgesGeometry(sphereGeom, 15),
+      new THREE.LineBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.2 })
+    ));
+  }
 
-  // Prüfen ob es überhaupt Outlier gibt
+  // Max. Abweichung für Farbskalierung
   let maxAbsDev = 0;
   if (deviations) {
     for (let i = 0; i < deviations.length; i++) {
@@ -267,39 +286,35 @@ function buildMesh(data) {
       if (abs > maxAbsDev) maxAbsDev = abs;
     }
   }
-  const showAll = !deviations || maxAbsDev <= OUTLIER_THRESHOLD;
 
-  const MAX_OUTLIERS = 32768; // 2^15
-
-  // Kandidaten sammeln
-  const candidates = [];
-  for (let i = 0; i < vertices.length; i++) {
-    const absDev = deviations ? Math.abs(deviations[i]) : 1;
-    if (showAll || absDev > OUTLIER_THRESHOLD) {
-      candidates.push({ i, absDev });
+  function devColor(dev) {
+    const t = maxAbsDev > 0 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
+    if (dev < 0) {
+      return new THREE.Color(0.4 + 0.6 * t, 0.4 * (1 - t), 0.4 * (1 - t));
+    } else {
+      return new THREE.Color(0.4 * (1 - t), 0.4 + 0.6 * t, 0.4 * (1 - t));
     }
   }
 
-  // Bei zu vielen Kandidaten: zufällige Auswahl
-  if (candidates.length > MAX_OUTLIERS) {
-    // Fisher-Yates Shuffle, dann abschneiden
+  const MAX_DOTS = 49152;
+  const dotGeom = new THREE.SphereGeometry(0.003, 4, 4);
+  const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
+  if (candidates.length > MAX_DOTS) {
+    // Fisher-Yates Shuffle für räumlich gleichmäßige Auswahl
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
-    candidates.length = MAX_OUTLIERS;
+    candidates.length = MAX_DOTS;
   }
 
-  let outlierCount = candidates.length;
   for (const { i } of candidates) {
-    const mat = (deviations && deviations[i] < 0) ? dotMatOuter : dotMatInner;
+    const mat = new THREE.MeshBasicMaterial({ color: devColor(deviations ? deviations[i] : 1) });
     const dot = new THREE.Mesh(dotGeom, mat);
     dot.position.copy(vertices[i]);
     meshGroup.add(dot);
   }
-
-  document.getElementById('s-outliers').textContent =
-    showAll ? `${outlierCount.toLocaleString()} (alle)` : outlierCount.toLocaleString();
+  document.getElementById('s-outliers').textContent = candidates.length.toLocaleString();
 
   // Min/Max Abweichung normiert auf rAvg
   if (deviations && deviations.length > 0) {
@@ -309,8 +324,8 @@ function buildMesh(data) {
       if (deviations[i] > maxDev) maxDev = deviations[i];
     }
     const r = sphereRadius || 1;
-    const minPct = (minDev / r * 100).toFixed(3);
-    const maxPct = (maxDev / r * 100).toFixed(3);
+    const minPct = (minDev / r * 100).toFixed(3).replace('.', ',');
+    const maxPct = (maxDev / r * 100).toFixed(3).replace('.', ',');
     document.getElementById('s-dev').textContent = `${minPct}% .. +${maxPct}%`;
   } else {
     document.getElementById('s-dev').textContent = '-';
