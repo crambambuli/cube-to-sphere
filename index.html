@@ -392,8 +392,13 @@ function updateStats(computing) {
   document.getElementById('s-verts').textContent = h?.vertCount?.toLocaleString() ?? '-';
   document.getElementById('s-edges').textContent = h?.edgeCount?.toLocaleString() ?? '-';
   document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
-  const d = history[currentIdx]?.duration;
+  const d = h?.duration;
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
+  // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
+  if (computing) {
+    document.getElementById('s-outliers').textContent = '-';
+    document.getElementById('s-dev').textContent = '-';
+  }
   // Sanduhr ⏳ anzeigen wenn noch berechnet wird
   document.getElementById('iteration-label').textContent =
     computing ? `Iteration ${currentIdx} \u23f3` : `Iteration ${currentIdx}`;
@@ -404,10 +409,11 @@ function updateStats(computing) {
 // Zeigt die aktuelle Iteration an. Falls noch nicht berechnet,
 // wird eine Sanduhr angezeigt und beim Eintreffen des Ergebnisses gerendert.
 function showCurrent() {
-  if (history[currentIdx]) {
+  updateStats(!history[currentIdx]);
+
+  if (cached) {
     buildMesh(history[currentIdx]);
   } else {
-    updateStats(true);
     if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
     pendingCallbacks.set(currentIdx, () => {
       if (history[currentIdx]) buildMesh(history[currentIdx]);
