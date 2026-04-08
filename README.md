@@ -1,6 +1,6 @@
-# Vom Würfel zur Kugel
+# Vom Würfel zur Kugel?
 
-Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wie er zur Kugel konvergiert.
+Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.
 
 **[Live-Demo](https://crambambuli.github.io/cube-to-sphere/cube-to-sphere.html)**
 
@@ -12,7 +12,7 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 **Frage:** Welche Form entsteht, wenn man diesen Prozess unendlich oft wiederholt?
 
-**Antwort:** Der Körper konvergiert gegen eine Kugel.
+**Antwort:** Nicht eine Kugel. Der Körper konvergiert gegen einen spezifischen O<sub>h</sub>-symmetrischen konvexen Körper mit ca. 14% Durchmesser-Variation — kugelähnlich, aber messbar nicht-sphärisch.
 
 ## Mathematischer Hintergrund
 
@@ -30,83 +30,47 @@ Bei jeder Iteration gilt exakt (beweisbar über V - E + F = 2):
 
 Die Kanten verdoppeln sich exakt bei jeder Iteration.
 
-### Beweis: Konvergenz zur Kugel
+### Was erhalten bleibt
 
-**Behauptung:** Sei P<sub>0</sub> ein Würfel. Definiere P<sub>n+1</sub> als die konvexe Hülle der Kantenmittelpunkte von P<sub>n</sub>, normiert so dass max |v| = 1 für alle Vertices v. Dann konvergiert die Folge (P<sub>n</sub>) im Hausdorff-Abstand gegen die Einheitskugel S² (die 2-dimensionale Kugeloberfläche im 3D-Raum).
+**O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> (48 Symmetrieoperationen). Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen. Dies ist gleichzeitig die Symmetriegruppe des Würfels und des Oktaeders, da beide duale Körper sind.
 
----
+Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelpunkte auf Kantenmittelpunkte ab. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant → die konvexe Hülle auch → jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
-**Teil 1 — Symmetrie bleibt erhalten**
+### Warum der Grenzkörper keine Kugel ist
 
-Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> (48 Symmetrieoperationen). Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen — zusammen 48 Operationen. Dies ist gleichzeitig die Symmetriegruppe des Würfels und des Oktaeders, da beide duale Körper sind.
+Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der best-fit Kugel gegen einen **festen Wert konvergiert**, nicht gegen null:
 
-Jede Symmetrieoperation bildet Ecken auf Ecken ab, also Kanten auf Kanten, also Kantenmittelpunkte auf Kantenmittelpunkte. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant, also ist die konvexe Hülle auch O<sub>h</sub>-symmetrisch.
+| Iteration | Abweichung von der Kugel |
+|-----------|-------------------------|
+| 5 | -6,2% .. +5,3% |
+| 10 | -7,8% .. +6,6% |
+| 14 | -7,8% .. +6,6% |
+| 18 | -7,8% .. +6,6% |
 
-→ Jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
+Die Abweichung stabilisiert sich bei ca. ±7,8% — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper.
 
----
+**Die Ursache: topologische Nicht-Uniformität.**
 
-**Teil 2 — Abstandsstreuung nimmt ab**
+Ab Iteration 2 hat der Körper Vertices mit unterschiedlichem Grad (Anzahl angrenzender Kanten):
+- Vertices an den 8 Würfelecken-Positionen: Grad 3 (Dreiecks-Vertex-Figur)
+- Vertices an den 6 Flächenzentren: Grad 4 (Quadrat-Vertex-Figur)
+- Weitere Vertex-Typen bei höheren Iterationen
 
-Nach Normierung gilt r<sub>max</sub> = 1. Definiere die Sphärizität:
+Diese topologische Heterogenität bleibt bei jeder Iteration erhalten — sie wird nie homogen. Unterschiedliche Vertex-Grade erzeugen unterschiedliche lokale Geometrien, die durch Mittelwertbildung nicht ausgeglichen werden können.
 
-σ<sub>n</sub> = 1 − r<sub>min</sub>
+Die Mittelwertbildung an einem Grad-3-Vertex mittelt über 3 Nachbarn, an einem Grad-4-Vertex über 4 Nachbarn. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
 
-Wir zeigen σ<sub>n</sub> → 0.
+**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary vertices" (Vertices mit nicht-standardmäßiger Valenz) in Catmull-Clark- oder Loop-Subdivision die Grenzfläche lokal deformieren. Das gleiche Prinzip gilt hier — die 8 Würfelecken sind topologische Singularitäten, die den Grenzkörper dauerhaft von der Kugel unterscheiden.
 
-Für zwei benachbarte Vertices a, b mit Abständen r<sub>a</sub>, r<sub>b</sub> und Winkelabstand α gilt für den Mittelpunkt m = (a+b)/2:
+### Der Grenzkörper
 
-|m|² = (r<sub>a</sub>² + r<sub>b</sub>² + 2·r<sub>a</sub>·r<sub>b</sub>·cos α) / 4
+Der Grenzkörper ist ein wohldefinierter O<sub>h</sub>-symmetrischer konvexer Körper mit:
+- 8 leichten Beulen an den Positionen der ursprünglichen Würfelecken
+- 6 leichte Dellen an den Positionen der ursprünglichen Flächenzentren
+- ca. 14% Unterschied zwischen größtem und kleinstem Durchmesser
+- Unendlich viele Flächen (im Grenzwert glatt)
 
-Die Mittelwertbildung reduziert Extremwerte: der minimale Abstand wird angehoben (gemittelt mit größeren Nachbarn), der maximale wird gesenkt (gemittelt mit kleineren).
-
-Untere Schranke für den neuen Minimalabstand:
-
-r<sub>min</sub>' ≥ (r<sub>min</sub> + r<sub>max</sub>)/2 · cos(α<sub>max</sub>/2)
-
----
-
-**Teil 3 — Winkelabstände schrumpfen**
-
-Der maximale Winkelabstand α<sub>max</sub> zwischen benachbarten Vertices halbiert sich asymptotisch:
-
-α<sub>max</sub>(n+1) ≤ α<sub>max</sub>(n) · c   mit c < 1
-
-Denn: jede Kante wird durch kürzere Kanten ersetzt, die Vertex-Anzahl verdoppelt sich (V' = E, E' = 2E nach Euler), die Punkte liegen immer dichter.
-
----
-
-**Zusammenführung**
-
-1. σ<sub>n+1</sub> < σ<sub>n</sub> · (1 − δ<sub>n</sub>) mit δ<sub>n</sub> > 0
-2. α<sub>max</sub> → 0 geometrisch, also cos(α<sub>max</sub>/2) → 1
-3. Teleskopprodukt: σ<sub>n</sub> → 0
-
-Da σ<sub>n</sub> → 0, konvergiert der Hausdorff-Abstand d<sub>H</sub>(P<sub>n</sub>, S²) → 0. ∎
-
----
-
-**Warum die O<sub>h</sub>-Symmetrie entscheidend ist**
-
-Ohne Symmetrie könnte ein Ellipsoid rauskommen. Die O<sub>h</sub>-Symmetrie erzwingt, dass der Grenzkörper in allen 48 Orientierungen identisch aussieht. Der einzige glatte konvexe Körper mit dieser Eigenschaft ist die Kugel.
-
-**Konvergenzrate:** σ<sub>n</sub> ≈ σ<sub>0</sub> · (1/2)ⁿ · C. Bei σ<sub>0</sub> ≈ 0,18 (Würfel) ist σ<sub>12</sub> ≈ 0,0001, also ca. 0,01% Abweichung.
-
-### Warum konvergieren die Würfelecken langsamer?
-
-In der Visualisierung sind die 8 Positionen der ursprünglichen Würfelecken noch bei Iteration 10+ als leichte Beulen erkennbar. Das ist kein numerischer Fehler, sondern hat mathematische Gründe.
-
-**Nicht-uniforme Glättung.** Die Rektifikation behandelt verschiedene Regionen der Oberfläche unterschiedlich:
-
-- **Würfelecken** (8 Stück): Hier treffen 3 Kanten im 90°-Winkel aufeinander — starke Krümmung. Bei jeder Iteration wird die Ecke durch ein Polygon ersetzt, aber die lokale Geometrie "erinnert" sich an die Singularität. Die Vertex-Dichte und der Abstand zum Zentrum unterscheiden sich hier von anderen Regionen.
-- **Würfelflächen-Zentren** (6 Stück): Flache Regionen, die bei jeder Iteration flach bleiben und sich kaum verändern.
-- **Würfelkanten-Mitten** (12 Stück): Mittlere Krümmung, konvergieren schneller.
-
-Das ist analog zu **Subdivision Surfaces** in der Computergrafik: sogenannte "extraordinary vertices" (Vertices mit nicht-standardmäßiger Valenz) konvergieren deutlich langsamer gegen die Grenzfläche als reguläre Vertices. Die 8 Würfelecken sind genau solche Singularitäten.
-
-**Die Normalisierung verstärkt den Effekt.** Nach jeder Iteration wird durch max(r) geteilt. Die Vertices nahe den Würfelecken sind tendenziell die am weitesten vom Zentrum entfernten — sie werden auf Abstand 1 normiert, während alle anderen Vertices innerhalb der Einheitskugel liegen. Die Ecken "beulen" sich dadurch systematisch heraus.
-
-**Konvergenzgeschwindigkeit.** Das Verhältnis r<sub>min</sub>/r<sub>max</sub> verbessert sich nur linear (nicht exponentiell) pro Iteration, sodass bei Iteration 12 die Abweichung noch einige Prozent betragen kann — sichtbar als 8 leichte Beulen an den Oktaeder-Achsen.
+Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polyeder).
 
 ### Sind die Schnittflächen immer plan?
 
@@ -128,13 +92,13 @@ Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische N
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
 - **Iteration 1:** Kuboctaeder (12 Ecken, 24 Kanten, 14 Flächen) — ein archimedischer Körper
 - **Iteration 2:** Rhombikuboctaeder-artig (24 Ecken, 48 Kanten, 26 Flächen)
-- **Ab Iteration 5:** visuell kaum noch von einer Kugel zu unterscheiden
+- **Ab Iteration 5:** visuell kugelähnlich, aber messbar nicht-sphärisch
 
 ## Technische Umsetzung
 
 - **Three.js** für 3D-Rendering (WebGL)
-- **Web Worker** mit eigenem Convex-Hull-Algorithmus (Conflict-Lists, Adjazenz-BFS) für nicht-blockierende Berechnung
-- **Analytische Statistiken** via Euler-Formel (exakt, keine Rundungsfehler)
+- **Web Worker** mit topologischer Rektifikation (Polygon-Flächen, exakte Kantenanzahl via Euler)
+- **Best-Fit-Kugel** als Referenz mit Outlier-Visualisierung (rot = außerhalb, grün = innerhalb)
 - **Responsive** — funktioniert auf Desktop und Mobilgeräten (Touch-Rotation, Pinch-to-Zoom)
 
 ### Dateien
