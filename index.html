@@ -130,12 +130,17 @@
 <script type="module">
 import * as THREE from 'three';
 
-// ---- Worker ----
+// ---- Worker-Kommunikation ----
+// Der Worker berechnet die Rektifikation asynchron in einem eigenen Thread.
+// Wir senden nur { iter: N } und bekommen Koordinaten, Dreieck-Indizes,
+// Abweichungen und Statistiken zurück.
+// Date.now() im URL verhindert Browser-Caching des Worker-Scripts.
 const worker = new Worker('worker.js?v=' + Date.now());
-const pendingCallbacks = new Map();
-const computeStartTimes = new Map();
+const pendingCallbacks = new Map();  // iter → callback wenn Ergebnis da
+const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
 
 worker.onmessage = (e) => {
+  // Fortschrittsmeldungen aktualisieren die Anzeige ohne Rendering
   if (e.data.type === 'progress') {
     const { iter, phase, done, total } = e.data;
     const pct = total > 0 ? Math.round(done / total * 100) : 0;
@@ -144,29 +149,37 @@ worker.onmessage = (e) => {
     return;
   }
 
+  // Ergebnis empfangen und in history speichern
   const { iter, coords, triIndices, deviations, rAvg, vertCount, edgeCount, faceCount } = e.data;
   const elapsed = computeStartTimes.has(iter) ? performance.now() - computeStartTimes.get(iter) : null;
   computeStartTimes.delete(iter);
+
+  // Float64-Koordinaten → THREE.Vector3 für Rendering
   const vertices = [];
   for (let i = 0; i < coords.length; i += 3) {
     vertices.push(new THREE.Vector3(coords[i], coords[i+1], coords[i+2]));
   }
   history[iter] = {
-    vertices, triIndices: new Uint32Array(triIndices),
-    deviations: deviations ? new Float64Array(deviations) : null,
-    rAvg: rAvg || 1, duration: elapsed,
-    vertCount, edgeCount, faceCount,
+    vertices,                                           // THREE.Vector3[] für Rendering
+    triIndices: new Uint32Array(triIndices),             // Dreieck-Indizes (BufferGeometry)
+    deviations: deviations ? new Float64Array(deviations) : null, // Abweichung pro Vertex
+    rAvg: rAvg || 1,                                    // Best-Fit-Kugelradius
+    duration: elapsed,                                  // Berechnungsdauer in ms
+    vertCount, edgeCount, faceCount,                    // Exakte topologische Zählung
   };
   pendingCompute.delete(iter);
   document.getElementById('s-progress').textContent = '';
   updatePrecomp();
 
+  // Callback ausführen falls jemand auf dieses Ergebnis wartet
   const cb = pendingCallbacks.get(iter);
   if (cb) { pendingCallbacks.delete(iter); cb(); }
 
+  // Nächste Iteration vorberechnen
   precomputeNext();
 };
 
+// Berechnung einer Iteration beim Worker anfordern
 function requestCompute(iter) {
   if (history[iter] || pendingCompute.has(iter)) return;
   pendingCompute.add(iter);
@@ -174,7 +187,7 @@ function requestCompute(iter) {
   worker.postMessage({ iter });
 }
 
-// ---- Scene ----
+// ---- Three.js Szene ----
 const container = document.getElementById('scene-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
@@ -184,31 +197,37 @@ camera.lookAt(0, 0, 0);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(devicePixelRatio);
-renderer.setClearColor(0x1a1a2e);
+renderer.setClearColor(0x1a1a2e); // Dunkles Blau als Hintergrund
+
 container.appendChild(renderer.domElement);
 
+// Beleuchtung: ambientes Licht + 2 gerichtete Lichtquellen
 scene.add(new THREE.AmbientLight(0x404060, 1.5));
 const dl1 = new THREE.DirectionalLight(0xffffff, 1.2);
-dl1.position.set(5, 8, 5);
+dl1.position.set(5, 8, 5);  // oben rechts vorne
 scene.add(dl1);
 const dl2 = new THREE.DirectionalLight(0x8888ff, 0.6);
-dl2.position.set(-5, -2, -5);
+dl2.position.set(-5, -2, -5); // unten links hinten (bläulich)
 scene.add(dl2);
 
-// ---- State ----
-const MAX_ITER = 20;
-// Worker liefert alle Iterationen (inkl. iter=0 → Cube)
+// ---- Zustand ----
+const MAX_ITER = 20; // Maximale Iterationstiefe
+
+// history[i] enthält das Ergebnis der i-ten Iteration (vom Worker berechnet).
+// history[0] = Ausgangswürfel, wird ebenfalls vom Worker geliefert.
 const history = [];
-const pendingCompute = new Set();
+const pendingCompute = new Set(); // Iterationen die gerade berechnet werden
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
 
+// Aktualisiert die "Vorberechnet: X / MAX" Anzeige in der Stats-Zeile
 function updatePrecomp() {
   document.getElementById('s-precomp').textContent = history.length - 1;
 }
 
+// Formatiert Millisekunden als "42ms", "7s" oder "1:23"
 function formatDuration(ms) {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   const sec = Math.floor(ms / 1000);
@@ -218,6 +237,8 @@ function formatDuration(ms) {
   return `${min}:${String(remSec).padStart(2, '0')}`;
 }
 
+// Berechnet die nächste noch fehlende Iteration im Hintergrund.
+// Wird nach jedem Worker-Ergebnis aufgerufen (Kette: 0 → 1 → 2 → ...).
 function precomputeNext() {
   for (let i = 0; i <= MAX_ITER; i++) {
     if (!history[i] && !pendingCompute.has(i) && (i === 0 || history[i-1])) {
@@ -226,11 +247,21 @@ function precomputeNext() {
     }
   }
 }
-precomputeNext();
+precomputeNext(); // Startet die Vorberechnung ab Iteration 0
 
-// ---- Rendering ----
+// ============================================================================
+// Rendering
+// ============================================================================
+// Baut die 3D-Szene für die aktuelle Iteration:
+//   - Iter 0-10: Polyeder mit Flächen, Kanten und Vertex-Punkten
+//   - Ab Iter 11: Best-Fit-Kugel als Referenz + Vertex-Punkte
+// Vertex-Punkte sind farbcodiert nach Abweichung von der Best-Fit-Kugel:
+//   - Rot = außerhalb der Kugel (Beule)
+//   - Grün = innerhalb der Kugel (Delle)
+//   - Grau = auf der Kugel (kaum Abweichung)
 
 function buildMesh(data) {
+  // Alte Meshes aufräumen (GPU-Speicher freigeben)
   while (meshGroup.children.length) {
     const c = meshGroup.children[0];
     c.geometry?.dispose();
@@ -242,8 +273,12 @@ function buildMesh(data) {
   const color = palette[currentIdx % palette.length];
   const sphereRadius = rAvg || 1;
 
+  // ---- Körper / Kugel rendern ----
   if (currentIdx <= 10 && triIndices && triIndices.length > 0) {
-    // Flächen und Kanten des Polyeders anzeigen
+    // POLYEDER-MODUS (Iter 0-10):
+    // Flächen aus triangulierten Polygonen (vom Worker), Kanten via EdgesGeometry
+
+    // Vertex-Positionen als Float32Array (Three.js-Format)
     const positions = new Float32Array(vertices.length * 3);
     for (let i = 0; i < vertices.length; i++) {
       positions[i*3] = vertices[i].x; positions[i*3+1] = vertices[i].y; positions[i*3+2] = vertices[i].z;
@@ -251,34 +286,43 @@ function buildMesh(data) {
     const polyGeom = new THREE.BufferGeometry();
     polyGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     polyGeom.setIndex(new THREE.BufferAttribute(triIndices, 1));
-    polyGeom.computeVertexNormals();
+    polyGeom.computeVertexNormals(); // Für korrekte Beleuchtung
 
-    // Zwei Passes: erst Rückseiten, dann Vorderseiten (korrektes Blending)
+    // Zwei-Pass-Rendering für korrektes Alpha-Blending bei transparenten Flächen:
+    // Pass 1: Rückseiten (dunkler, zuerst gerendert → hinter Vorderseiten)
     meshGroup.add(new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
       color, transparent: true, opacity: 0.15, roughness: 0.3, metalness: 0.1,
       side: THREE.BackSide, depthWrite: false,
     })));
+    // Pass 2: Vorderseiten (heller, darüber gerendert)
     meshGroup.add(new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
       color, transparent: true, opacity: 0.25, roughness: 0.3, metalness: 0.1,
       side: THREE.FrontSide, depthWrite: false,
     })));
+    // Kanten als weiße Linien (EdgesGeometry extrahiert nur echte Kanten, keine Diagonalen)
     meshGroup.add(new THREE.LineSegments(
       new THREE.EdgesGeometry(polyGeom, 1),
       new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.7 })
     ));
+
   } else {
-    // Ab Iteration 11: Best-Fit-Kugel rendern
+    // KUGEL-MODUS (ab Iter 11):
+    // Best-Fit-Kugel als Referenzkörper — zeigt wie weit die Vertices
+    // von der idealen Kugel abweichen
     const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
     meshGroup.add(new THREE.Mesh(sphereGeom, new THREE.MeshPhysicalMaterial({
       color: 0x6699cc, transparent: true, opacity: 0.6, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
     })));
+    // Dezentes Kugel-Wireframe als Orientierungshilfe
     meshGroup.add(new THREE.LineSegments(
       new THREE.EdgesGeometry(sphereGeom, 15),
       new THREE.LineBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.2 })
     ));
   }
 
-  // Max. Abweichung für Farbskalierung
+  // ---- Farbcodierte Vertex-Punkte ----
+
+  // Maximale absolute Abweichung bestimmen (für Farbskalierung 0..1)
   let maxAbsDev = 0;
   if (deviations) {
     for (let i = 0; i < deviations.length; i++) {
@@ -287,20 +331,25 @@ function buildMesh(data) {
     }
   }
 
+  // Deviation → Farbe: grau bei 0, kräftig rot/grün bei maximaler Abweichung
   function devColor(dev) {
     const t = maxAbsDev > 0 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
     if (dev < 0) {
+      // Außerhalb der Kugel: grau → rot
       return new THREE.Color(0.4 + 0.6 * t, 0.4 * (1 - t), 0.4 * (1 - t));
     } else {
+      // Innerhalb der Kugel: grau → grün
       return new THREE.Color(0.4 * (1 - t), 0.4 + 0.6 * t, 0.4 * (1 - t));
     }
   }
 
+  // Bei hohen Iterationen (>49.152 Vertices) zufälliges Sampling
+  // für gleichmäßige Verteilung und Performance
   const MAX_DOTS = 49152;
   const dotGeom = new THREE.SphereGeometry(0.003, 4, 4);
   const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
   if (candidates.length > MAX_DOTS) {
-    // Fisher-Yates Shuffle für räumlich gleichmäßige Auswahl
+    // Fisher-Yates Shuffle → ersten MAX_DOTS nehmen = gleichmäßiges Sample
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -308,6 +357,7 @@ function buildMesh(data) {
     candidates.length = MAX_DOTS;
   }
 
+  // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
   for (const { i } of candidates) {
     const mat = new THREE.MeshBasicMaterial({ color: devColor(deviations ? deviations[i] : 1) });
     const dot = new THREE.Mesh(dotGeom, mat);
@@ -316,7 +366,8 @@ function buildMesh(data) {
   }
   document.getElementById('s-outliers').textContent = candidates.length.toLocaleString();
 
-  // Min/Max Abweichung normiert auf rAvg
+  // ---- Abweichungs-Statistik ----
+  // Min/Max Abweichung als Prozent des Kugelradius
   if (deviations && deviations.length > 0) {
     let minDev = Infinity, maxDev = -Infinity;
     for (let i = 0; i < deviations.length; i++) {
@@ -334,6 +385,7 @@ function buildMesh(data) {
   updateStats(false);
 }
 
+// Aktualisiert die Stats-Zeile (Ecken, Kanten, Flächen, Dauer)
 function updateStats(computing) {
   const h = history[currentIdx];
   document.getElementById('s-iter').textContent = currentIdx;
@@ -342,12 +394,15 @@ function updateStats(computing) {
   document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
   const d = history[currentIdx]?.duration;
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
+  // Sanduhr ⏳ anzeigen wenn noch berechnet wird
   document.getElementById('iteration-label').textContent =
     computing ? `Iteration ${currentIdx} \u23f3` : `Iteration ${currentIdx}`;
   document.getElementById('btn-prev').disabled = currentIdx === 0;
   document.getElementById('btn-next').disabled = currentIdx >= MAX_ITER;
 }
 
+// Zeigt die aktuelle Iteration an. Falls noch nicht berechnet,
+// wird eine Sanduhr angezeigt und beim Eintreffen des Ergebnisses gerendert.
 function showCurrent() {
   if (history[currentIdx]) {
     buildMesh(history[currentIdx]);
@@ -360,7 +415,7 @@ function showCurrent() {
   }
 }
 
-// ---- Controls ----
+// ---- Steuerung ----
 function goNext() {
   if (currentIdx >= MAX_ITER) return;
   currentIdx++;
@@ -369,6 +424,7 @@ function goNext() {
 function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
 function resetAll() { currentIdx = 0; showCurrent(); stopAuto(); }
 
+// Auto-Modus: automatisch alle 2,5s zur nächsten Iteration
 let autoInterval = null;
 function toggleAuto() {
   if (autoInterval) { stopAuto(); return; }
@@ -380,6 +436,8 @@ function stopAuto() {
   document.getElementById('btn-auto').textContent = 'Auto \u25b6';
 }
 
+// Button-Events: sowohl pointerdown als auch click für maximale Kompatibilität
+// (pointerdown reagiert sofort, click als Fallback)
 function btnEvent(id, fn) {
   const el = document.getElementById(id);
   let handled = false;
@@ -391,6 +449,7 @@ btnEvent('btn-prev', () => { stopAuto(); goPrev(); });
 btnEvent('btn-reset', resetAll);
 btnEvent('btn-auto', toggleAuto);
 
+// Tastatursteuerung
 window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); stopAuto(); goNext(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); stopAuto(); goPrev(); }
@@ -398,15 +457,18 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'a' || e.key === 'A') toggleAuto();
 });
 
+// Canvas-Größe an Fenstergröße anpassen
 window.addEventListener('resize', () => {
   camera.aspect = container.clientWidth / container.clientHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-showCurrent();
+showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
 
-// ---- Mouse orbit ----
+// ---- Kamera-Rotation ----
+// Sphärische Koordinaten: theta (horizontal), phi (vertikal), radius (Zoom)
+// Auto-Rotation dreht theta langsam, pausiert bei Mausinteraktion für 3s
 let theta = 0.7, phi = 0.6, radius = 4;
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
@@ -456,15 +518,17 @@ renderer.domElement.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
+// Render-Loop: Kamera kreist um den Ursprung (sphärische Koordinaten)
 (function animate() {
   requestAnimationFrame(animate);
-  if (autoRotate) theta += 0.003;
+  if (autoRotate) theta += 0.003; // Langsame Auto-Rotation
+  // Sphärische → kartesische Koordinaten
   camera.position.set(
     radius * Math.sin(phi) * Math.cos(theta),
     radius * Math.cos(phi),
     radius * Math.sin(phi) * Math.sin(theta)
   );
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(0, 0, 0); // Immer auf Ursprung schauen
   renderer.render(scene, camera);
 })();
 </script>
