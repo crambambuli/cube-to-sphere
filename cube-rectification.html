@@ -818,7 +818,7 @@ function updateStats(computing) {
 function showCurrent() {
   updateStats(!history[currentIdx]);
 
-  if (cached) {
+  if (history[currentIdx]) {
     buildMesh(history[currentIdx]);
   } else {
     if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
