@@ -2,7 +2,7 @@
 
 Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.
 
-**[Live-Demo](https://crambambuli.github.io/cube-to-sphere/cube-to-sphere.html)**
+**[Live-Demo](https://crambambuli.github.io/cube-to-sphere/cube-rectification.html)**
 
 ![Vorschau](og-image.jpg)
 
@@ -105,14 +105,14 @@ Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische N
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `cube-to-sphere.html` | Standalone — eine einzige HTML-Datei, funktioniert ohne Server |
+| `cube-rectification.html` | Standalone — eine einzige HTML-Datei, funktioniert ohne Server |
 | `index.html` + `worker.js` | Zwei-Dateien-Version, braucht HTTP-Server |
 
 ### Lokal starten
 
 ```bash
 # Standalone (Doppelklick oder):
-open cube-to-sphere.html
+open cube-rectification.html
 
 # Oder mit Server (für index.html + worker.js):
 python3 -m http.server 8766
