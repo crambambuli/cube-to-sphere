@@ -139,7 +139,7 @@ Jeder Vertex-Punkt ist nach seiner Abweichung von der Best-Fit-Kugel eingefärbt
 - **Grün** — innerhalb der Kugel (Delle, an den Flächenzentren)
 - **Grau** — auf der Kugeloberfläche (kaum Abweichung)
 
-Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich verblassen Punkte mit zunehmender Entfernung zur Kamera (Live-Update bei Rotation): vordere Punkte sind kräftig, hintere blass.
+Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich verblassen Punkte und Kanten mit zunehmender Entfernung zur Kamera (Live-Update bei Rotation, auch während der Animation): vordere Elemente sind kräftig, hintere blass.
 
 ### Sampling
 
