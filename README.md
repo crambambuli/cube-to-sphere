@@ -128,8 +128,8 @@ Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische N
 
 Die Anwendung zeigt den Körper in zwei Modi:
 
-- **Iteration 0–10 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending.
-- **Ab Iteration 11 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel als Referenz. Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten.
+- **Iteration 0–10 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1,2s Cross-Fade mit Ease-in-out).
+- **Ab Iteration 11 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel (Radius 1 nach Normalisierung) als Referenz. Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
 
 ### Farbcodierung der Punkte
 
@@ -174,8 +174,9 @@ Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ..
 | Reset auf Würfel | Reset-Button oder R | Reset-Button |
 | Körper drehen | Maus ziehen | Finger ziehen |
 | Zoomen | Scrollrad | Pinch-Geste |
+| Rotation stoppen/starten | Doppelklick | Doppeltap |
 
-Die Auto-Rotation des Körpers pausiert 3 Sekunden nach manueller Interaktion und setzt dann wieder ein.
+Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann wieder ein. Per Doppelklick/Doppeltap lässt sie sich dauerhaft stoppen bzw. wieder starten.
 
 ## Technische Umsetzung
 
@@ -210,8 +211,9 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 ### Rendering (index.html)
 
 - **BufferGeometry** statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
-- **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten, dann Vorderseiten).
-- **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen.
+- **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
+- **Morph-Animation** (Iter 0–10): Cross-Fade zwischen altem und neuem Körper (1,2s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
+- **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen mit `depthTest: false` (immer sichtbar, auch hinter der Kugel).
 - **Sphärische Kamerasteuerung** ohne OrbitControls (vermeidet Pointer-Capture-Konflikte).
 - **Auto-Rotation** mit 3s Pause nach manueller Interaktion.
 

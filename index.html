@@ -255,6 +255,12 @@ const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
 
+// ---- Morph-Animation ----
+let morphing = false;
+let morphStart = 0;
+const MORPH_DURATION = 1200; // ms
+let oldGroup = null; // THREE.Group mit altem Körper während Morph
+
 // Aktualisiert die "Vorberechnet: X / MAX" Anzeige in der Stats-Zeile
 function updatePrecomp() {
   document.getElementById('s-precomp').textContent = history.length - 1;
@@ -304,7 +310,8 @@ function buildMesh(data) {
 
   const { vertices, triIndices, deviations, rAvg } = data;
   const color = palette[currentIdx % palette.length];
-  const sphereRadius = rAvg || 1;
+  // Nach rAvg-Normalisierung im Worker liegt der Durchschnittsabstand bei 1
+  const sphereRadius = 1;
 
   // ---- Körper / Kugel rendern ----
   if (currentIdx <= 10 && triIndices && triIndices.length > 0) {
@@ -323,24 +330,28 @@ function buildMesh(data) {
 
     // Zwei-Pass-Rendering für korrektes Alpha-Blending bei transparenten Flächen:
     // Pass 1: Rückseiten (dunkler, zuerst gerendert → hinter Vorderseiten)
+    const initOpacity = morphing ? 0 : undefined; // Bei Morph: starte unsichtbar
+
     const backMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
-      color, transparent: true, opacity: 0.15, roughness: 0.3, metalness: 0.1,
+      color, transparent: true, opacity: initOpacity ?? 0.15, roughness: 0.3, metalness: 0.1,
       side: THREE.BackSide, depthWrite: false,
     }));
+    backMesh.userData.targetOpacity = 0.15;
     backMesh.renderOrder = 0;
     meshGroup.add(backMesh);
-    // Pass 2: Vorderseiten (heller, darüber gerendert)
+
     const frontMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
-      color, transparent: true, opacity: 0.25, roughness: 0.3, metalness: 0.1,
+      color, transparent: true, opacity: initOpacity ?? 0.25, roughness: 0.3, metalness: 0.1,
       side: THREE.FrontSide, depthWrite: false,
     }));
+    frontMesh.userData.targetOpacity = 0.25;
     frontMesh.renderOrder = 1;
     meshGroup.add(frontMesh);
-    // Kanten als weiße Linien (EdgesGeometry extrahiert nur echte Kanten, keine Diagonalen)
-    meshGroup.add(new THREE.LineSegments(
-      new THREE.EdgesGeometry(polyGeom, 1),
-      new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.7 })
-    ));
+
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: initOpacity ?? 0.7 });
+    const edgeMesh = new THREE.LineSegments(new THREE.EdgesGeometry(polyGeom, 1), edgeMat);
+    edgeMesh.userData.targetOpacity = 0.7;
+    meshGroup.add(edgeMesh);
 
   } else {
     // KUGEL-MODUS (ab Iter 11):
@@ -383,7 +394,9 @@ function buildMesh(data) {
   // Bei hohen Iterationen (>49.152 Vertices) zufälliges Sampling
   // für gleichmäßige Verteilung und Performance
   const MAX_DOTS = 50000;
-  const dotGeom = new THREE.SphereGeometry(0.003, 4, 4);
+  const dotSizes = [0.014, 0.013, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004];
+  const dotSize = currentIdx <= 10 ? dotSizes[currentIdx] : 0.003;
+  const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
   const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
   if (candidates.length > MAX_DOTS) {
     // Fisher-Yates Shuffle → ersten MAX_DOTS nehmen = gleichmäßiges Sample
@@ -395,9 +408,15 @@ function buildMesh(data) {
   }
 
   // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
+  const dotTargetOpacity = 1.0;
   for (const { i } of candidates) {
-    const mat = new THREE.MeshBasicMaterial({ color: devColor(deviations ? deviations[i] : 1) });
+    const mat = new THREE.MeshBasicMaterial({
+      color: devColor(deviations ? deviations[i] : 1),
+      transparent: true, opacity: morphing ? 0 : dotTargetOpacity,
+      depthTest: false,
+    });
     const dot = new THREE.Mesh(dotGeom, mat);
+    dot.userData.targetOpacity = dotTargetOpacity;
     dot.position.copy(vertices[i]);
     meshGroup.add(dot);
   }
@@ -449,11 +468,44 @@ function showCurrent() {
   updateStats(!history[currentIdx]);
 
   if (history[currentIdx]) {
+    // Laufenden Morph abbrechen wenn nötig
+    if (morphing && oldGroup) {
+      scene.remove(oldGroup);
+      oldGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
+      oldGroup = null;
+      morphing = false;
+    }
+
+    // Morph starten wenn Polyeder-Modus (iter 0-10) und alter Körper vorhanden
+    if (currentIdx <= 10 && meshGroup.children.length > 0) {
+      // Alten Körper in oldGroup verschieben
+      if (oldGroup) {
+        scene.remove(oldGroup);
+        oldGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
+      }
+      oldGroup = new THREE.Group();
+      while (meshGroup.children.length > 0) {
+        const child = meshGroup.children[0];
+        meshGroup.remove(child);
+        oldGroup.add(child);
+      }
+      // Initiale Opacity des alten Körpers merken
+      oldGroup.traverse(child => {
+        if (child.material) {
+          child.userData.startOpacity = child.material.opacity;
+        }
+      });
+      scene.add(oldGroup);
+      morphing = true;
+      morphStart = performance.now();
+    }
     buildMesh(history[currentIdx]);
   } else {
     if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
     pendingCallbacks.set(currentIdx, () => {
-      if (history[currentIdx]) buildMesh(history[currentIdx]);
+      if (history[currentIdx]) {
+        buildMesh(history[currentIdx]);
+      }
     });
   }
 }
@@ -472,7 +524,11 @@ let autoInterval = null;
 function toggleAuto() {
   if (autoInterval) { stopAuto(); return; }
   document.getElementById('btn-auto').textContent = 'Stop \u23f8';
-  autoInterval = setInterval(() => { if (currentIdx >= MAX_ITER) { stopAuto(); return; } goNext(); }, 2500);
+  autoInterval = setInterval(() => {
+    if (morphing) return; // Warten bis Morph fertig
+    if (currentIdx >= MAX_ITER) { stopAuto(); return; }
+    goNext();
+  }, MORPH_DURATION + 1500);
 }
 function stopAuto() {
   clearInterval(autoInterval); autoInterval = null;
@@ -515,12 +571,26 @@ showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
 let theta = 0.7, phi = 0.6, radius = 4;
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
+let rotationPaused = false; // Doppelklick-Toggle
 
 function pauseAutoRotate() {
+  if (rotationPaused) return; // Manuell pausiert → Timer nicht starten
   autoRotate = false;
   clearTimeout(autoRotateTimer);
   autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
 }
+
+// Doppelklick / Doppeltap: Auto-Rotation dauerhaft toggeln
+renderer.domElement.addEventListener('dblclick', (e) => {
+  e.preventDefault();
+  rotationPaused = !rotationPaused;
+  if (rotationPaused) {
+    autoRotate = false;
+    clearTimeout(autoRotateTimer);
+  } else {
+    autoRotate = true;
+  }
+});
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   dragging = true; lastX = e.clientX; lastY = e.clientY;
@@ -565,6 +635,36 @@ renderer.domElement.addEventListener('touchmove', (e) => {
 (function animate() {
   requestAnimationFrame(animate);
   if (autoRotate) theta += 0.003; // Langsame Auto-Rotation
+
+  // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
+  if (morphing && oldGroup) {
+    const t = Math.min(1, (performance.now() - morphStart) / MORPH_DURATION);
+    // Ease-in-out für smooth Übergang
+    const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+
+    // Alten Körper ausblenden
+    oldGroup.traverse(child => {
+      if (child.material && child.userData.startOpacity != null) {
+        child.material.opacity = child.userData.startOpacity * (1 - ease);
+      }
+    });
+
+    // Neuen Körper einblenden
+    meshGroup.traverse(child => {
+      if (child.material && child.userData.targetOpacity != null) {
+        child.material.opacity = child.userData.targetOpacity * ease;
+      }
+    });
+
+    // Morph fertig
+    if (t >= 1) {
+      scene.remove(oldGroup);
+      oldGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
+      oldGroup = null;
+      morphing = false;
+    }
+  }
+
   // Sphärische → kartesische Koordinaten
   camera.position.set(
     radius * Math.sin(phi) * Math.cos(theta),
