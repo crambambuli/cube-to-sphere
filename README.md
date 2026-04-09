@@ -176,13 +176,17 @@ Die Auto-Rotation des Körpers pausiert 3 Sekunden nach manueller Interaktion un
 ### Architektur
 
 ```
-┌─────────────────┐    postMessage({iter})     ┌─────────────────┐
-│   Main Thread    │ ──────────────────────── → │   Web Worker    │
-│                  │                            │                 │
-│  Three.js        │    {coords, triIndices,    │  Topologische   │
-│  Rendering       │ ← ──────────────────────── │  Rektifikation  │
-│  UI / Events     │     deviations, stats}     │                 │
-└─────────────────┘                            └─────────────────┘
+Main Thread                          Web Worker
+(index.html)                         (worker.js)
+
+  Three.js        {iter}               Topologische
+  Rendering    ------------>           Rektifikation
+  UI/Events                            Normalisierung
+                  {coords,             Triangulierung
+               triIndices,
+               deviations,
+               stats}
+               <------------
 ```
 
 - **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Keine geometrische Berechnung — nur Darstellung.
