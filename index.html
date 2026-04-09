@@ -323,15 +323,19 @@ function buildMesh(data) {
 
     // Zwei-Pass-Rendering für korrektes Alpha-Blending bei transparenten Flächen:
     // Pass 1: Rückseiten (dunkler, zuerst gerendert → hinter Vorderseiten)
-    meshGroup.add(new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
+    const backMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
       color, transparent: true, opacity: 0.15, roughness: 0.3, metalness: 0.1,
       side: THREE.BackSide, depthWrite: false,
-    })));
+    }));
+    backMesh.renderOrder = 0;
+    meshGroup.add(backMesh);
     // Pass 2: Vorderseiten (heller, darüber gerendert)
-    meshGroup.add(new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
+    const frontMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
       color, transparent: true, opacity: 0.25, roughness: 0.3, metalness: 0.1,
       side: THREE.FrontSide, depthWrite: false,
-    })));
+    }));
+    frontMesh.renderOrder = 1;
+    meshGroup.add(frontMesh);
     // Kanten als weiße Linien (EdgesGeometry extrahiert nur echte Kanten, keine Diagonalen)
     meshGroup.add(new THREE.LineSegments(
       new THREE.EdgesGeometry(polyGeom, 1),
