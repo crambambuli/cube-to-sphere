@@ -542,21 +542,27 @@ try {
 } catch(e) {
   // Fallback: Worker-Code im Main Thread ausführen via eval
   console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
+  // Simuliertes Worker-Objekt: gleiche API (onmessage, postMessage),
+  // aber führt den Worker-Code synchron im Main Thread aus.
   worker = {
-    _handler: null,
+    _handler: null,        // Empfänger für Worker-Nachrichten
+    _workerScope: null,    // Simulierter Worker-Scope (einmalig initialisiert)
     set onmessage(fn) { this._handler = fn; },
     get onmessage() { return this._handler; },
     onerror: null,
     postMessage(data) {
-      // Worker-Code asynchron im Main Thread ausführen
+      // Worker-Code im Main Thread ausführen (blockiert UI, aber funktioniert)
       const script = document.getElementById('worker-src');
       if (!script) return;
       if (!this._workerScope) {
+        // Beim ersten Aufruf: Worker-Code evaluieren und Scope aufbauen.
+        // self.postMessage wird umgeleitet auf den lokalen Handler.
         this._workerScope = {};
         const scope = this._workerScope;
         scope.self = { postMessage: (msg) => {
           if (this._handler) this._handler({ data: msg });
         }};
+        // Worker-Code als Funktion kompilieren, die self empfängt
         const fn = new Function('self', script.textContent + '\nreturn self;');
         scope.self = fn(scope.self);
       }
