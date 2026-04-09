@@ -44,6 +44,8 @@ Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kuge
 Iter  Beule (außen)    Delle (innen)
 ─────────────────────────────────────────────────
   0   ▏                ▏                    0,000%
+  1   ▏                ▏                    0,000%
+  2   ▏                ▏                    0,000%
   3   ████▏            ████▏                2,548%
   4   ████████▏        ███████▏             4,884%
   5   ██████████▏      █████████▏           6,272%
@@ -58,9 +60,13 @@ Iter  Beule (außen)    Delle (innen)
          -7,845%          +6,604%
 ```
 
+Iterationen 0–2 haben exakt 0% Abweichung, weil alle Vertices gleich weit vom Zentrum entfernt sind (Würfel, Kuboctaeder und dessen Rektifikation haben jeweils gleich lange Kanten und äquidistante Vertices).
+
 | Iteration | Min (Beule) | Max (Delle) |
 |-----------|-------------|-------------|
 | 0 | 0,000% | +0,000% |
+| 1 | 0,000% | +0,000% |
+| 2 | 0,000% | +0,000% |
 | 3 | -2,548% | +2,548% |
 | 5 | -6,272% | +5,407% |
 | 7 | -7,438% | +6,291% |
@@ -176,17 +182,15 @@ Die Auto-Rotation des Körpers pausiert 3 Sekunden nach manueller Interaktion un
 ### Architektur
 
 ```
-Main Thread                          Web Worker
-(index.html)                         (worker.js)
+  Main Thread                                            Web Worker
+  (index.html)                                           (worker.js)
 
-  Three.js        {iter}               Topologische
-  Rendering    ------------>           Rektifikation
-  UI/Events                            Normalisierung
-                  {coords,             Triangulierung
-               triIndices,
-               deviations,
-               stats}
-               <------------
+                          {iter}
+  Three.js          ---------------------->              Topologische
+  Rendering                                              Rektifikation
+  UI/Events         <----------------------              Normalisierung
+                     {coords, triIndices,                 Triangulierung
+                      deviations, stats}
 ```
 
 - **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Keine geometrische Berechnung — nur Darstellung.
