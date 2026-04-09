@@ -181,8 +181,6 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 |--------|---------|-------|
 | Nächste Iteration | Weiter-Button oder → oder Leertaste | Weiter-Button |
 | Vorherige Iteration | Zurück-Button oder ← | Zurück-Button |
-| Automatisch durchlaufen | Auto-Button oder A | Auto-Button |
-| Reset auf Würfel | Reset-Button oder R | Reset-Button |
 | Körper drehen | Maus ziehen | Finger ziehen |
 | Zoomen | Scrollrad | Pinch-Geste |
 | Rotation stoppen/starten | Doppelklick | Doppeltap |

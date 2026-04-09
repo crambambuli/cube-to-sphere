@@ -118,11 +118,9 @@
 </div>
 
 <div id="controls">
-  <button id="btn-reset">Reset</button>
   <button id="btn-prev" disabled>&larr; Zurück</button>
   <div id="iteration-label">Iteration 0</div>
   <button id="btn-next">Weiter &rarr;</button>
-  <button id="btn-auto">Auto &#9654;</button>
 </div>
 
 
@@ -955,23 +953,6 @@ function goNext() {
   showCurrent();
 }
 function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
-function resetAll() { currentIdx = 0; showCurrent(); stopAuto(); }
-
-// Auto-Modus: automatisch alle 2,5s zur nächsten Iteration
-let autoInterval = null;
-function toggleAuto() {
-  if (autoInterval) { stopAuto(); return; }
-  document.getElementById('btn-auto').textContent = 'Stop \u23f8';
-  autoInterval = setInterval(() => {
-    if (morphing) return; // Warten bis Morph fertig
-    if (currentIdx >= MAX_ITER) { stopAuto(); return; }
-    goNext();
-  }, MORPH_DURATION + 1500);
-}
-function stopAuto() {
-  clearInterval(autoInterval); autoInterval = null;
-  document.getElementById('btn-auto').textContent = 'Auto \u25b6';
-}
 
 // Button-Events: sowohl pointerdown als auch click für maximale Kompatibilität
 // (pointerdown reagiert sofort, click als Fallback)
@@ -981,17 +962,13 @@ function btnEvent(id, fn) {
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); handled = true; fn(); });
   el.addEventListener('click', () => { if (!handled) fn(); handled = false; });
 }
-btnEvent('btn-next', () => { stopAuto(); goNext(); });
-btnEvent('btn-prev', () => { stopAuto(); goPrev(); });
-btnEvent('btn-reset', resetAll);
-btnEvent('btn-auto', toggleAuto);
+btnEvent('btn-next', () => { goNext(); });
+btnEvent('btn-prev', () => { goPrev(); });
 
 // Tastatursteuerung
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); stopAuto(); goNext(); }
-  else if (e.key === 'ArrowLeft') { e.preventDefault(); stopAuto(); goPrev(); }
-  else if (e.key === 'r' || e.key === 'R') resetAll();
-  else if (e.key === 'a' || e.key === 'A') toggleAuto();
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
 });
 
 // Canvas-Größe an Fenstergröße anpassen
