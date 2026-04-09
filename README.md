@@ -128,7 +128,7 @@ Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische N
 
 Die Anwendung zeigt den Körper in zwei Modi:
 
-- **Iteration 0–10 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1,2s Cross-Fade mit Ease-in-out).
+- **Iteration 0–10 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1s Cross-Fade mit Ease-in-out).
 - **Ab Iteration 11 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel (Radius 1 nach Normalisierung) als Referenz. Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
 
 ### Farbcodierung der Punkte
@@ -139,7 +139,7 @@ Jeder Vertex-Punkt ist nach seiner Abweichung von der Best-Fit-Kugel eingefärbt
 - **Grün** — innerhalb der Kugel (Delle, an den Flächenzentren)
 - **Grau** — auf der Kugeloberfläche (kaum Abweichung)
 
-Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe.
+Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich verblassen Punkte mit zunehmender Entfernung zur Kamera (Live-Update bei Rotation): vordere Punkte sind kräftig, hintere blass.
 
 ### Sampling
 
@@ -158,7 +158,6 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Dauer | Berechnungszeit der Iteration im Web Worker |
 | Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |
 | Abweichung | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent |
-| Speicher | JS-Heap-Verbrauch (Chrome) oder Three.js-Objektzählung (andere Browser) |
 | Vorberechnet | Anzahl bereits im Hintergrund berechneter Iterationen |
 
 Werte zeigen "-" an, solange die Iteration noch berechnet wird.
@@ -224,7 +223,7 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 
 - **BufferGeometry** statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
 - **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
-- **Morph-Animation** (Iter 0–10): Cross-Fade zwischen altem und neuem Körper (1,2s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
+- **Morph-Animation** (Iter 0–10): Cross-Fade zwischen altem und neuem Körper (1s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
 - **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen mit `depthTest: false` (immer sichtbar, auch hinter der Kugel).
 - **Sphärische Kamerasteuerung** ohne OrbitControls (vermeidet Pointer-Capture-Konflikte).
 - **Auto-Rotation** mit 3s Pause nach manueller Interaktion.

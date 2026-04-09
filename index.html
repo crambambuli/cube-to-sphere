@@ -98,15 +98,14 @@
 </div>
 
 <div id="stats">
-  Iteration: <span id="s-iter">0</span> &middot;
-  Ecken: <span id="s-verts">8</span> &middot;
-  Kanten: <span id="s-edges">12</span> &middot;
-  Flächen: <span id="s-faces">6</span> &middot;
-  Dauer: <span id="s-time">-</span> &middot;
-  Samples: <span id="s-outliers">8</span> &middot;
-  Abweichung: <span id="s-dev">-</span> &middot;
-  Speicher: <span id="s-mem">-</span> &middot;
-  Vorberechnet: <span id="s-precomp-wrap"><span id="s-precomp">0</span>/<span id="s-max">20</span></span> &middot;
+  Iteration: <span id="s-iter">0</span>
+  Ecken: <span id="s-verts">8</span>
+  Kanten: <span id="s-edges">12</span>
+  Flächen: <span id="s-faces">6</span>
+  Dauer: <span id="s-time">-</span>
+  Samples: <span id="s-samples">-</span>
+  Abweichung: <span id="s-dev">-</span>
+  Vorberechnet: <span id="s-precomp-wrap"><span id="s-precomp">0</span>/<span id="s-max">20</span></span>
   <span id="s-progress"></span>
 </div>
 
@@ -257,12 +256,13 @@ let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
+let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
 
 // ---- Morph-Animation ----
 document.getElementById('s-max').textContent = MAX_ITER; // Dynamisch nach Gerät
 let morphing = false;
 let morphStart = 0;
-const MORPH_DURATION = 1200; // ms
+const MORPH_DURATION = 1000; // ms
 let oldGroup = null; // THREE.Group mit altem Körper während Morph
 
 // Aktualisiert die "Vorberechnet: X / MAX" Anzeige in der Stats-Zeile
@@ -412,18 +412,20 @@ function buildMesh(data, retryWithFewerDots) {
   }
 
   // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
+  // Opacity wird live in animate() basierend auf Kamera-Entfernung aktualisiert
   // Bei Speicherfehler: mit weniger Punkten nochmal versuchen
-  const dotTargetOpacity = 1.0;
+  dotMeshes = [];
   try {
     for (const { i } of candidates) {
       const mat = new THREE.MeshBasicMaterial({
         color: devColor(deviations ? deviations[i] : 1),
-        transparent: true, opacity: morphing ? 0 : dotTargetOpacity,
+        transparent: true, opacity: morphing ? 0 : 1,
         depthTest: false,
       });
       const dot = new THREE.Mesh(dotGeom, mat);
-      dot.userData.targetOpacity = dotTargetOpacity;
+      dot.userData.targetOpacity = 1;
       dot.position.copy(vertices[i]);
+      dotMeshes.push(dot);
       meshGroup.add(dot);
     }
   } catch(e) {
@@ -438,7 +440,7 @@ function buildMesh(data, retryWithFewerDots) {
       return buildMesh(data, Math.floor(maxDots / 2));
     }
   }
-  document.getElementById('s-outliers').textContent = candidates.length.toLocaleString();
+  document.getElementById('s-samples').textContent = candidates.length.toLocaleString();
 
   // ---- Abweichungs-Statistik ----
   // Min/Max Abweichung als Prozent des Kugelradius
@@ -470,7 +472,7 @@ function updateStats(computing) {
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
   // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
   if (computing) {
-    document.getElementById('s-outliers').textContent = '-';
+    document.getElementById('s-samples').textContent = '-';
     document.getElementById('s-dev').textContent = '-';
   }
   // Sanduhr ⏳ anzeigen wenn noch berechnet wird
@@ -649,31 +651,10 @@ renderer.domElement.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
-// Speicheranzeige alle 2s aktualisieren
-let lastMemUpdate = 0;
-function updateMemory() {
-  const now = performance.now();
-  if (now - lastMemUpdate < 2000) return;
-  lastMemUpdate = now;
-  const mem = performance.memory; // Nur Chrome
-  if (mem) {
-    const used = (mem.usedJSHeapSize / 1048576).toFixed(0);
-    const total = (mem.jsHeapSizeLimit / 1048576).toFixed(0);
-    document.getElementById('s-mem').textContent = `${used}/${total} MB`;
-  } else {
-    // Schätzung aus Three.js Renderer-Info
-    const info = renderer.info;
-    const geoMem = info.memory.geometries;
-    const texMem = info.memory.textures;
-    document.getElementById('s-mem').textContent = `${geoMem} Geo, ${texMem} Tex`;
-  }
-}
-
 // Render-Loop: Kamera kreist um den Ursprung (sphärische Koordinaten)
 (function animate() {
   requestAnimationFrame(animate);
   if (autoRotate) theta += 0.003; // Langsame Auto-Rotation
-  updateMemory();
 
   // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
   if (morphing && oldGroup) {
@@ -711,6 +692,24 @@ function updateMemory() {
     radius * Math.sin(phi) * Math.sin(theta)
   );
   camera.lookAt(0, 0, 0); // Immer auf Ursprung schauen
+
+  // Live-Opacity: Punkte verblassen mit Entfernung zur Kamera
+  if (dotMeshes.length > 0 && !morphing) {
+    const camPos = camera.position;
+    let minD = Infinity, maxD = 0;
+    for (const dot of dotMeshes) {
+      const d = camPos.distanceTo(dot.position);
+      if (d < minD) minD = d;
+      if (d > maxD) maxD = d;
+    }
+    const range = maxD - minD || 1;
+    for (const dot of dotMeshes) {
+      const d = camPos.distanceTo(dot.position);
+      const t = (d - minD) / range; // 0 = nah, 1 = fern
+      dot.material.opacity = 1.0 - 0.85 * t; // 1.0 → 0.15
+    }
+  }
+
   renderer.render(scene, camera);
 })();
 </script>
