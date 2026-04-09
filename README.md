@@ -143,7 +143,9 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 50.000 Vertices wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples.
+Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße nimmt mit jeder Iteration ab (0,014 bei Iter 0 → 0,003 ab Iter 11).
+
+Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
 ### Stats-Zeile
 
@@ -156,6 +158,7 @@ Bei mehr als 50.000 Vertices wird ein gleichmäßiges Zufalls-Sample angezeigt (
 | Dauer | Berechnungszeit der Iteration im Web Worker |
 | Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |
 | Abweichung | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent |
+| Speicher | JS-Heap-Verbrauch (Chrome) oder Three.js-Objektzählung (andere Browser) |
 | Vorberechnet | Anzahl bereits im Hintergrund berechneter Iterationen |
 
 Werte zeigen "-" an, solange die Iteration noch berechnet wird.
@@ -163,6 +166,15 @@ Werte zeigen "-" an, solange die Iteration noch berechnet wird.
 ### Vorberechnung
 
 Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Der Web Worker berechnet jeweils die nächste Iteration, sobald die vorherige fertig ist. Beim Klick auf "Weiter" wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist.
+
+### Mobilgeräte
+
+Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten reduzierte Limits:
+
+| Parameter | Desktop | Mobil |
+|-----------|---------|-------|
+| Max. Iterationen | 20 | 18 |
+| Max. Samples | 50.000 | 25.000 |
 
 ## Bedienung
 

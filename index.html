@@ -50,6 +50,7 @@
   }
   #stats span { color: #7ec8e3; font-weight: bold; }
   #s-progress { display: inline-block; min-width: 14em; }
+  #s-precomp-wrap { letter-spacing: 0; word-spacing: 0; }
   #controls {
     display: flex;
     gap: 6px;
@@ -104,7 +105,8 @@
   Dauer: <span id="s-time">-</span> &middot;
   Samples: <span id="s-outliers">8</span> &middot;
   Abweichung: <span id="s-dev">-</span> &middot;
-  Vorberechnet: <span id="s-precomp">0</span>/<span id="s-max">20</span> &middot;
+  Speicher: <span id="s-mem">-</span> &middot;
+  Vorberechnet: <span id="s-precomp-wrap"><span id="s-precomp">0</span>/<span id="s-max">20</span></span> &middot;
   <span id="s-progress"></span>
 </div>
 
@@ -244,7 +246,8 @@ dl2.position.set(-5, -2, -5); // unten links hinten (bläulich)
 scene.add(dl2);
 
 // ---- Zustand ----
-const MAX_ITER = 20; // Maximale Iterationstiefe
+// Mobilgeräte: weniger Iterationen (Speicher + Rechenzeit)
+const MAX_ITER = (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768) ? 18 : 20;
 
 // history[i] enthält das Ergebnis der i-ten Iteration (vom Worker berechnet).
 // history[0] = Ausgangswürfel, wird ebenfalls vom Worker geliefert.
@@ -256,6 +259,7 @@ scene.add(meshGroup);
 const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
 
 // ---- Morph-Animation ----
+document.getElementById('s-max').textContent = MAX_ITER; // Dynamisch nach Gerät
 let morphing = false;
 let morphStart = 0;
 const MORPH_DURATION = 1200; // ms
@@ -299,7 +303,7 @@ precomputeNext(); // Startet die Vorberechnung ab Iteration 0
 //   - Grün = innerhalb der Kugel (Delle)
 //   - Grau = auf der Kugel (kaum Abweichung)
 
-function buildMesh(data) {
+function buildMesh(data, retryWithFewerDots) {
   // Alte Meshes aufräumen (GPU-Speicher freigeben)
   while (meshGroup.children.length) {
     const c = meshGroup.children[0];
@@ -391,34 +395,48 @@ function buildMesh(data) {
     }
   }
 
-  // Bei hohen Iterationen (>49.152 Vertices) zufälliges Sampling
-  // für gleichmäßige Verteilung und Performance
-  const MAX_DOTS = 50000;
+  // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+  let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
   const dotSizes = [0.014, 0.013, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004];
   const dotSize = currentIdx <= 10 ? dotSizes[currentIdx] : 0.003;
   const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
   const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
-  if (candidates.length > MAX_DOTS) {
-    // Fisher-Yates Shuffle → ersten MAX_DOTS nehmen = gleichmäßiges Sample
+  if (candidates.length > maxDots) {
+    // Fisher-Yates Shuffle → ersten maxDots nehmen = gleichmäßiges Sample
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
-    candidates.length = MAX_DOTS;
+    candidates.length = maxDots;
   }
 
   // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
+  // Bei Speicherfehler: mit weniger Punkten nochmal versuchen
   const dotTargetOpacity = 1.0;
-  for (const { i } of candidates) {
-    const mat = new THREE.MeshBasicMaterial({
-      color: devColor(deviations ? deviations[i] : 1),
-      transparent: true, opacity: morphing ? 0 : dotTargetOpacity,
-      depthTest: false,
-    });
-    const dot = new THREE.Mesh(dotGeom, mat);
-    dot.userData.targetOpacity = dotTargetOpacity;
-    dot.position.copy(vertices[i]);
-    meshGroup.add(dot);
+  try {
+    for (const { i } of candidates) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: devColor(deviations ? deviations[i] : 1),
+        transparent: true, opacity: morphing ? 0 : dotTargetOpacity,
+        depthTest: false,
+      });
+      const dot = new THREE.Mesh(dotGeom, mat);
+      dot.userData.targetOpacity = dotTargetOpacity;
+      dot.position.copy(vertices[i]);
+      meshGroup.add(dot);
+    }
+  } catch(e) {
+    console.warn(`Speicherfehler bei ${candidates.length} Punkten, reduziere auf ${Math.floor(maxDots/2)}`);
+    // Aufräumen und mit halber Punktzahl nochmal versuchen
+    while (meshGroup.children.length) {
+      const c = meshGroup.children[0];
+      c.geometry?.dispose(); c.material?.dispose();
+      meshGroup.remove(c);
+    }
+    if (maxDots > 1000) {
+      return buildMesh(data, Math.floor(maxDots / 2));
+    }
   }
   document.getElementById('s-outliers').textContent = candidates.length.toLocaleString();
 
@@ -631,10 +649,31 @@ renderer.domElement.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
+// Speicheranzeige alle 2s aktualisieren
+let lastMemUpdate = 0;
+function updateMemory() {
+  const now = performance.now();
+  if (now - lastMemUpdate < 2000) return;
+  lastMemUpdate = now;
+  const mem = performance.memory; // Nur Chrome
+  if (mem) {
+    const used = (mem.usedJSHeapSize / 1048576).toFixed(0);
+    const total = (mem.jsHeapSizeLimit / 1048576).toFixed(0);
+    document.getElementById('s-mem').textContent = `${used}/${total} MB`;
+  } else {
+    // Schätzung aus Three.js Renderer-Info
+    const info = renderer.info;
+    const geoMem = info.memory.geometries;
+    const texMem = info.memory.textures;
+    document.getElementById('s-mem').textContent = `${geoMem} Geo, ${texMem} Tex`;
+  }
+}
+
 // Render-Loop: Kamera kreist um den Ursprung (sphärische Koordinaten)
 (function animate() {
   requestAnimationFrame(animate);
   if (autoRotate) theta += 0.003; // Langsame Auto-Rotation
+  updateMemory();
 
   // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
   if (morphing && oldGroup) {
