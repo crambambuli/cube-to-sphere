@@ -12,7 +12,7 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 **Frage:** Welche Form entsteht, wenn man diesen Prozess unendlich oft wiederholt?
 
-**Antwort:** Nicht eine Kugel. Der Körper konvergiert gegen einen spezifischen O<sub>h</sub>-symmetrischen konvexen Körper mit ca. 14% Durchmesser-Variation — kugelähnlich, aber messbar nicht-sphärisch.
+**Antwort:** Keine Kugel. Der Körper konvergiert gegen einen spezifischen O<sub>h</sub>-symmetrischen konvexen Körper mit ca. 14% Durchmesser-Variation — kugelähnlich, aber messbar nicht-sphärisch.
 
 ## Mathematischer Hintergrund
 
@@ -38,16 +38,38 @@ Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelp
 
 ### Warum der Grenzkörper keine Kugel ist
 
-Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der best-fit Kugel gegen einen **festen Wert konvergiert**, nicht gegen null:
+Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der Best-Fit-Kugel gegen einen **festen Wert konvergiert**, nicht gegen null:
 
-| Iteration | Abweichung von der Kugel |
-|-----------|-------------------------|
-| 5 | -6,2% .. +5,3% |
-| 10 | -7,8% .. +6,6% |
-| 14 | -7,8% .. +6,6% |
-| 18 | -7,8% .. +6,6% |
+```
+Iter  Beule (außen)    Delle (innen)
+─────────────────────────────────────────────────
+  0   ▏                ▏                    0,000%
+  3   ████▏            ████▏                2,548%
+  4   ████████▏        ███████▏             4,884%
+  5   ██████████▏      █████████▏           6,272%
+  6   ████████████▏    ██████████▏          7,042%
+  7   █████████████▏   ██████████▏          7,438%
+  8   █████████████▏   ███████████▏         7,640%
+  9   █████████████▏   ███████████▏         7,742%
+ 10   █████████████▏   ███████████▏         7,793%
+ ...
+ 15   ██████████████▏  ███████████▏         7,843%
+ 20   ██████████████▏  ███████████▏         7,845%
+         -7,845%          +6,604%
+```
 
-Die Abweichung stabilisiert sich bei ca. ±7,8% — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper.
+| Iteration | Min (Beule) | Max (Delle) |
+|-----------|-------------|-------------|
+| 0 | 0,000% | +0,000% |
+| 3 | -2,548% | +2,548% |
+| 5 | -6,272% | +5,407% |
+| 7 | -7,438% | +6,291% |
+| 10 | -7,793% | +6,564% |
+| 13 | -7,838% | +6,599% |
+| 15 | -7,843% | +6,602% |
+| 20 | -7,845% | +6,604% |
+
+Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
 **Die Ursache: topologische Nicht-Uniformität.**
 
@@ -66,15 +88,15 @@ Die Mittelwertbildung an einem Grad-3-Vertex mittelt über 3 Nachbarn, an einem 
 
 Der Grenzkörper ist ein wohldefinierter O<sub>h</sub>-symmetrischer konvexer Körper mit:
 - 8 leichten Beulen an den Positionen der ursprünglichen Würfelecken
-- 6 leichte Dellen an den Positionen der ursprünglichen Flächenzentren
+- 6 leichten Dellen an den Positionen der ursprünglichen Flächenzentren
 - ca. 14% Unterschied zwischen größtem und kleinstem Durchmesser
-- Unendlich viele Flächen (im Grenzwert glatt)
+- unendlich vielen Flächen (im Grenzwert glatt)
 
 Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polyeder).
 
 ### Sind die Schnittflächen immer plan?
 
-Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1) oder Sechsecke in späteren Iterationen. Die Frage ist: Liegen diese Punkte exakt in einer Ebene, oder sind die Flächen "verbogen"?
+Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1) oder Sechsecke in späteren Iterationen. Die Frage ist: Liegen diese Punkte exakt in einer Ebene oder sind die Flächen "verbogen"?
 
 **Antwort: Ja, alle Flächen sind exakt plan.**
 
@@ -115,7 +137,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 49.152 Vertices wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples.
+Bei mehr als 50.000 Vertices wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples.
 
 ### Stats-Zeile
 
