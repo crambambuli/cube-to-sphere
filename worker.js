@@ -201,37 +201,27 @@ async function rectifyTopological(vertices, faces, onProgress) {
   }
 
   // ----------------------------------------------------------
-  // SCHRITT 5: Normalisierung durch Durchschnittsradius
+  // SCHRITT 5: Durchschnittsradius berechnen (keine Normalisierung)
   // ----------------------------------------------------------
-  // Alle Vertices werden so skaliert, dass ihr durchschnittlicher
-  // Abstand vom Ursprung = 1 ist.
-  //
-  // WARUM NICHT maxR? maxR-Normalisierung (teile durch den am weitesten
-  // entfernten Punkt) erzeugt einen nicht-sphärischen Fixpunkt: die
-  // Beulen an den Würfelecken werden immer auf r=1 zurückgesetzt und
-  // können nie schrumpfen. rAvg-Normalisierung erlaubt symmetrisches
-  // Schrumpfen von Beulen UND Dellen.
+  // Der Körper schrumpft natürlich mit jeder Iteration, weil
+  // Kantenmittelpunkte näher am Zentrum liegen als die Endpunkte.
+  // rAvg wird für die Best-Fit-Kugel und Abweichungsberechnung benötigt.
   let rSum = 0;
   for (const v of newVertices) {
     rSum += Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   }
   const rAvg = rSum / newVertices.length;
-  if (rAvg > 1e-12) {
-    for (const v of newVertices) {
-      v[0] /= rAvg; v[1] /= rAvg; v[2] /= rAvg;
-    }
-  }
 
   // ----------------------------------------------------------
   // SCHRITT 6: Abweichungen von der Best-Fit-Kugel
   // ----------------------------------------------------------
-  // Nach rAvg-Normalisierung hat die Best-Fit-Kugel Radius 1.
+  // Best-Fit-Kugel hat Radius rAvg.
   // deviation > 0: Punkt liegt innerhalb der Kugel (Delle)
   // deviation < 0: Punkt liegt außerhalb der Kugel (Beule)
   const deviations = new Float64Array(newVertices.length);
   for (let i = 0; i < newVertices.length; i++) {
     const v = newVertices[i];
-    deviations[i] = 1 - Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    deviations[i] = rAvg - Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   }
 
   // ----------------------------------------------------------
@@ -326,9 +316,8 @@ self.onmessage = async function(e) {
     const t0 = performance.now();
 
     if (iter === 0) {
-      // Ausgangswürfel normalisiert zurückgeben (rAvg = 1)
-      const s = 1 / Math.sqrt(3); // Normalisierung: Abstand √3 → 1
-      currentVertices = CUBE_VERTS.map(v => [v[0]*s, v[1]*s, v[2]*s]);
+      // Ausgangswürfel in Originalgröße (Vertices bei ±1, Abstand √3)
+      currentVertices = CUBE_VERTS.map(v => [...v]);
       currentFaces = CUBE_FACES;
       const coords = flatCoords(currentVertices);
       // Würfel-Triangulierung: 6 Quadrate × 2 Dreiecke = 12 Dreiecke
@@ -344,7 +333,7 @@ self.onmessage = async function(e) {
       const deviations = new Float64Array(8).fill(0);
       self.postMessage({
         type: 'result', iter, coords, triIndices, deviations,
-        rAvg: 1, // Nach Normalisierung
+        rAvg: Math.sqrt(3), // Abstand Würfelecke zum Ursprung
         duration: 0,
         vertCount: 8, edgeCount: 12, faceCount: 6
       }, [coords.buffer, triIndices.buffer, deviations.buffer]);

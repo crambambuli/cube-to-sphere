@@ -129,7 +129,7 @@ Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische N
 Die Anwendung zeigt den Körper in zwei Modi:
 
 - **Iteration 0–10 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1s Cross-Fade mit Ease-in-out).
-- **Ab Iteration 11 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel (Radius 1 nach Normalisierung) als Referenz. Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
+- **Ab Iteration 11 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
 
 ### Farbcodierung der Punkte
 
@@ -137,7 +137,7 @@ Jeder Vertex-Punkt ist nach seiner Abweichung von der Best-Fit-Kugel eingefärbt
 
 - **Rot** — außerhalb der Kugel (Beule, an den Würfelecken-Positionen)
 - **Grün** — innerhalb der Kugel (Delle, an den Flächenzentren)
-- **Grau** — auf der Kugeloberfläche (kaum Abweichung)
+- **Grau** — auf der Kugeloberfläche (Abweichung < 0,001%, z.B. bei Iter 0–2 wo alle Vertices exakt equidistant sind)
 
 Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich verblassen Punkte und Kanten mit zunehmender Entfernung zur Kamera (Live-Update bei Rotation, auch während der Animation): vordere Elemente sind kräftig, hintere blass.
 
@@ -155,6 +155,7 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Ecken | Anzahl Vertices (exakt aus Topologie, nicht Euler-Schätzung) |
 | Kanten | Anzahl Kanten (verdoppelt sich pro Iteration: E' = 2E) |
 | Flächen | Anzahl Flächen (F' = V + F) |
+| Radius | Durchschnittsabstand der Vertices vom Ursprung (schrumpft pro Iteration) |
 | Dauer | Berechnungszeit der Iteration im Web Worker |
 | Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |
 | Abweichung | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent |
@@ -198,7 +199,7 @@ Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann 
                           {iter}
   Three.js          ---------------------->              Topologische
   Rendering                                              Rektifikation
-  UI/Events         <----------------------              Normalisierung
+  UI/Events         <----------------------              Deviation-Berechnung
                      {coords, triIndices,                 Triangulierung
                       deviations, stats}
 ```
@@ -213,8 +214,8 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 1. **Kanten sammeln:** Aus den Polygon-Flächen werden alle Kanten und deren Mittelpunkte berechnet.
 2. **Geschrumpfte Flächen:** Jede alte Fläche wird durch die Mittelpunkte ihrer Kanten ersetzt.
 3. **Vertex-Figuren:** Für jeden alten Vertex werden die Mittelpunkte seiner Kanten in der richtigen zyklischen Reihenfolge (via Flächen-Adjazenz) zu einem neuen Polygon verbunden.
-4. **Normalisierung:** Alle Vertices werden durch den Durchschnittsradius geteilt (nicht maxR — siehe Diskussion oben).
-5. **Deviations:** Abstand jedes Vertex von der Einheitskugel nach Normalisierung.
+4. **Keine Normalisierung:** Der Körper behält seinen natürlichen Radius (schrumpft mit jeder Iteration).
+5. **Deviations:** Abstand jedes Vertex von der Best-Fit-Kugel (Radius = Durchschnittsabstand).
 6. **Triangulierung:** Fan-Triangulierung mit konsistenter Winding-Order (Normalen nach außen).
 
 ### Rendering (index.html)
@@ -232,7 +233,7 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 |-------|-------------|
 | `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit inline Worker, funktioniert ohne Server |
 | `index.html` | Main Thread: Three.js-Rendering, UI, Kamerasteuerung |
-| `worker.js` | Web Worker: Topologische Rektifikation, Normalisierung, Triangulierung |
+| `worker.js` | Web Worker: Topologische Rektifikation, Deviation-Berechnung, Triangulierung |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
 | `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Social Media |
 

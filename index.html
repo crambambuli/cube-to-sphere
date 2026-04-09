@@ -109,6 +109,7 @@
     Ecken: <span id="s-verts">8</span>
     Kanten: <span id="s-edges">12</span>
     Flächen: <span id="s-faces">6</span>
+    Radius: <span id="s-radius">-</span>
     Dauer: <span id="s-time">-</span>
     Samples: <span id="s-samples">-</span>
     Abweichung: <span id="s-dev">-</span>
@@ -318,8 +319,9 @@ function buildMesh(data, retryWithFewerDots) {
 
   const { vertices, triIndices, deviations, rAvg } = data;
   const color = palette[currentIdx % palette.length];
-  // Nach rAvg-Normalisierung im Worker liegt der Durchschnittsabstand bei 1
-  const sphereRadius = 1;
+  // Echter Radius (nicht normiert) — Körper schrumpft mit jeder Iteration
+  const sphereRadius = rAvg || 1;
+  document.getElementById('s-radius').textContent = sphereRadius.toFixed(4).replace('.', ',');
 
   // ---- Körper / Kugel rendern ----
   if (currentIdx <= 10 && triIndices && triIndices.length > 0) {
@@ -398,7 +400,8 @@ function buildMesh(data, retryWithFewerDots) {
 
   // Deviation → Farbe: grau bei 0, kräftig rot/grün bei maximaler Abweichung
   function devColor(dev) {
-    const t = maxAbsDev > 0 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
+    // Unter 0.001% Abweichung: alles grau (verhindert Farbverstärkung bei Fließkomma-Rauschen)
+    const t = maxAbsDev > 1e-5 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
     if (dev < 0) {
       // Außerhalb der Kugel: grau → rot
       return new THREE.Color(0.4 + 0.6 * t, 0.4 * (1 - t), 0.4 * (1 - t));
@@ -485,6 +488,7 @@ function updateStats(computing) {
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
   // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
   if (computing) {
+    document.getElementById('s-radius').textContent = '-';
     document.getElementById('s-samples').textContent = '-';
     document.getElementById('s-dev').textContent = '-';
   }
@@ -580,7 +584,7 @@ showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
 // ---- Kamera-Rotation ----
 // Sphärische Koordinaten: theta (horizontal), phi (vertikal), radius (Zoom)
 // Auto-Rotation dreht theta langsam, pausiert bei Mausinteraktion für 3s
-let theta = 0.7, phi = 0.6, radius = 2.5;
+let theta = 0.7, phi = 0.6, radius = 4;
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
 let rotationPaused = false; // Doppelklick-Toggle
