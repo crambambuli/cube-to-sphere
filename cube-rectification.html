@@ -40,10 +40,16 @@
     min-height: 0;
   }
   #stats {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
     display: flex;
     gap: 6px 14px;
     justify-content: center;
     flex-wrap: wrap;
+    pointer-events: none;
     padding: 4px 8px;
     font-size: clamp(0.6rem, 2.2vw, 0.8rem);
     flex-shrink: 0;
@@ -97,19 +103,19 @@
   <p>Seiten halbieren, Ecken abschneiden &mdash; Ziehen zum Drehen, Pinch/Scroll zum Zoomen</p>
 </div>
 
-<div id="stats">
-  Iteration: <span id="s-iter">0</span>
-  Ecken: <span id="s-verts">8</span>
-  Kanten: <span id="s-edges">12</span>
-  Flächen: <span id="s-faces">6</span>
-  Dauer: <span id="s-time">-</span>
-  Samples: <span id="s-samples">-</span>
-  Abweichung: <span id="s-dev">-</span>
-  Vorberechnet: <span id="s-precomp-wrap"><span id="s-precomp">0</span>/<span id="s-max">20</span></span>
-  <span id="s-progress"></span>
+<div id="scene-container">
+  <div id="stats">
+    Iteration: <span id="s-iter">0</span>
+    Ecken: <span id="s-verts">8</span>
+    Kanten: <span id="s-edges">12</span>
+    Flächen: <span id="s-faces">6</span>
+    Dauer: <span id="s-time">-</span>
+    Samples: <span id="s-samples">-</span>
+    Abweichung: <span id="s-dev">-</span>
+    Vorberechnet: <span id="s-precomp-wrap"><span id="s-precomp">0</span>/<span id="s-max">20</span></span>
+    <span id="s-progress"></span>
+  </div>
 </div>
-
-<div id="scene-container"></div>
 
 <div id="controls">
   <button id="btn-reset">Reset</button>
@@ -449,8 +455,9 @@ self.onmessage = async function(e) {
     const t0 = performance.now();
 
     if (iter === 0) {
-      // Ausgangswürfel zurückgeben (keine Berechnung nötig)
-      currentVertices = CUBE_VERTS;
+      // Ausgangswürfel normalisiert zurückgeben (rAvg = 1)
+      const s = 1 / Math.sqrt(3); // Normalisierung: Abstand √3 → 1
+      currentVertices = CUBE_VERTS.map(v => [v[0]*s, v[1]*s, v[2]*s]);
       currentFaces = CUBE_FACES;
       const coords = flatCoords(currentVertices);
       // Würfel-Triangulierung: 6 Quadrate × 2 Dreiecke = 12 Dreiecke
@@ -466,7 +473,7 @@ self.onmessage = async function(e) {
       const deviations = new Float64Array(8).fill(0);
       self.postMessage({
         type: 'result', iter, coords, triIndices, deviations,
-        rAvg: Math.sqrt(3), // Abstand Würfelecke zum Ursprung = √3
+        rAvg: 1, // Nach Normalisierung
         duration: 0,
         vertCount: 8, edgeCount: 12, faceCount: 6
       }, [coords.buffer, triIndices.buffer, deviations.buffer]);
@@ -999,7 +1006,7 @@ showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
 // ---- Kamera-Rotation ----
 // Sphärische Koordinaten: theta (horizontal), phi (vertikal), radius (Zoom)
 // Auto-Rotation dreht theta langsam, pausiert bei Mausinteraktion für 3s
-let theta = 0.7, phi = 0.6, radius = 4;
+let theta = 0.7, phi = 0.6, radius = 2.5;
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
 let rotationPaused = false; // Doppelklick-Toggle

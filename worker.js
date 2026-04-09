@@ -326,8 +326,9 @@ self.onmessage = async function(e) {
     const t0 = performance.now();
 
     if (iter === 0) {
-      // Ausgangswürfel zurückgeben (keine Berechnung nötig)
-      currentVertices = CUBE_VERTS;
+      // Ausgangswürfel normalisiert zurückgeben (rAvg = 1)
+      const s = 1 / Math.sqrt(3); // Normalisierung: Abstand √3 → 1
+      currentVertices = CUBE_VERTS.map(v => [v[0]*s, v[1]*s, v[2]*s]);
       currentFaces = CUBE_FACES;
       const coords = flatCoords(currentVertices);
       // Würfel-Triangulierung: 6 Quadrate × 2 Dreiecke = 12 Dreiecke
@@ -343,7 +344,7 @@ self.onmessage = async function(e) {
       const deviations = new Float64Array(8).fill(0);
       self.postMessage({
         type: 'result', iter, coords, triIndices, deviations,
-        rAvg: Math.sqrt(3), // Abstand Würfelecke zum Ursprung = √3
+        rAvg: 1, // Nach Normalisierung
         duration: 0,
         vertCount: 8, edgeCount: 12, faceCount: 6
       }, [coords.buffer, triIndices.buffer, deviations.buffer]);
