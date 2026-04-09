@@ -147,10 +147,10 @@
 //
 // EULER-FORMEL: V' = E, E' = 2E, F' = V + F (exakt, keine Approximation).
 //
-// NORMALISIERUNG: Durch den Durchschnittsradius (rAvg) statt maxR.
-//   maxR-Normalisierung erzeugt einen nicht-sphärischen Fixpunkt,
-//   weil die Beulen (an den Würfelecken) immer auf r=1 zurückgesetzt werden.
-//   rAvg-Normalisierung erlaubt sowohl Beulen als auch Dellen zu schrumpfen.
+// KEINE NORMALISIERUNG: Der Körper behält seinen natürlichen Radius und
+//   schrumpft mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum).
+//   Der Durchschnittsradius (rAvg) wird nur für die Best-Fit-Kugel und
+//   Abweichungsberechnung verwendet, nicht zum Skalieren.
 // ============================================================================
 
 // Alle YIELD_EVERY Schritte wird der Event-Loop freigegeben, damit
@@ -403,7 +403,7 @@ async function rectifyTopological(vertices, faces, onProgress) {
     triIndices: new Uint32Array(triIndices), // Triangulierte Indizes (für Rendering)
     coords: flatCoords(newVertices),         // Flat Float64Array (für Transferable)
     deviations,              // Float64Array: Abweichung pro Vertex von der Kugel
-    rAvg,                    // Durchschnittsradius nach Normalisierung (≈ 1)
+    rAvg,                    // Durchschnittsradius (Best-Fit-Kugelradius, schrumpft pro Iteration)
   };
 }
 
