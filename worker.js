@@ -415,7 +415,9 @@ self.onmessage = async function(e) {
     }, skipTri);
 
     // Zustand aktualisieren für die nächste Iteration
-    currentVertices = result.vertices;
+    // Nur originale Vertices behalten (Triangulierungs-Mittelpunkte abschneiden)
+    const numOrig = result.deviations.length;
+    currentVertices = result.vertices.slice(0, numOrig);
     currentFaces = result.faces;
 
     const duration = performance.now() - t0;
@@ -440,7 +442,7 @@ self.onmessage = async function(e) {
       deviations: result.deviations,    // Float64Array: Abweichung von Kugel
       rAvg: result.rAvg,               // Durchschnittsradius
       duration,                         // Berechnungsdauer in ms
-      vertCount: currentVertices.length, // V' = E (Euler)
+      vertCount: result.deviations.length, // Nur originale Vertices (ohne Triangulierungs-Mittelpunkte)
       edgeCount: edgeSet.size,           // E' = 2E (Euler)
       faceCount: currentFaces.length,    // F' = V + F (Euler)
     }, [result.coords.buffer, result.triIndices.buffer, result.edgeIndices.buffer, result.deviations.buffer]);
