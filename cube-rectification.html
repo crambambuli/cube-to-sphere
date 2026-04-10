@@ -866,7 +866,9 @@ function buildMesh(data, retryWithFewerDots) {
   const dotSizes = [0.014, 0.013, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.0035, 0.003];
   const dotSize = currentIdx <= 12 ? dotSizes[currentIdx] : 0.003;
   const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
-  const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
+  // Nur originale Vertices (nicht Triangulierungs-Mittelpunkte) als Punkte anzeigen
+  const numOrigVerts = deviations ? deviations.length : vertices.length;
+  const candidates = Array.from({ length: numOrigVerts }, (_, i) => ({ i }));
   if (candidates.length > maxDots) {
     // Fisher-Yates Shuffle → ersten maxDots nehmen = gleichmäßiges Sample
     for (let i = candidates.length - 1; i > 0; i--) {
