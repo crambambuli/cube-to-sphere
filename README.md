@@ -113,6 +113,16 @@ In den ersten Iterationen erzwingt die O<sub>h</sub>-Symmetrie Koplanarität (z.
 
 **Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
 
+### Nur Dreiecke und Vierecke
+
+Ab Iteration 1 gibt es ausschließlich **Dreiecke** und **Vierecke** — keine Fünf-, Sechsecke oder höher.
+
+Der Grund: Jeder neue Vertex ist der Mittelpunkt einer alten Kante. Jede alte Kante grenzt an genau 2 Flächen und hat 2 Endpunkte (mit je einer Vertex-Figur). Also ist jeder neue Vertex von genau 4 Flächen umgeben → **alle Vertices haben Grad 4** → alle Vertex-Figuren sind Vierecke.
+
+Konkret:
+- **8 Dreiecke** — von den 8 Würfelecken. Bleiben als geschrumpfte Dreiecke über alle Iterationen erhalten. Sie sind die topologischen Singularitäten, die verhindern, dass der Körper zur Kugel konvergiert (sie sitzen an den 8 "Beulen").
+- **Alle anderen Flächen: Vierecke** — geschrumpfte Quads + Vertex-Figuren (Grad 4).
+
 ### Bemerkenswerte Zwischenkörper
 
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
