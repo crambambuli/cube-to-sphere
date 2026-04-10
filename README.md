@@ -100,20 +100,18 @@ Der Grenzkörper ist ein wohldefinierter O<sub>h</sub>-symmetrischer konvexer K�
 
 Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polyeder).
 
-### Sind die Schnittflächen immer plan?
+### Sind die Flächen immer plan?
 
-Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1) oder Sechsecke in späteren Iterationen. Die Frage ist: Liegen diese Punkte exakt in einer Ebene oder sind die Flächen "verbogen"?
+Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1). Die Frage ist: Liegen diese Punkte exakt in einer Ebene oder sind die Flächen "verbogen"?
 
-**Antwort: Ja, alle Flächen sind exakt plan.**
+**Antwort: Nicht immer.** Es gibt zwei Typen von Flächen:
 
-Das folgt direkt aus der Konstruktion: Das Ergebnis jeder Iteration ist die konvexe Hülle der Kantenmittelpunkte. Die konvexe Hülle eines endlichen Punktsatzes ist ein konvexes Polyeder, und jede Fläche eines konvexen Polyeders liegt in einer Stützebene — einer Ebene, die den Körper berührt, aber nicht schneidet. Punkte, die in derselben Stützebene liegen, sind automatisch koplanar.
+- **Geschrumpfte Original-Flächen:** Die Mittelpunkte der Kanten einer planaren Fläche liegen in derselben Ebene → **immer exakt plan.** ✓
+- **Vertex-Figuren:** Die Mittelpunkte der Kanten, die an einem Vertex enden. Für Grad 3 (Dreieck) immer plan. Für Grad 4+ sind die Eckpunkte genau dann koplanar, wenn die Nachbarn des Vertex koplanar sind — und das ist bei einem konvexen Polyeder **nicht garantiert.**
 
-Geometrisch betrachtet entstehen bei jeder Iteration zwei Typen von Flächen:
+In den ersten Iterationen erzwingt die O<sub>h</sub>-Symmetrie Koplanarität (z.B. 4-fache Rotationssymmetrie bei Flächenzentren-Vertices). Bei höheren Iterationen sinkt die lokale Symmetrie, und Vertex-Figuren vom Grad 4+ werden leicht nicht-planar. Die Abweichung ist proportional zum Quadrat der Kantenlänge (Krümmungseffekt der fast-sphärischen Oberfläche) — in der Praxis extrem klein, aber mathematisch vorhanden.
 
-- **Vertex-Flächen:** Jede alte Ecke mit Grad d wird zu einem planaren d-Eck (beim Würfel: 3 Kanten pro Ecke → Dreieck)
-- **Geschrumpfte Original-Flächen:** Jede alte n-Eck-Fläche wird zu einem kleineren n-Eck (beim Würfel: Quadrat → kleineres Quadrat)
-
-Beide Typen sind exakt plan — nicht nur numerisch, sondern als mathematische Notwendigkeit der konvexen Hülle.
+**Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
 
 ### Bemerkenswerte Zwischenkörper
 
