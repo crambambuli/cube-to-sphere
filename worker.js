@@ -195,58 +195,9 @@ async function rectifyTopological(vertices, faces, onProgress) {
       if (!found) break; // Sollte bei geschlossenem Polyeder nicht passieren
     }
 
-    // VALIDIERUNG: Prüfe, ob aufeinanderfolgende Kanten in der Ordnung
-    // tatsächlich eine gemeinsame Fläche haben (= benachbart sind)
-    for (let k = 0; k < ordered.length; k++) {
-      const e1 = ordered[k];
-      const e2 = ordered[(k + 1) % ordered.length];
-      const faces1 = edgeFaces.get(e1);
-      const faces2 = edgeFaces.get(e2);
-      const shared = faces1.filter(f => faces2.includes(f));
-      if (shared.length === 0) {
-        console.error(`[FEHLER] Vertex ${v}: Kanten ${e1} und ${e2} haben KEINE gemeinsame Fläche!`);
-        console.error(`  Faces von ${e1}:`, faces1);
-        console.error(`  Faces von ${e2}:`, faces2);
-        console.error(`  Ordered:`, ordered);
-        console.error(`  Alle Kanten an v:`, eKeys);
-      }
-    }
-
-    // Auch prüfen: haben wir alle Kanten geordnet?
-    if (ordered.length !== eKeys.length) {
-      console.error(`[FEHLER] Vertex ${v}: Nur ${ordered.length}/${eKeys.length} Kanten geordnet!`);
-      console.error(`  Ordered:`, ordered);
-      console.error(`  Alle Kanten:`, eKeys);
-    }
-
     // Vertex-Figur: die Mittelpunkte der geordneten Kanten
     const vertexFace = ordered.map(key => edgeMidIdx.get(key));
     newFaces.push(vertexFace);
-  }
-
-  // VALIDIERUNG: Topologie-Invarianten prüfen
-  {
-    // Jede Kante muss in genau 2 Flächen vorkommen
-    const edgeCount = new Map();
-    for (const face of newFaces) {
-      for (let j = 0; j < face.length; j++) {
-        const key = edgeKey(face[j], face[(j + 1) % face.length]);
-        edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
-      }
-    }
-    for (const [key, count] of edgeCount) {
-      if (count !== 2) {
-        console.error(`[FEHLER] Kante ${key} kommt in ${count} Flächen vor (erwartet: 2)`);
-      }
-    }
-    // Euler-Formel: V - E + F = 2
-    const V = newVertices.length;
-    const E = edgeCount.size;
-    const F = newFaces.length;
-    const euler = V - E + F;
-    if (euler !== 2) {
-      console.error(`[FEHLER] Euler-Formel: V(${V}) - E(${E}) + F(${F}) = ${euler} (erwartet: 2)`);
-    }
   }
 
   // ----------------------------------------------------------
