@@ -131,7 +131,15 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 
 **Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
 
-**Rendering nicht-planarer Quads:** Für die 3D-Darstellung werden Quads per Fan-Triangulierung in 2 Dreiecke entlang einer willkürlichen Diagonale (erster zum dritten Vertex) geteilt. Bei einem nicht-planaren Quad entsteht an dieser Diagonale ein leichter Knick — wie ein gefaltetes Blatt Papier. Die andere Diagonale hätte eine andere Faltung erzeugt. Die Kanten zeigen nur die 4 Polygon-Ränder, nicht die Triangulierungs-Diagonale — der Knick ist daher visuell kaum sichtbar. Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸. In der Praxis visuell nicht erkennbar.
+**Rendering nicht-planarer Quads:** Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird. Es gibt mehrere Ansätze:
+
+1. **Fan-Triangulierung (2 Dreiecke):** Quad wird entlang einer willkürlichen Diagonale in 2 Dreiecke geteilt. Einfach, aber erzeugt einen Knick an der Diagonale. Die andere Diagonale hätte einen anderen Knick erzeugt — die Wahl ist ein Implementierungsartefakt.
+2. **Mittelpunkt-Triangulierung (4 Dreiecke):** ✅ Der Schwerpunkt der 4 Ecken wird als 5. Vertex eingefügt, das Quad in 4 Dreiecke geteilt. Kein willkürlicher Diagonalen-Knick, geometrisch fair — der Knick wird gleichmäßig auf alle 4 Seiten verteilt. **Diese Variante ist implementiert.**
+3. **Kürzeste Diagonale:** Wie (1), aber die Diagonale mit dem kleineren Knickwinkel wählen. Visuell besser als willkürliche Wahl, aber immer noch ein asymmetrischer Knick.
+4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter (z.B. 4×4 = 32 Dreiecke pro Quad). Kein Knick, dafür deutlich höhere GPU-Last. Bei der winzigen Nicht-Planarität (< 10⁻²) visuell nicht vom Mittelpunkt-Ansatz unterscheidbar.
+5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie (nicht mehr exakte Rektifikation).
+
+Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
 
 ### Bemerkenswerte Zwischenkörper
 

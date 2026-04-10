@@ -204,31 +204,7 @@ async function rectifyTopological(vertices, faces, onProgress) {
   }
 
   // ----------------------------------------------------------
-  // SCHRITT 5: Durchschnittsradius berechnen (keine Normalisierung)
-  // ----------------------------------------------------------
-  // Der Körper schrumpft natürlich mit jeder Iteration, weil
-  // Kantenmittelpunkte näher am Zentrum liegen als die Endpunkte.
-  // rAvg wird für die Best-Fit-Kugel und Abweichungsberechnung benötigt.
-  let rSum = 0;
-  for (const v of newVertices) {
-    rSum += Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-  }
-  const rAvg = rSum / newVertices.length;
-
-  // ----------------------------------------------------------
-  // SCHRITT 6: Abweichungen von der Best-Fit-Kugel
-  // ----------------------------------------------------------
-  // Best-Fit-Kugel hat Radius rAvg.
-  // deviation > 0: Punkt liegt innerhalb der Kugel (Delle)
-  // deviation < 0: Punkt liegt außerhalb der Kugel (Beule)
-  const deviations = new Float64Array(newVertices.length);
-  for (let i = 0; i < newVertices.length; i++) {
-    const v = newVertices[i];
-    deviations[i] = rAvg - Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-  }
-
-  // ----------------------------------------------------------
-  // SCHRITT 7: Triangulierung für Rendering
+  // SCHRITT 5: Triangulierung für Rendering
   // ----------------------------------------------------------
   // Three.js braucht Dreiecke, keine Polygone. Wir verwenden
   // Fan-Triangulierung: ein Polygon mit n Ecken wird zu n-2 Dreiecken.
@@ -240,15 +216,7 @@ async function rectifyTopological(vertices, faces, onProgress) {
   for (const face of newFaces) {
     if (face.length < 3) continue;
 
-    // Flächennormale via Kreuzprodukt der ersten zwei Kanten
-    const a = newVertices[face[0]], b = newVertices[face[1]], c = newVertices[face[2]];
-    const abx = b[0]-a[0], aby = b[1]-a[1], abz = b[2]-a[2];
-    const acx = c[0]-a[0], acy = c[1]-a[1], acz = c[2]-a[2];
-    const nx = aby*acz - abz*acy;
-    const ny = abz*acx - abx*acz;
-    const nz = abx*acy - aby*acx;
-
-    // Zentroid der Fläche (≈ Richtung vom Ursprung zur Fläche)
+    // Zentroid der Fläche (für Orientierung + Mittelpunkt-Triangulierung)
     let cx2 = 0, cy2 = 0, cz2 = 0;
     for (const vi of face) {
       cx2 += newVertices[vi][0];
@@ -256,20 +224,48 @@ async function rectifyTopological(vertices, faces, onProgress) {
       cz2 += newVertices[vi][2];
     }
 
-    // Dot-Produkt: positiv = Normale zeigt nach außen (gewünscht)
+    // Flächennormale via Kreuzprodukt der ersten zwei Kanten
+    const a = newVertices[face[0]], b = newVertices[face[1]], c = newVertices[face[2]];
+    const nx = (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1]);
+    const ny = (b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2]);
+    const nz = (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
     const outward = nx*cx2 + ny*cy2 + nz*cz2;
 
-    if (outward >= 0) {
-      // Normale zeigt nach außen → Reihenfolge beibehalten
-      for (let j = 1; j < face.length - 1; j++) {
-        triIndices.push(face[0], face[j], face[j + 1]);
-      }
+    if (face.length === 3) {
+      // Dreieck: direkt verwenden (immer plan)
+      if (outward >= 0) triIndices.push(face[0], face[1], face[2]);
+      else triIndices.push(face[0], face[2], face[1]);
     } else {
-      // Normale zeigt nach innen → Reihenfolge umkehren
-      for (let j = 1; j < face.length - 1; j++) {
-        triIndices.push(face[0], face[j + 1], face[j]);
+      // Quad oder höher: Mittelpunkt-Triangulierung
+      // Schwerpunkt als neuen Vertex einfügen → n Dreiecke statt n-2
+      // Verteilt den Knick gleichmäßig statt auf eine willkürliche Diagonale
+      const midIdx = newVertices.length;
+      newVertices.push([cx2 / face.length, cy2 / face.length, cz2 / face.length]);
+      for (let j = 0; j < face.length; j++) {
+        const v0 = face[j], v1 = face[(j + 1) % face.length];
+        if (outward >= 0) triIndices.push(v0, v1, midIdx);
+        else triIndices.push(v1, v0, midIdx);
       }
     }
+  }
+
+  // ----------------------------------------------------------
+  // SCHRITT 6: Durchschnittsradius + Abweichungen
+  // ----------------------------------------------------------
+  // NACH der Triangulierung, weil Mittelpunkt-Vertices hinzugekommen sind.
+  // rAvg nur über die originalen Vertices (nicht die Mittelpunkte).
+  const numOrigVerts = edgeMidIdx.size; // Anzahl echte Vertices (ohne Triangulierungs-Mittelpunkte)
+  let rSum = 0;
+  for (let i = 0; i < numOrigVerts; i++) {
+    const v = newVertices[i];
+    rSum += Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  }
+  const rAvg = rSum / numOrigVerts;
+
+  const deviations = new Float64Array(numOrigVerts);
+  for (let i = 0; i < numOrigVerts; i++) {
+    const v = newVertices[i];
+    deviations[i] = rAvg - Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   }
 
   // Polygon-Kanten als Liniensegmente (für Rendering ohne EdgesGeometry)
