@@ -195,9 +195,58 @@ async function rectifyTopological(vertices, faces, onProgress) {
       if (!found) break; // Sollte bei geschlossenem Polyeder nicht passieren
     }
 
+    // VALIDIERUNG: Prüfe, ob aufeinanderfolgende Kanten in der Ordnung
+    // tatsächlich eine gemeinsame Fläche haben (= benachbart sind)
+    for (let k = 0; k < ordered.length; k++) {
+      const e1 = ordered[k];
+      const e2 = ordered[(k + 1) % ordered.length];
+      const faces1 = edgeFaces.get(e1);
+      const faces2 = edgeFaces.get(e2);
+      const shared = faces1.filter(f => faces2.includes(f));
+      if (shared.length === 0) {
+        console.error(`[FEHLER] Vertex ${v}: Kanten ${e1} und ${e2} haben KEINE gemeinsame Fläche!`);
+        console.error(`  Faces von ${e1}:`, faces1);
+        console.error(`  Faces von ${e2}:`, faces2);
+        console.error(`  Ordered:`, ordered);
+        console.error(`  Alle Kanten an v:`, eKeys);
+      }
+    }
+
+    // Auch prüfen: haben wir alle Kanten geordnet?
+    if (ordered.length !== eKeys.length) {
+      console.error(`[FEHLER] Vertex ${v}: Nur ${ordered.length}/${eKeys.length} Kanten geordnet!`);
+      console.error(`  Ordered:`, ordered);
+      console.error(`  Alle Kanten:`, eKeys);
+    }
+
     // Vertex-Figur: die Mittelpunkte der geordneten Kanten
     const vertexFace = ordered.map(key => edgeMidIdx.get(key));
     newFaces.push(vertexFace);
+  }
+
+  // VALIDIERUNG: Topologie-Invarianten prüfen
+  {
+    // Jede Kante muss in genau 2 Flächen vorkommen
+    const edgeCount = new Map();
+    for (const face of newFaces) {
+      for (let j = 0; j < face.length; j++) {
+        const key = edgeKey(face[j], face[(j + 1) % face.length]);
+        edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+      }
+    }
+    for (const [key, count] of edgeCount) {
+      if (count !== 2) {
+        console.error(`[FEHLER] Kante ${key} kommt in ${count} Flächen vor (erwartet: 2)`);
+      }
+    }
+    // Euler-Formel: V - E + F = 2
+    const V = newVertices.length;
+    const E = edgeCount.size;
+    const F = newFaces.length;
+    const euler = V - E + F;
+    if (euler !== 2) {
+      console.error(`[FEHLER] Euler-Formel: V(${V}) - E(${E}) + F(${F}) = ${euler} (erwartet: 2)`);
+    }
   }
 
   // ----------------------------------------------------------
@@ -269,10 +318,20 @@ async function rectifyTopological(vertices, faces, onProgress) {
     }
   }
 
+  // Polygon-Kanten als Liniensegmente (für Rendering ohne EdgesGeometry)
+  // Jede Polygon-Kante = 2 Vertex-Indizes, als flaches Array
+  const edgeIndices = [];
+  for (const face of newFaces) {
+    for (let j = 0; j < face.length; j++) {
+      edgeIndices.push(face[j], face[(j + 1) % face.length]);
+    }
+  }
+
   return {
     vertices: newVertices,   // [[x,y,z], ...] — neue Vertex-Koordinaten
     faces: newFaces,         // [[v0,v1,...], ...] — Polygon-Flächen (für nächste Iteration)
     triIndices: new Uint32Array(triIndices), // Triangulierte Indizes (für Rendering)
+    edgeIndices: new Uint32Array(edgeIndices), // Polygon-Kanten als Liniensegmente
     coords: flatCoords(newVertices),         // Flat Float64Array (für Transferable)
     deviations,              // Float64Array: Abweichung pro Vertex von der Kugel
     rAvg,                    // Durchschnittsradius (Best-Fit-Kugelradius, schrumpft pro Iteration)
@@ -331,12 +390,20 @@ self.onmessage = async function(e) {
       ]);
       // Alle Würfel-Ecken gleich weit vom Ursprung → deviation = 0
       const deviations = new Float64Array(8).fill(0);
+      // Würfel-Kanten aus Polygon-Flächen
+      const cubeEdgeIndices = [];
+      for (const face of CUBE_FACES) {
+        for (let j = 0; j < face.length; j++) {
+          cubeEdgeIndices.push(face[j], face[(j + 1) % face.length]);
+        }
+      }
+      const edgeIndices = new Uint32Array(cubeEdgeIndices);
       self.postMessage({
-        type: 'result', iter, coords, triIndices, deviations,
-        rAvg: Math.sqrt(3), // Abstand Würfelecke zum Ursprung
+        type: 'result', iter, coords, triIndices, edgeIndices, deviations,
+        rAvg: Math.sqrt(3),
         duration: 0,
         vertCount: 8, edgeCount: 12, faceCount: 6
-      }, [coords.buffer, triIndices.buffer, deviations.buffer]);
+      }, [coords.buffer, triIndices.buffer, edgeIndices.buffer, deviations.buffer]);
       return;
     }
 
@@ -367,13 +434,14 @@ self.onmessage = async function(e) {
       type: 'result', iter,
       coords: result.coords,           // Float64Array: Vertex-Positionen
       triIndices: result.triIndices,    // Uint32Array: Dreieck-Indizes
+      edgeIndices: result.edgeIndices,  // Uint32Array: Polygon-Kanten als Liniensegmente
       deviations: result.deviations,    // Float64Array: Abweichung von Kugel
       rAvg: result.rAvg,               // Durchschnittsradius
       duration,                         // Berechnungsdauer in ms
       vertCount: currentVertices.length, // V' = E (Euler)
       edgeCount: edgeSet.size,           // E' = 2E (Euler)
       faceCount: currentFaces.length,    // F' = V + F (Euler)
-    }, [result.coords.buffer, result.triIndices.buffer, result.deviations.buffer]);
+    }, [result.coords.buffer, result.triIndices.buffer, result.edgeIndices.buffer, result.deviations.buffer]);
 
   } catch (err) {
     console.error('Worker error:', err.message, err.stack);

@@ -195,7 +195,7 @@ worker.onmessage = (e) => {
   }
 
   // Ergebnis empfangen und in history speichern
-  const { iter, coords, triIndices, deviations, rAvg, vertCount, edgeCount, faceCount } = e.data;
+  const { iter, coords, triIndices, edgeIndices, deviations, rAvg, vertCount, edgeCount, faceCount } = e.data;
   const elapsed = computeStartTimes.has(iter) ? performance.now() - computeStartTimes.get(iter) : null;
   computeStartTimes.delete(iter);
 
@@ -207,6 +207,7 @@ worker.onmessage = (e) => {
   history[iter] = {
     vertices,                                           // THREE.Vector3[] für Rendering
     triIndices: new Uint32Array(triIndices),             // Dreieck-Indizes (BufferGeometry)
+    edgeIndices: edgeIndices ? new Uint32Array(edgeIndices) : null, // Polygon-Kanten
     deviations: deviations ? new Float64Array(deviations) : null, // Abweichung pro Vertex
     rAvg: rAvg || 1,                                    // Best-Fit-Kugelradius
     duration: elapsed,                                  // Berechnungsdauer in ms
@@ -307,8 +308,8 @@ precomputeNext(); // Startet die Vorberechnung ab Iteration 0
 // Rendering
 // ============================================================================
 // Baut die 3D-Szene für die aktuelle Iteration:
-//   - Iter 0-10: Polyeder mit Flächen, Kanten und Vertex-Punkten
-//   - Ab Iter 11: Best-Fit-Kugel als Referenz + Vertex-Punkte
+//   - Iter 0-12: Polyeder mit Flächen, Kanten und Vertex-Punkten
+//   - Ab Iter 13: Best-Fit-Kugel als Referenz + Vertex-Punkte
 // Vertex-Punkte sind farbcodiert nach Abweichung von der Best-Fit-Kugel:
 //   - Rot = außerhalb der Kugel (Beule)
 //   - Grün = innerhalb der Kugel (Delle)
@@ -330,9 +331,9 @@ function buildMesh(data, retryWithFewerDots) {
   document.getElementById('s-radius').textContent = sphereRadius.toFixed(4).replace('.', ',');
 
   // ---- Körper / Kugel rendern ----
-  if (currentIdx <= 10 && triIndices && triIndices.length > 0) {
-    // POLYEDER-MODUS (Iter 0-10):
-    // Flächen aus triangulierten Polygonen (vom Worker), Kanten via EdgesGeometry
+  if (currentIdx <= 12 && triIndices && triIndices.length > 0) {
+    // POLYEDER-MODUS (Iter 0-12):
+    // Flächen aus triangulierten Polygonen (vom Worker), Kanten aus Polygon-Flächen
 
     // Vertex-Positionen als Float32Array (Three.js-Format)
     const positions = new Float32Array(vertices.length * 3);
@@ -364,22 +365,31 @@ function buildMesh(data, retryWithFewerDots) {
     frontMesh.renderOrder = 1;
     meshGroup.add(frontMesh);
 
-    // Kanten mit Vertex-Colors für Live-Opacity basierend auf Kamera-Entfernung
-    const edgesGeom = new THREE.EdgesGeometry(polyGeom, 1);
-    const edgePos = edgesGeom.attributes.position;
-    const edgeColors = new Float32Array(edgePos.count * 3);
-    edgeColors.fill(1); // Weiß initial
-    edgesGeom.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
-    const edgeMat = new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity: initOpacity ?? 0.7,
-    });
-    const edgeMesh = new THREE.LineSegments(edgesGeom, edgeMat);
-    edgeMesh.userData.targetOpacity = 0.7;
-    edgeMesh.userData.isEdge = true; // Markierung für animate-Loop
-    meshGroup.add(edgeMesh);
+    // Kanten direkt aus Polygon-Flächen (nicht EdgesGeometry, die Triangulierungs-Diagonalen zeigt)
+    if (data.edgeIndices && data.edgeIndices.length > 0) {
+      const edgePositions = new Float32Array(data.edgeIndices.length * 3);
+      for (let i = 0; i < data.edgeIndices.length; i++) {
+        const vi = data.edgeIndices[i];
+        edgePositions[i * 3] = vertices[vi].x;
+        edgePositions[i * 3 + 1] = vertices[vi].y;
+        edgePositions[i * 3 + 2] = vertices[vi].z;
+      }
+      const edgesGeom = new THREE.BufferGeometry();
+      edgesGeom.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+      const edgeColors = new Float32Array(data.edgeIndices.length * 3);
+      edgeColors.fill(1); // Weiß initial
+      edgesGeom.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
+      const edgeMat = new THREE.LineBasicMaterial({
+        vertexColors: true, transparent: true, opacity: initOpacity ?? 0.7,
+      });
+      const edgeMesh = new THREE.LineSegments(edgesGeom, edgeMat);
+      edgeMesh.userData.targetOpacity = 0.7;
+      edgeMesh.userData.isEdge = true;
+      meshGroup.add(edgeMesh);
+    }
 
   } else {
-    // KUGEL-MODUS (ab Iter 11):
+    // KUGEL-MODUS (ab Iter 13):
     // Best-Fit-Kugel als Referenzkörper — zeigt wie weit die Vertices
     // von der idealen Kugel abweichen
     const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
@@ -420,8 +430,8 @@ function buildMesh(data, retryWithFewerDots) {
   // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
   let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
-  const dotSizes = [0.014, 0.013, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004];
-  const dotSize = currentIdx <= 10 ? dotSizes[currentIdx] : 0.003;
+  const dotSizes = [0.014, 0.013, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.0035, 0.003];
+  const dotSize = currentIdx <= 12 ? dotSizes[currentIdx] : 0.003;
   const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
   const candidates = Array.from({ length: vertices.length }, (_, i) => ({ i }));
   if (candidates.length > maxDots) {
@@ -519,8 +529,8 @@ function showCurrent() {
       morphing = false;
     }
 
-    // Morph starten wenn Polyeder-Modus (iter 0-10) und alter Körper vorhanden
-    if (currentIdx <= 10 && meshGroup.children.length > 0) {
+    // Morph starten wenn Polyeder-Modus (iter 0-12) und alter Körper vorhanden
+    if (currentIdx <= 12 && meshGroup.children.length > 0) {
       // Alten Körper in oldGroup verschieben
       if (oldGroup) {
         scene.remove(oldGroup);
