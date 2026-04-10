@@ -131,6 +131,8 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 
 **Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
 
+**Rendering nicht-planarer Quads:** Für die 3D-Darstellung werden Quads per Fan-Triangulierung in 2 Dreiecke entlang einer willkürlichen Diagonale (erster zum dritten Vertex) geteilt. Bei einem nicht-planaren Quad entsteht an dieser Diagonale ein leichter Knick — wie ein gefaltetes Blatt Papier. Die andere Diagonale hätte eine andere Faltung erzeugt. Die Kanten zeigen nur die 4 Polygon-Ränder, nicht die Triangulierungs-Diagonale — der Knick ist daher visuell kaum sichtbar. In der Praxis ist die Nicht-Planarität so klein (< 10⁻¹⁰), dass der Knick unsichtbar ist.
+
 ### Bemerkenswerte Zwischenkörper
 
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
