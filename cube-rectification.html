@@ -363,10 +363,33 @@ async function rectifyTopological(vertices, faces, onProgress) {
       // Dreieck: direkt verwenden (immer plan)
       if (outward >= 0) triIndices.push(face[0], face[1], face[2]);
       else triIndices.push(face[0], face[2], face[1]);
+    } else if (face.length === 4) {
+      // Quad: prüfen ob plan (4. Punkt in Ebene der ersten 3?)
+      const d = newVertices[face[3]];
+      const nl = Math.sqrt(nx*nx + ny*ny + nz*nz);
+      const planarity = nl > 0 ? Math.abs(nx*(d[0]-a[0]) + ny*(d[1]-a[1]) + nz*(d[2]-a[2])) / nl : 0;
+
+      if (planarity < 1e-10) {
+        // Plan: einfache Fan-Triangulierung (2 Dreiecke, kein Mittelpunkt nötig)
+        if (outward >= 0) {
+          triIndices.push(face[0], face[1], face[2]);
+          triIndices.push(face[0], face[2], face[3]);
+        } else {
+          triIndices.push(face[0], face[2], face[1]);
+          triIndices.push(face[0], face[3], face[2]);
+        }
+      } else {
+        // Nicht plan: Mittelpunkt-Triangulierung (4 Dreiecke)
+        const midIdx = newVertices.length;
+        newVertices.push([cx2 / 4, cy2 / 4, cz2 / 4]);
+        for (let j = 0; j < 4; j++) {
+          const v0 = face[j], v1 = face[(j + 1) % 4];
+          if (outward >= 0) triIndices.push(v0, v1, midIdx);
+          else triIndices.push(v1, v0, midIdx);
+        }
+      }
     } else {
-      // Quad oder höher: Mittelpunkt-Triangulierung
-      // Schwerpunkt als neuen Vertex einfügen → n Dreiecke statt n-2
-      // Verteilt den Knick gleichmäßig statt auf eine willkürliche Diagonale
+      // 5+ Ecken: immer Mittelpunkt-Triangulierung
       const midIdx = newVertices.length;
       newVertices.push([cx2 / face.length, cy2 / face.length, cz2 / face.length]);
       for (let j = 0; j < face.length; j++) {
