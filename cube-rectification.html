@@ -122,7 +122,6 @@
   <button id="btn-prev" disabled>&larr; Zurück</button>
   <div id="iteration-label">Iteration 0</div>
   <button id="btn-next">Weiter &rarr;</button>
-  <button id="btn-mode">Topo</button>
 </div>
 
 
@@ -434,99 +433,6 @@ function flatCoords(verts) {
 }
 
 // ============================================================================
-// Convex-Hull-Algorithmus (Incremental mit Adjazenz + Conflict Lists)
-// ============================================================================
-function convexHull(pts) {
-  const n = pts.length;
-  if (n < 4) return [];
-  let i0=0,i1=-1,i2=-1,i3=-1,maxD=0;
-  for(let i=1;i<n;i++){const dx=pts[i][0]-pts[0][0],dy=pts[i][1]-pts[0][1],dz=pts[i][2]-pts[0][2];const d=dx*dx+dy*dy+dz*dz;if(d>maxD){maxD=d;i1=i;}}
-  const ld=[pts[i1][0]-pts[i0][0],pts[i1][1]-pts[i0][1],pts[i1][2]-pts[i0][2]];
-  const ll=Math.sqrt(ld[0]*ld[0]+ld[1]*ld[1]+ld[2]*ld[2]);ld[0]/=ll;ld[1]/=ll;ld[2]/=ll;
-  maxD=0;for(let i=0;i<n;i++){if(i===i0||i===i1)continue;const v=[pts[i][0]-pts[i0][0],pts[i][1]-pts[i0][1],pts[i][2]-pts[i0][2]];const p=v[0]*ld[0]+v[1]*ld[1]+v[2]*ld[2];const d=v[0]*v[0]+v[1]*v[1]+v[2]*v[2]-p*p;if(d>maxD){maxD=d;i2=i;}}
-  const ab=[pts[i1][0]-pts[i0][0],pts[i1][1]-pts[i0][1],pts[i1][2]-pts[i0][2]];
-  const ac=[pts[i2][0]-pts[i0][0],pts[i2][1]-pts[i0][1],pts[i2][2]-pts[i0][2]];
-  const pn=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]];
-  const pnl=Math.sqrt(pn[0]*pn[0]+pn[1]*pn[1]+pn[2]*pn[2]);pn[0]/=pnl;pn[1]/=pnl;pn[2]/=pnl;
-  maxD=0;for(let i=0;i<n;i++){if(i===i0||i===i1||i===i2)continue;const d=Math.abs(pn[0]*(pts[i][0]-pts[i0][0])+pn[1]*(pts[i][1]-pts[i0][1])+pn[2]*(pts[i][2]-pts[i0][2]));if(d>maxD){maxD=d;i3=i;}}
-  if(i3<0)return[];
-  const orient=pn[0]*(pts[i3][0]-pts[i0][0])+pn[1]*(pts[i3][1]-pts[i0][1])+pn[2]*(pts[i3][2]-pts[i0][2]);
-  const initF=orient>0?[[i0,i2,i1],[i0,i1,i3],[i1,i2,i3],[i0,i3,i2]]:[[i0,i1,i2],[i0,i3,i1],[i1,i3,i2],[i0,i2,i3]];
-  const faces=[];const EK=(a,b)=>a<b?a*1048576+b:b*1048576+a;const edgeToFace=new Map();
-  function fNorm(f){const a=pts[f[0]],b=pts[f[1]],c=pts[f[2]];const x=[(b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1]),(b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2]),(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])];const l=Math.sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);return l>0?[x[0]/l,x[1]/l,x[2]/l]:[0,0,0];}
-  function fDist(f,p){const n=fNorm(f),a=pts[f[0]];return n[0]*(p[0]-a[0])+n[1]*(p[1]-a[1])+n[2]*(p[2]-a[2]);}
-  function addFace(v){const idx=faces.length;const f={v,adj:[-1,-1,-1],alive:true,conflict:[]};faces.push(f);for(let e=0;e<3;e++){const a=v[(e+1)%3],b=v[(e+2)%3],key=EK(a,b);const ex=edgeToFace.get(key);if(ex!==undefined){f.adj[e]=ex[0];faces[ex[0]].adj[ex[1]]=idx;edgeToFace.delete(key);}else edgeToFace.set(key,[idx,e]);}return idx;}
-  for(const v of initF)addFace(v);
-  const usedInTet=new Set([i0,i1,i2,i3]),conflictFaces=new Set();
-  for(let i=0;i<n;i++){if(usedInTet.has(i))continue;let bd=-Infinity,bf=-1;for(let fi=0;fi<faces.length;fi++){const d=fDist(faces[fi].v,pts[i]);if(d>bd){bd=d;bf=fi;}}if(bd>1e-10){faces[bf].conflict.push(i);conflictFaces.add(bf);}}
-  while(conflictFaces.size>0){
-    const sf=conflictFaces.values().next().value;let bp=-1,bd=-Infinity;for(const pi of faces[sf].conflict){const d=fDist(faces[sf].v,pts[pi]);if(d>bd){bd=d;bp=pi;}}
-    const p=pts[bp],visible=[sf],visSet=new Set([sf]),horizon=[];
-    for(let qi=0;qi<visible.length;qi++){const fi=visible[qi],f=faces[fi];for(let e=0;e<3;e++){const adj=f.adj[e];if(adj<0||visSet.has(adj)||!faces[adj].alive)continue;if(fDist(faces[adj].v,p)>1e-10){visSet.add(adj);visible.push(adj);}else horizon.push([f.v[(e+1)%3],f.v[(e+2)%3]]);}}
-    const orphans=[];for(const fi of visible){for(const pi of faces[fi].conflict)if(pi!==bp)orphans.push(pi);conflictFaces.delete(fi);faces[fi].alive=false;faces[fi].conflict=[];for(let e=0;e<3;e++)edgeToFace.delete(EK(faces[fi].v[(e+1)%3],faces[fi].v[(e+2)%3]));}
-    for(const fi of visible){const f=faces[fi];for(let e=0;e<3;e++){const adj=f.adj[e];if(adj>=0&&faces[adj].alive){for(let ae=0;ae<3;ae++)if(faces[adj].adj[ae]===fi){edgeToFace.delete(EK(faces[adj].v[(ae+1)%3],faces[adj].v[(ae+2)%3]));faces[adj].adj[ae]=-1;edgeToFace.set(EK(faces[adj].v[(ae+1)%3],faces[adj].v[(ae+2)%3]),[adj,ae]);}}}}
-    const nf=[];for(const[a,b]of horizon)nf.push(addFace([a,b,bp]));
-    for(const opi of orphans){for(const nfi of nf){if(fDist(faces[nfi].v,pts[opi])>1e-10){faces[nfi].conflict.push(opi);conflictFaces.add(nfi);break;}}}
-  }
-  return faces.filter(f=>f.alive).map(f=>f.v);
-}
-
-// ============================================================================
-// Convex-Hull-basierte Rektifikation
-// ============================================================================
-async function rectifyHull(vertices, faces, onProgress) {
-  // Midpoints identisch zur topologischen Version
-  const edgeMidIdx = new Map();
-  const newVertices = [];
-  for (const face of faces) {
-    for (let j = 0; j < face.length; j++) {
-      const a = face[j], b = face[(j + 1) % face.length];
-      const key = edgeKey(a, b);
-      if (!edgeMidIdx.has(key)) {
-        newVertices.push([(vertices[a][0]+vertices[b][0])/2,(vertices[a][1]+vertices[b][1])/2,(vertices[a][2]+vertices[b][2])/2]);
-        edgeMidIdx.set(key, newVertices.length - 1);
-      }
-    }
-  }
-  if (onProgress) onProgress('hull', 0, 1);
-  const hullFaces = convexHull(newVertices);
-  // Deviations + rAvg
-  let rSum = 0;
-  for (const v of newVertices) rSum += Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
-  const rAvg = rSum / newVertices.length;
-  const deviations = new Float64Array(newVertices.length);
-  for (let i = 0; i < newVertices.length; i++) {
-    const v = newVertices[i];
-    deviations[i] = rAvg - Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
-  }
-  // triIndices (Normalen nach außen)
-  const triIndices = [];
-  for (const face of hullFaces) {
-    const a=newVertices[face[0]],b=newVertices[face[1]],c=newVertices[face[2]];
-    const nx=(b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1]);
-    const ny=(b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2]);
-    const nz=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
-    let cx2=a[0]+b[0]+c[0],cy2=a[1]+b[1]+c[1],cz2=a[2]+b[2]+c[2];
-    if(nx*cx2+ny*cy2+nz*cz2>=0) triIndices.push(face[0],face[1],face[2]);
-    else triIndices.push(face[0],face[2],face[1]);
-  }
-  // edgeIndices
-  const edgeSetH = new Set();
-  const edgeIndicesArr = [];
-  for (const face of hullFaces) {
-    for (let e = 0; e < 3; e++) {
-      const a=face[e],b=face[(e+1)%3],key=edgeKey(a,b);
-      if(!edgeSetH.has(key)){edgeSetH.add(key);edgeIndicesArr.push(a,b);}
-    }
-  }
-  return {
-    vertices: newVertices, faces: hullFaces,
-    triIndices: new Uint32Array(triIndices), edgeIndices: new Uint32Array(edgeIndicesArr),
-    coords: flatCoords(newVertices), deviations, rAvg,
-  };
-}
-
-// ============================================================================
 // Worker-Zustand
 // ============================================================================
 // Der Worker pflegt seinen eigenen Zustand (Vertices + Flächen) über
@@ -534,7 +440,6 @@ async function rectifyHull(vertices, faces, onProgress) {
 // das Ergebnis zurück. Kein Hin-und-Her von Vertex-Daten.
 let currentVertices = CUBE_VERTS;
 let currentFaces = CUBE_FACES;
-let currentMode = 'topo';
 
 // ============================================================================
 // Message Handler
@@ -549,15 +454,6 @@ let currentMode = 'topo';
 self.onmessage = async function(e) {
   try {
     const iter = e.data.iter;
-    const mode = e.data.mode || 'topo'; // 'topo' oder 'hull'
-
-    // Bei Modus-Wechsel: Zustand zurücksetzen
-    if (mode !== currentMode) {
-      currentMode = mode;
-      currentVertices = CUBE_VERTS.map(v => [...v]);
-      currentFaces = CUBE_FACES;
-    }
-
     const t0 = performance.now();
 
     if (iter === 0) {
@@ -585,7 +481,7 @@ self.onmessage = async function(e) {
       }
       const edgeIndices = new Uint32Array(cubeEdgeIndices);
       self.postMessage({
-        type: 'result', iter, mode, coords, triIndices, edgeIndices, deviations,
+        type: 'result', iter, coords, triIndices, edgeIndices, deviations,
         rAvg: Math.sqrt(3),
         duration: 0,
         vertCount: 8, edgeCount: 12, faceCount: 6
@@ -594,8 +490,7 @@ self.onmessage = async function(e) {
     }
 
     // Rektifikation berechnen, mit Fortschrittsmeldungen
-    const rectFn = mode === 'hull' ? rectifyHull : rectifyTopological;
-    const result = await rectFn(currentVertices, currentFaces, (phase, done, total) => {
+    const result = await rectifyTopological(currentVertices, currentFaces, (phase, done, total) => {
       self.postMessage({ type: 'progress', iter, phase, done, total });
     });
 
@@ -618,7 +513,7 @@ self.onmessage = async function(e) {
     // Transferable Arrays (coords, triIndices, deviations) werden ohne
     // Kopie übergeben — der Worker kann sie danach nicht mehr lesen.
     self.postMessage({
-      type: 'result', iter, mode,
+      type: 'result', iter,
       coords: result.coords,           // Float64Array: Vertex-Positionen
       triIndices: result.triIndices,    // Uint32Array: Dreieck-Indizes
       edgeIndices: result.edgeIndices,  // Uint32Array: Polygon-Kanten als Liniensegmente
@@ -660,30 +555,31 @@ import * as THREE from 'three';
 // Wir senden nur { iter: N } und bekommen Koordinaten, Dreieck-Indizes,
 // Abweichungen und Statistiken zurück.
 // Date.now() im URL verhindert Browser-Caching des Worker-Scripts.
-// Worker erstellen — mit Fallback für file://-Kontext (Safari)
+// Worker erstellen — Data-URL funktioniert auch bei file:// (anders als Blob-URL)
 let worker;
-try {
-  worker = new Worker('worker.js?v=' + Date.now());
-  // Testen ob Worker funktioniert (Safari blockt bei file://)
-  worker.onerror = () => { throw new Error('Worker blocked'); };
-} catch(e) {
-  // Fallback: Worker-Code im Main Thread ausführen via eval
-  console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
-  // Simuliertes Worker-Objekt: gleiche API (onmessage, postMessage),
-  // aber führt den Worker-Code synchron im Main Thread aus.
-  worker = {
-    _handler: null,        // Empfänger für Worker-Nachrichten
-    _workerScope: null,    // Simulierter Worker-Scope (einmalig initialisiert)
-    set onmessage(fn) { this._handler = fn; },
-    get onmessage() { return this._handler; },
-    onerror: null,
-    postMessage(data) {
-      // Worker-Code im Main Thread ausführen (blockiert UI, aber funktioniert)
-      const script = document.getElementById('worker-src');
-      if (!script) return;
-      if (!this._workerScope) {
-        // Beim ersten Aufruf: Worker-Code evaluieren und Scope aufbauen.
-        // self.postMessage wird umgeleitet auf den lokalen Handler.
+{
+  const workerCode = document.getElementById('worker-src').textContent;
+  const dataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(workerCode);
+  try {
+    worker = new Worker(dataUrl);
+  } catch(e1) {
+    // Fallback 2: Blob-URL (funktioniert auf manchen Servern besser)
+    try {
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      worker = new Worker(URL.createObjectURL(blob));
+    } catch(e2) {
+      // Fallback 3: Main-Thread-Ausführung (langsam, aber funktioniert überall)
+      console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
+      worker = {
+        _handler: null,
+        _workerScope: null,
+        set onmessage(fn) { this._handler = fn; },
+        get onmessage() { return this._handler; },
+        onerror: null,
+        postMessage(data) {
+          const script = document.getElementById('worker-src');
+          if (!script) return;
+          if (!this._workerScope) {
         this._workerScope = {};
         const scope = this._workerScope;
         scope.self = { postMessage: (msg) => {
@@ -699,6 +595,8 @@ try {
       }
     }
   };
+    }
+  }
 }
 const pendingCallbacks = new Map();  // iter → callback wenn Ergebnis da
 const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
@@ -749,7 +647,7 @@ function requestCompute(iter) {
   if (history[iter] || pendingCompute.has(iter)) return;
   pendingCompute.add(iter);
   computeStartTimes.set(iter, performance.now());
-  worker.postMessage({ iter, mode: currentMode });
+  worker.postMessage({ iter });
 }
 
 // ---- Three.js Szene ----
@@ -783,7 +681,6 @@ const MAX_ITER = (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || windo
 // history[0] = Ausgangswürfel, wird ebenfalls vom Worker geliefert.
 const history = [];
 const pendingCompute = new Set(); // Iterationen die gerade berechnet werden
-let currentMode = 'topo'; // 'topo' oder 'hull'
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
@@ -1101,29 +998,11 @@ function btnEvent(id, fn) {
 }
 btnEvent('btn-next', () => { goNext(); });
 btnEvent('btn-prev', () => { goPrev(); });
-btnEvent('btn-mode', () => {
-  // Modus wechseln, History leeren, ab Iter 0 neu berechnen
-  currentMode = currentMode === 'topo' ? 'hull' : 'topo';
-  document.getElementById('btn-mode').textContent = currentMode === 'topo' ? 'Topo' : 'Hull';
-  // History leeren
-  history.length = 0;
-  pendingCompute.clear();
-  currentIdx = 0;
-  // Alte Meshes aufräumen
-  while (meshGroup.children.length) {
-    const c = meshGroup.children[0];
-    c.geometry?.dispose(); c.material?.dispose();
-    meshGroup.remove(c);
-  }
-  precomputeNext();
-  showCurrent();
-});
 
 // Tastatursteuerung
 window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
-  else if (e.key === 'm' || e.key === 'M') document.getElementById('btn-mode').click();
 });
 
 // Canvas-Größe an Fenstergröße anpassen

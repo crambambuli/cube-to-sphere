@@ -122,7 +122,6 @@
   <button id="btn-prev" disabled>&larr; Zurück</button>
   <div id="iteration-label">Iteration 0</div>
   <button id="btn-next">Weiter &rarr;</button>
-  <button id="btn-mode">Topo</button>
 </div>
 
 <script type="importmap">
@@ -231,7 +230,7 @@ function requestCompute(iter) {
   if (history[iter] || pendingCompute.has(iter)) return;
   pendingCompute.add(iter);
   computeStartTimes.set(iter, performance.now());
-  worker.postMessage({ iter, mode: currentMode });
+  worker.postMessage({ iter });
 }
 
 // ---- Three.js Szene ----
@@ -265,7 +264,6 @@ const MAX_ITER = (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || windo
 // history[0] = Ausgangswürfel, wird ebenfalls vom Worker geliefert.
 const history = [];
 const pendingCompute = new Set(); // Iterationen die gerade berechnet werden
-let currentMode = 'topo'; // 'topo' oder 'hull'
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
@@ -583,29 +581,11 @@ function btnEvent(id, fn) {
 }
 btnEvent('btn-next', () => { goNext(); });
 btnEvent('btn-prev', () => { goPrev(); });
-btnEvent('btn-mode', () => {
-  // Modus wechseln, History leeren, ab Iter 0 neu berechnen
-  currentMode = currentMode === 'topo' ? 'hull' : 'topo';
-  document.getElementById('btn-mode').textContent = currentMode === 'topo' ? 'Topo' : 'Hull';
-  // History leeren
-  history.length = 0;
-  pendingCompute.clear();
-  currentIdx = 0;
-  // Alte Meshes aufräumen
-  while (meshGroup.children.length) {
-    const c = meshGroup.children[0];
-    c.geometry?.dispose(); c.material?.dispose();
-    meshGroup.remove(c);
-  }
-  precomputeNext();
-  showCurrent();
-});
 
 // Tastatursteuerung
 window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
-  else if (e.key === 'm' || e.key === 'M') document.getElementById('btn-mode').click();
 });
 
 // Canvas-Größe an Fenstergröße anpassen
