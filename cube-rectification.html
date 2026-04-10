@@ -185,7 +185,10 @@ const CUBE_FACES = [
 
 // Erzeugt einen eindeutigen String-Schlüssel für eine Kante zwischen
 // Vertex a und b, unabhängig von der Reihenfolge.
-function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+// Numerischer Edge-Key statt String (viel schneller, weniger Speicher)
+// Bei max ~200K Vertices reicht Faktor 1.000.000
+function edgeKey(a, b) { return a < b ? a * 1000000 + b : b * 1000000 + a; }
+function edgeKeyToVerts(key) { const b = key % 1000000; return [Math.floor(key / 1000000), b]; }
 
 // ============================================================================
 // Kernalgorithmus: Topologische Rektifikation
@@ -276,7 +279,7 @@ async function rectifyTopological(vertices, faces, onProgress) {
   // Erst: für jeden Vertex die Liste seiner Kanten sammeln
   const vertexEdges = new Map(); // vertex → [edge_keys]
   for (const [key] of edgeMidIdx) {
-    const [a, b] = key.split('_').map(Number);
+    const [a, b] = edgeKeyToVerts(key);
     for (const v of [a, b]) {
       if (!vertexEdges.has(v)) vertexEdges.set(v, []);
       vertexEdges.get(v).push(key);
