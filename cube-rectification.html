@@ -151,6 +151,12 @@
 //   schrumpft mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum).
 //   Der Durchschnittsradius (rAvg) wird nur für die Best-Fit-Kugel und
 //   Abweichungsberechnung verwendet, nicht zum Skalieren.
+//
+// TRIANGULIERUNG: Für das Rendering werden Polygone in Dreiecke zerlegt:
+//   - Dreiecke: direkt (immer plan)
+//   - Planare Quads: 2 Dreiecke (Fan-Triangulierung)
+//   - Nicht-planare Quads: 4 Dreiecke (Schwerpunkt als 5. Vertex)
+//   Ab Iter 13 (Kugel-Modus) wird die Triangulierung übersprungen.
 // ============================================================================
 
 // Alle YIELD_EVERY Schritte wird der Event-Loop freigegeben, damit
@@ -354,12 +360,13 @@ async function rectifyTopological(vertices, faces, onProgress, skipTriangulation
       coords: flatCoords(newVertices), deviations, rAvg,
     };
   }
-  // Three.js braucht Dreiecke, keine Polygone. Wir verwenden
-  // Fan-Triangulierung: ein Polygon mit n Ecken wird zu n-2 Dreiecken.
+  // Three.js braucht Dreiecke, keine Polygone.
+  // - Dreiecke: direkt verwenden (immer plan)
+  // - Planare Quads: Fan-Triangulierung (2 Dreiecke, eine Diagonale)
+  // - Nicht-planare Quads: Mittelpunkt-Triangulierung (Schwerpunkt als
+  //   5. Vertex → 4 Dreiecke, verteilt den Knick gleichmäßig)
   //
-  // Die Winding-Order (Reihenfolge der Vertices) bestimmt die
-  // Richtung der Flächennormale. Wir orientieren alle Dreiecke so,
-  // dass die Normale nach außen zeigt (weg vom Ursprung).
+  // Die Winding-Order wird so gewählt, dass die Normale nach außen zeigt.
   const triIndices = [];
   for (const face of newFaces) {
     if (face.length < 3) continue;
