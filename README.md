@@ -100,18 +100,13 @@ Der Grenzkörper ist ein wohldefinierter O<sub>h</sub>-symmetrischer konvexer K�
 
 Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polyeder).
 
-### Sind die Flächen immer plan?
+### Zwei Typen von Flächen
 
-Bei der Rektifikation entstehen Flächen mit mehr als 3 Eckpunkten — z.B. Quadrate beim Kuboctaeder (Iteration 1). Die Frage ist: Liegen diese Punkte exakt in einer Ebene oder sind die Flächen "verbogen"?
+Bei jeder Rektifikation entstehen zwei Typen neuer Flächen:
 
-**Antwort: Nicht immer.** Es gibt zwei Typen von Flächen:
+- **Geschrumpfte Flächen** ("Quads"): Jede alte Fläche wird durch eine kleinere Fläche mit gleicher Kantenzahl ersetzt. Die Ecken der neuen Fläche sind die Mittelpunkte der alten Kanten. Ein Quadrat wird zu einem kleineren Quadrat, ein Dreieck zu einem kleineren Dreieck.
 
-- **Geschrumpfte Original-Flächen:** Die Mittelpunkte der Kanten einer planaren Fläche liegen in derselben Ebene → **immer exakt plan.** ✓
-- **Vertex-Figuren:** Die Mittelpunkte der Kanten, die an einem Vertex enden. Für Grad 3 (Dreieck) immer plan. Für Grad 4+ sind die Eckpunkte genau dann koplanar, wenn die Nachbarn des Vertex koplanar sind — und das ist bei einem konvexen Polyeder **nicht garantiert.**
-
-In den ersten Iterationen erzwingt die O<sub>h</sub>-Symmetrie Koplanarität (z.B. 4-fache Rotationssymmetrie bei Flächenzentren-Vertices). Bei höheren Iterationen sinkt die lokale Symmetrie, und Vertex-Figuren vom Grad 4+ werden leicht nicht-planar. Die Abweichung ist proportional zum Quadrat der Kantenlänge (Krümmungseffekt der fast-sphärischen Oberfläche) — in der Praxis extrem klein, aber mathematisch vorhanden.
-
-**Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
+- **Vertex-Figuren**: Wenn man "die Ecken abschneidet", bleibt an jeder alten Ecke eine Schnittfläche. Ihre Kantenzahl entspricht dem Grad des alten Vertex (= Anzahl Kanten, die dort zusammenliefen). Beim Würfel hat jede Ecke 3 Kanten → Vertex-Figur ist ein Dreieck. Ab Iteration 1 haben alle Vertices Grad 4 → alle Vertex-Figuren sind Vierecke.
 
 ### Nur Dreiecke und Vierecke
 
@@ -122,6 +117,19 @@ Der Grund: Jeder neue Vertex ist der Mittelpunkt einer alten Kante. Jede alte Ka
 Konkret:
 - **8 Dreiecke** — von den 8 Würfelecken. Bleiben als geschrumpfte Dreiecke über alle Iterationen erhalten. Sie sind die topologischen Singularitäten, die verhindern, dass der Körper zur Kugel konvergiert (sie sitzen an den 8 "Beulen").
 - **Alle anderen Flächen: Vierecke** — geschrumpfte Quads + Vertex-Figuren (Grad 4).
+
+### Sind die Flächen immer plan?
+
+Geschrumpfte Flächen liegen immer exakt in einer Ebene (die Mittelpunkte der Kanten einer planaren Fläche sind koplanar). ✓
+
+Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Vertex koplanar sind. Das ist **nicht immer** der Fall:
+
+- **Dreiecke** (die 8 von den Würfelecken): immer exakt plan — 3 Punkte definieren eine Ebene. ✓
+- **Iter 1→2**: Der Kuboctaeder ist kantentransitiv (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
+- **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z.B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
+- **Ab Iter ~4-5**: Die meisten Quads sind fast plan (Abweichung < 10⁻¹⁰), aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
+
+**Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
 
 ### Bemerkenswerte Zwischenkörper
 
