@@ -76,7 +76,7 @@ function edgeKeyToVerts(key) { const b = key % 1000000; return [Math.floor(key /
 //   coords:   Flat Float64Array der Koordinaten (für Transferable)
 //   deviations: Abstand jedes Vertex von der Best-Fit-Kugel
 //   rAvg:     Durchschnittsradius (= Radius der Best-Fit-Kugel)
-async function rectifyTopological(vertices, faces, onProgress) {
+async function rectifyTopological(vertices, faces, onProgress, skipTriangulation) {
 
   // ----------------------------------------------------------
   // SCHRITT 1: Kanten sammeln und Mittelpunkte berechnen
@@ -204,8 +204,28 @@ async function rectifyTopological(vertices, faces, onProgress) {
   }
 
   // ----------------------------------------------------------
-  // SCHRITT 5: Triangulierung für Rendering
+  // SCHRITT 5: Triangulierung für Rendering (nur im Polyeder-Modus)
   // ----------------------------------------------------------
+  if (skipTriangulation) {
+    // Kugel-Modus: keine Triangulierung, keine Mittelpunkt-Vertices
+    const numOrigVerts = newVertices.length;
+    let rSum = 0;
+    for (let i = 0; i < numOrigVerts; i++) {
+      const v = newVertices[i];
+      rSum += Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    }
+    const rAvg = rSum / numOrigVerts;
+    const deviations = new Float64Array(numOrigVerts);
+    for (let i = 0; i < numOrigVerts; i++) {
+      const v = newVertices[i];
+      deviations[i] = rAvg - Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    }
+    return {
+      vertices: newVertices, faces: newFaces,
+      triIndices: new Uint32Array(0), edgeIndices: new Uint32Array(0),
+      coords: flatCoords(newVertices), deviations, rAvg,
+    };
+  }
   // Three.js braucht Dreiecke, keine Polygone. Wir verwenden
   // Fan-Triangulierung: ein Polygon mit n Ecken wird zu n-2 Dreiecken.
   //
@@ -381,9 +401,11 @@ self.onmessage = async function(e) {
     }
 
     // Rektifikation berechnen, mit Fortschrittsmeldungen
+    // Ab Iter 13 (Kugel-Modus): keine Triangulierung nötig, spart Speicher + Zeit
+    const skipTri = iter > 12;
     const result = await rectifyTopological(currentVertices, currentFaces, (phase, done, total) => {
       self.postMessage({ type: 'progress', iter, phase, done, total });
-    });
+    }, skipTri);
 
     // Zustand aktualisieren für die nächste Iteration
     currentVertices = result.vertices;
