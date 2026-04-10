@@ -127,11 +127,11 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 - **Dreiecke** (die 8 von den Würfelecken): immer exakt plan — 3 Punkte definieren eine Ebene. ✓
 - **Iter 1→2**: Der Kuboctaeder ist kantentransitiv (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
 - **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z.B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
-- **Ab Iter ~4-5**: Die meisten Quads sind fast plan (Abweichung < 10⁻¹⁰), aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
+- **Ab Iter ~4-5**: Die meisten Quads sind fast plan (Abweichung schrumpft quadratisch mit der Kantenlänge), aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
 
 **Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
 
-**Rendering nicht-planarer Quads:** Für die 3D-Darstellung werden Quads per Fan-Triangulierung in 2 Dreiecke entlang einer willkürlichen Diagonale (erster zum dritten Vertex) geteilt. Bei einem nicht-planaren Quad entsteht an dieser Diagonale ein leichter Knick — wie ein gefaltetes Blatt Papier. Die andere Diagonale hätte eine andere Faltung erzeugt. Die Kanten zeigen nur die 4 Polygon-Ränder, nicht die Triangulierungs-Diagonale — der Knick ist daher visuell kaum sichtbar. In der Praxis ist die Nicht-Planarität so klein (< 10⁻¹⁰), dass der Knick unsichtbar ist.
+**Rendering nicht-planarer Quads:** Für die 3D-Darstellung werden Quads per Fan-Triangulierung in 2 Dreiecke entlang einer willkürlichen Diagonale (erster zum dritten Vertex) geteilt. Bei einem nicht-planaren Quad entsteht an dieser Diagonale ein leichter Knick — wie ein gefaltetes Blatt Papier. Die andere Diagonale hätte eine andere Faltung erzeugt. Die Kanten zeigen nur die 4 Polygon-Ränder, nicht die Triangulierungs-Diagonale — der Knick ist daher visuell kaum sichtbar. Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸. In der Praxis visuell nicht erkennbar.
 
 ### Bemerkenswerte Zwischenkörper
 
