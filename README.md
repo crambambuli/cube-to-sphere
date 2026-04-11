@@ -257,9 +257,10 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit inline Worker, funktioniert ohne Server |
+| `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit inline Worker (Data-URL), funktioniert ohne Server auch per `file://` |
 | `index.html` | Main Thread: Three.js-Rendering, UI, Kamerasteuerung |
 | `worker.js` | Web Worker: Topologische Rektifikation, Deviation-Berechnung, Triangulierung |
+| `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js` (Data-URL Worker, Inline-Favicons, OG-Tags) |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
 | `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Social Media |
 

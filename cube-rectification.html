@@ -604,74 +604,42 @@ import * as THREE from 'three';
 // Wir senden nur { iter: N } und bekommen Koordinaten, Dreieck-Indizes,
 // Abweichungen und Statistiken zurück.
 // Date.now() im URL verhindert Browser-Caching des Worker-Scripts.
-// Worker erstellen — mit Fallback für file://-Kontext (Safari)
-let worker;
-try {
-  // Worker erstellen — Data-URL funktioniert auch bei file://
+// Worker erstellen — Data-URL funktioniert auch bei file://
 const workerCode = document.getElementById('worker-src').textContent;
 const dataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(workerCode);
 let worker;
 try {
   worker = new Worker(dataUrl);
-} catch(e) {
-  // Fallback: Blob-URL (funktioniert auf manchen Servern besser)
+} catch(e1) {
   try {
     const blob = new Blob([workerCode], { type: 'application/javascript' });
     worker = new Worker(URL.createObjectURL(blob));
   } catch(e2) {
     console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
-    worker = { _h: null, _s: null,
-      set onmessage(fn) { this._h = fn; },
-      get onmessage() { return this._h; },
+    worker = {
+      _handler: null, _workerScope: null,
+      set onmessage(fn) { this._handler = fn; },
+      get onmessage() { return this._handler; },
       onerror: null,
       postMessage(data) {
-        const sc = document.getElementById('worker-src');
-        if (!sc) return;
-        if (!this._s) {
-          this._s = { postMessage: (msg) => { if (this._h) this._h({ data: msg }); }};
-          const fn = new Function('self', sc.textContent + '\nreturn self;');
-          this._s = fn(this._s);
+        const script = document.getElementById('worker-src');
+        if (!script) return;
+        if (!this._workerScope) {
+          this._workerScope = {};
+          const scope = this._workerScope;
+          scope.self = { postMessage: (msg) => {
+            if (this._handler) this._handler({ data: msg });
+          }};
+          const fn = new Function('self', script.textContent + '
+return self;');
+          scope.self = fn(scope.self);
         }
-        if (this._s.onmessage) this._s.onmessage({ data });
+        if (this._workerScope.self.onmessage) {
+          this._workerScope.self.onmessage({ data });
+        }
       }
     };
   }
-}
-  // Testen ob Worker funktioniert (Safari blockt bei file://)
-  worker.onerror = () => { throw new Error('Worker blocked'); };
-} catch(e) {
-  // Fallback: Worker-Code im Main Thread ausführen via eval
-  console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
-  // Simuliertes Worker-Objekt: gleiche API (onmessage, postMessage),
-  // aber führt den Worker-Code synchron im Main Thread aus.
-  worker = {
-    _handler: null,        // Empfänger für Worker-Nachrichten
-    _workerScope: null,    // Simulierter Worker-Scope (einmalig initialisiert)
-    set onmessage(fn) { this._handler = fn; },
-    get onmessage() { return this._handler; },
-    onerror: null,
-    postMessage(data) {
-      // Worker-Code im Main Thread ausführen (blockiert UI, aber funktioniert)
-      const script = document.getElementById('worker-src');
-      if (!script) return;
-      if (!this._workerScope) {
-        // Beim ersten Aufruf: Worker-Code evaluieren und Scope aufbauen.
-        // self.postMessage wird umgeleitet auf den lokalen Handler.
-        this._workerScope = {};
-        const scope = this._workerScope;
-        scope.self = { postMessage: (msg) => {
-          if (this._handler) this._handler({ data: msg });
-        }};
-        // Worker-Code als Funktion kompilieren, die self empfängt
-        const fn = new Function('self', script.textContent + '\nreturn self;');
-        scope.self = fn(scope.self);
-      }
-      // onmessage im simulierten Scope aufrufen
-      if (this._workerScope.self.onmessage) {
-        this._workerScope.self.onmessage({ data });
-      }
-    }
-  };
 }
 const pendingCallbacks = new Map();  // iter → callback wenn Ergebnis da
 const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
