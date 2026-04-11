@@ -180,7 +180,6 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Iteration | Aktuelle Rektifikationsstufe (0 = Würfel) |
 | Ecken | Anzahl Vertices (exakt aus Topologie, nicht Euler-Schätzung) |
 | Kanten | Anzahl Kanten (verdoppelt sich pro Iteration: E' = 2E) |
-| Flächen | Anzahl Flächen (F' = V + F) |
 | Radius | Durchschnittsabstand der Vertices vom Ursprung (schrumpft pro Iteration) |
 | Dauer | Berechnungszeit der Iteration im Web Worker |
 | Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |

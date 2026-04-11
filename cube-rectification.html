@@ -108,7 +108,6 @@
     Iteration: <span id="s-iter">0</span>
     Ecken: <span id="s-verts">8</span>
     Kanten: <span id="s-edges">12</span>
-    Flächen: <span id="s-faces">6</span>
     Radius: <span id="s-radius">-</span>
     Dauer: <span id="s-time">-</span>
     Samples: <span id="s-samples">-</span>
@@ -959,13 +958,12 @@ function buildMesh(data, retryWithFewerDots) {
   updateStats(false);
 }
 
-// Aktualisiert die Stats-Zeile (Ecken, Kanten, Flächen, Dauer)
+// Aktualisiert die Stats-Zeile (Ecken, Kanten, Dauer, etc.)
 function updateStats(computing) {
   const h = history[currentIdx];
   document.getElementById('s-iter').textContent = currentIdx;
   document.getElementById('s-verts').textContent = h?.vertCount?.toLocaleString() ?? '-';
   document.getElementById('s-edges').textContent = h?.edgeCount?.toLocaleString() ?? '-';
-  document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
   const d = h?.duration;
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
   // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
