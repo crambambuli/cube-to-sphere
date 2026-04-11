@@ -604,12 +604,41 @@ import * as THREE from 'three';
 // Wir senden nur { iter: N } und bekommen Koordinaten, Dreieck-Indizes,
 // Abweichungen und Statistiken zurück.
 // Date.now() im URL verhindert Browser-Caching des Worker-Scripts.
-// Worker erstellen — Data-URL funktioniert auch bei file:// (anders als Blob-URL)
+// Worker erstellen — mit Fallback für file://-Kontext (Safari)
 let worker;
 try {
-  const workerCode = document.getElementById('worker-src').textContent;
-  const dataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(workerCode);
+  // Worker erstellen — Data-URL funktioniert auch bei file://
+const workerCode = document.getElementById('worker-src').textContent;
+const dataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(workerCode);
+let worker;
+try {
   worker = new Worker(dataUrl);
+} catch(e) {
+  // Fallback: Blob-URL (funktioniert auf manchen Servern besser)
+  try {
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    worker = new Worker(URL.createObjectURL(blob));
+  } catch(e2) {
+    console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
+    worker = { _h: null, _s: null,
+      set onmessage(fn) { this._h = fn; },
+      get onmessage() { return this._h; },
+      onerror: null,
+      postMessage(data) {
+        const sc = document.getElementById('worker-src');
+        if (!sc) return;
+        if (!this._s) {
+          this._s = { postMessage: (msg) => { if (this._h) this._h({ data: msg }); }};
+          const fn = new Function('self', sc.textContent + '\nreturn self;');
+          this._s = fn(this._s);
+        }
+        if (this._s.onmessage) this._s.onmessage({ data });
+      }
+    };
+  }
+}
+  // Testen ob Worker funktioniert (Safari blockt bei file://)
+  worker.onerror = () => { throw new Error('Worker blocked'); };
 } catch(e) {
   // Fallback: Worker-Code im Main Thread ausführen via eval
   console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
