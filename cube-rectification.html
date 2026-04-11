@@ -604,12 +604,12 @@ import * as THREE from 'three';
 // Wir senden nur { iter: N } und bekommen Koordinaten, Dreieck-Indizes,
 // Abweichungen und Statistiken zurück.
 // Date.now() im URL verhindert Browser-Caching des Worker-Scripts.
-// Worker erstellen — mit Fallback für file://-Kontext (Safari)
+// Worker erstellen — Data-URL funktioniert auch bei file:// (anders als Blob-URL)
 let worker;
 try {
-  worker = new Worker('worker.js?v=' + Date.now());
-  // Testen ob Worker funktioniert (Safari blockt bei file://)
-  worker.onerror = () => { throw new Error('Worker blocked'); };
+  const workerCode = document.getElementById('worker-src').textContent;
+  const dataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(workerCode);
+  worker = new Worker(dataUrl);
 } catch(e) {
   // Fallback: Worker-Code im Main Thread ausführen via eval
   console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
