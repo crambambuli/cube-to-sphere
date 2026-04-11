@@ -35,7 +35,7 @@ try {
           scope.self = { postMessage: (msg) => {
             if (this._handler) this._handler({ data: msg });
           }};
-          const fn = new Function('self', script.textContent + '\\nreturn self;');
+          const fn = new Function('self', script.textContent + '\\\\nreturn self;');
           scope.self = fn(scope.self);
         }
         if (this._workerScope.self.onmessage) {
