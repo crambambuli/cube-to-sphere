@@ -487,7 +487,12 @@ function buildMesh(data, retryWithFewerDots) {
     const minPct = (minDev / r * 100).toFixed(3).replace('.', ',');
     const maxPct = (maxDev / r * 100).toFixed(3).replace('.', ',');
     document.getElementById('s-dev').textContent = `${minPct}% .. +${maxPct}%`;
+    // Min-Zoom dynamisch: knapp über dem äußersten Vertex
+    minZoom = (r + maxDev) * 1.15;
+    if (radius < minZoom) radius = minZoom;
   } else {
+    minZoom = sphereRadius * 1.15;
+    if (radius < minZoom) radius = minZoom;
     document.getElementById('s-dev').textContent = '-';
   }
 
@@ -602,6 +607,7 @@ showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
 // zur Mausrichtung in Bildschirmkoordinaten. Kein Gimbal Lock,
 // keine Richtungsumkehr, keine Pol-Probleme.
 let radius = 4;
+let minZoom = 1.8; // Dynamisch: knapp über maximalem Vertex-Radius
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
 let rotationPaused = false;
@@ -663,7 +669,7 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerup', () => { dragging = false; panning = false; });
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
-  radius = Math.max(0.5, Math.min(5, radius + e.deltaY * 0.005));
+  radius = Math.max(minZoom, Math.min(5, radius + e.deltaY * 0.005));
   pauseAutoRotate();
 }, { passive: false });
 
@@ -688,7 +694,7 @@ renderer.domElement.addEventListener('touchmove', (e) => {
     const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     if (lastPinchDist > 0) {
       // Pinch → Zoom
-      radius = Math.max(0.5, Math.min(5, radius * (lastPinchDist / dist)));
+      radius = Math.max(minZoom, Math.min(5, radius * (lastPinchDist / dist)));
       // 2-Finger-Drag → Pan
       const panDx = (midX - lastTouchMidX) * 0.005;
       const panDy = (midY - lastTouchMidY) * 0.005;
