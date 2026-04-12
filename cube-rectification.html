@@ -1057,31 +1057,34 @@ window.addEventListener('resize', () => {
 
 showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
 
-// ---- Kamera-Rotation ----
-// Sphärische Koordinaten: theta (horizontal), phi (vertikal), radius (Zoom)
-// Auto-Rotation dreht theta langsam, pausiert bei Mausinteraktion für 3s
-let theta = 0.7, phi = 0.6, radius = 4;
+// ---- Kamera-Rotation (Trackball) ----
+// Quaternion-basiert: Mausbewegung → Rotation um die Achse senkrecht
+// zur Mausrichtung in Bildschirmkoordinaten. Kein Gimbal Lock,
+// keine Richtungsumkehr, keine Pol-Probleme.
+let radius = 4;
 let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
-let rotationPaused = false; // Doppelklick-Toggle
+let rotationPaused = false;
+const camQuat = new THREE.Quaternion();
+// Initiale Orientierung (~wie vorher theta=0.7, phi=0.6)
+{
+  const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.7);
+  const qV = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.6);
+  camQuat.multiplyQuaternions(qV, qH);
+}
 
 function pauseAutoRotate() {
-  if (rotationPaused) return; // Manuell pausiert → Timer nicht starten
+  if (rotationPaused) return;
   autoRotate = false;
   clearTimeout(autoRotateTimer);
   autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
 }
 
-// Doppelklick / Doppeltap: Auto-Rotation dauerhaft toggeln
 renderer.domElement.addEventListener('dblclick', (e) => {
   e.preventDefault();
   rotationPaused = !rotationPaused;
-  if (rotationPaused) {
-    autoRotate = false;
-    clearTimeout(autoRotateTimer);
-  } else {
-    autoRotate = true;
-  }
+  if (rotationPaused) { autoRotate = false; clearTimeout(autoRotateTimer); }
+  else { autoRotate = true; }
 });
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
@@ -1090,8 +1093,19 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 });
 window.addEventListener('pointermove', (e) => {
   if (!dragging) return;
-  theta += (e.clientX - lastX) * 0.007;
-  phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi - (e.clientY - lastY) * 0.007));
+  const dx = (e.clientX - lastX) * 0.005;
+  const dy = (e.clientY - lastY) * 0.005;
+  // Rotationsachse = senkrecht zur Mausbewegung in Screenspace
+  // In Kamera-Koordinaten: Maus (dx, dy) → Achse (-dy, dx, 0)
+  // Transformiert in Weltkoordinaten via inverse Kamerarotation
+  const angle = Math.sqrt(dx * dx + dy * dy);
+  if (angle > 0.0001) {
+    const axis = new THREE.Vector3(-dy / angle, -dx / angle, 0);
+    axis.applyQuaternion(camera.quaternion); // Screen → Welt
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    camQuat.premultiply(q);
+    camQuat.normalize();
+  }
   lastX = e.clientX; lastY = e.clientY;
 });
 window.addEventListener('pointerup', () => { dragging = false; });
@@ -1126,7 +1140,10 @@ renderer.domElement.addEventListener('touchmove', (e) => {
 // Render-Loop: Kamera kreist um den Ursprung (sphärische Koordinaten)
 (function animate() {
   requestAnimationFrame(animate);
-  if (autoRotate) theta += 0.003; // Langsame Auto-Rotation
+  if (autoRotate) {
+    const qAuto = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.003);
+    camQuat.premultiply(qAuto);
+  }
 
   // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
   if (morphing && oldGroup) {
@@ -1157,13 +1174,10 @@ renderer.domElement.addEventListener('touchmove', (e) => {
     }
   }
 
-  // Sphärische → kartesische Koordinaten
-  camera.position.set(
-    radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
-  );
-  camera.lookAt(0, 0, 0); // Immer auf Ursprung schauen
+  // Kameraposition aus Quaternion
+  camera.position.set(0, 0, radius).applyQuaternion(camQuat);
+  camera.up.set(0, 1, 0).applyQuaternion(camQuat);
+  camera.lookAt(0, 0, 0);
 
   // Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
   {
