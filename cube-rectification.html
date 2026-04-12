@@ -809,7 +809,7 @@ function buildMesh(data, retryWithFewerDots) {
     const initOpacity = morphing ? 0 : undefined; // Bei Morph: starte unsichtbar
 
     const backMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
-      color, transparent: true, opacity: initOpacity ?? 0.15, roughness: 0.3, metalness: 0.1,
+      color, transparent: true, opacity: initOpacity ?? 0.4, roughness: 0.4, metalness: 0.05,
       side: THREE.BackSide, depthWrite: false,
     }));
     backMesh.userData.targetOpacity = 0.15;
@@ -817,7 +817,7 @@ function buildMesh(data, retryWithFewerDots) {
     meshGroup.add(backMesh);
 
     const frontMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
-      color, transparent: true, opacity: initOpacity ?? 0.25, roughness: 0.3, metalness: 0.1,
+      color, transparent: true, opacity: initOpacity ?? 0.8, roughness: 0.4, metalness: 0.05,
       side: THREE.FrontSide, depthWrite: false,
     }));
     frontMesh.userData.targetOpacity = 0.25;
