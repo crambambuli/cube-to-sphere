@@ -1066,6 +1066,7 @@ let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
 let autoRotateTimer = null;
 let rotationPaused = false;
 const camQuat = new THREE.Quaternion();
+let panX = 0, panY = 0; // Laterale Verschiebung in Kamera-Koordinaten
 // Initiale Orientierung (~wie vorher theta=0.7, phi=0.6)
 {
   const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.7);
@@ -1087,41 +1088,55 @@ renderer.domElement.addEventListener('dblclick', (e) => {
   else { autoRotate = true; }
 });
 
+let panning = false; // Shift-Taste oder Rechtsklick → Pan statt Rotation
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  dragging = true;
+  panning = e.shiftKey || e.button === 2;
+  lastX = e.clientX; lastY = e.clientY;
   pauseAutoRotate();
 });
+// Rechtsklick-Kontextmenü unterdrücken
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('pointermove', (e) => {
   if (!dragging) return;
   const dx = (e.clientX - lastX) * 0.005;
   const dy = (e.clientY - lastY) * 0.005;
-  // Rotationsachse = senkrecht zur Mausbewegung in Screenspace
-  // In Kamera-Koordinaten: Maus (dx, dy) → Achse (-dy, dx, 0)
-  // Transformiert in Weltkoordinaten via inverse Kamerarotation
-  const angle = Math.sqrt(dx * dx + dy * dy);
-  if (angle > 0.0001) {
-    const axis = new THREE.Vector3(-dy / angle, -dx / angle, 0);
-    axis.applyQuaternion(camera.quaternion); // Screen → Welt
-    const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-    camQuat.premultiply(q);
-    camQuat.normalize();
+
+  if (panning || e.shiftKey) {
+    // PAN: laterale Verschiebung in Kamera-Koordinaten
+    const panSpeed = radius * 0.5;
+    panX -= dx * panSpeed;
+    panY += dy * panSpeed;
+  } else {
+    // ROTATION: Trackball
+    const angle = Math.sqrt(dx * dx + dy * dy);
+    if (angle > 0.0001) {
+      const axis = new THREE.Vector3(-dy / angle, -dx / angle, 0);
+      axis.applyQuaternion(camera.quaternion);
+      const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+      camQuat.premultiply(q);
+      camQuat.normalize();
+    }
   }
   lastX = e.clientX; lastY = e.clientY;
 });
-window.addEventListener('pointerup', () => { dragging = false; });
+window.addEventListener('pointerup', () => { dragging = false; panning = false; });
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
-  radius = Math.max(1.5, Math.min(10, radius + e.deltaY * 0.005));
+  radius = Math.max(0.5, Math.min(5, radius + e.deltaY * 0.005));
   pauseAutoRotate();
 }, { passive: false });
 
-// Pinch-to-zoom on touch devices
+// 2-Finger-Gesten: Pinch = Zoom, Drag = Pan
 let lastPinchDist = 0;
+let lastTouchMidX = 0, lastTouchMidY = 0;
 renderer.domElement.addEventListener('touchstart', (e) => {
   if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     lastPinchDist = Math.sqrt(dx*dx + dy*dy);
+    lastTouchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    lastTouchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
   }
 }, { passive: true });
 renderer.domElement.addEventListener('touchmove', (e) => {
@@ -1129,11 +1144,22 @@ renderer.domElement.addEventListener('touchmove', (e) => {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     const dist = Math.sqrt(dx*dx + dy*dy);
+    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     if (lastPinchDist > 0) {
-      radius = Math.max(1.5, Math.min(10, radius * (lastPinchDist / dist)));
+      // Pinch → Zoom
+      radius = Math.max(0.5, Math.min(5, radius * (lastPinchDist / dist)));
+      // 2-Finger-Drag → Pan
+      const panDx = (midX - lastTouchMidX) * 0.005;
+      const panDy = (midY - lastTouchMidY) * 0.005;
+      const panSpeed = radius * 0.5;
+      panX -= panDx * panSpeed;
+      panY += panDy * panSpeed;
       pauseAutoRotate();
     }
     lastPinchDist = dist;
+    lastTouchMidX = midX;
+    lastTouchMidY = midY;
   }
 }, { passive: true });
 
@@ -1174,10 +1200,13 @@ renderer.domElement.addEventListener('touchmove', (e) => {
     }
   }
 
-  // Kameraposition aus Quaternion
-  camera.position.set(0, 0, radius).applyQuaternion(camQuat);
-  camera.up.set(0, 1, 0).applyQuaternion(camQuat);
-  camera.lookAt(0, 0, 0);
+  // Kameraposition: Rotation um Ursprung (Körpermittelpunkt), Pan lateral
+  const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
+  const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);
+  const panOffset = camRight.clone().multiplyScalar(panX).add(camUp.clone().multiplyScalar(panY));
+  camera.position.set(0, 0, radius).applyQuaternion(camQuat).add(panOffset);
+  camera.up.copy(camUp);
+  camera.lookAt(panOffset); // Blickziel = Ursprung + lateraler Offset
 
   // Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
   {

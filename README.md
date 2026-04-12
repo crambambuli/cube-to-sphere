@@ -207,9 +207,12 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 |--------|---------|-------|
 | Nächste Iteration | Weiter-Button oder → oder Leertaste | Weiter-Button |
 | Vorherige Iteration | Zurück-Button oder ← | Zurück-Button |
-| Körper drehen | Maus ziehen | Finger ziehen |
-| Zoomen | Scrollrad | Pinch-Geste |
+| Körper drehen | Maus ziehen | 1 Finger ziehen |
+| Verschieben (Pan) | Shift+Maus ziehen oder Rechtsklick ziehen | 2 Finger ziehen |
+| Zoomen | Scrollrad | 2-Finger-Pinch |
 | Rotation stoppen/starten | Doppelklick | Doppeltap |
+
+Pinch und Pan funktionieren gleichzeitig: der Abstand der beiden Finger steuert den Zoom, die gemeinsame Bewegung den Pan.
 
 Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann wieder ein. Per Doppelklick/Doppeltap lässt sie sich dauerhaft stoppen bzw. wieder starten.
 
@@ -250,7 +253,8 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 - **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
 - **Morph-Animation** (Iter 0–12): Cross-Fade zwischen altem und neuem Körper (1s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
 - **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen mit `depthTest: false` (immer sichtbar, auch hinter der Kugel).
-- **Sphärische Kamerasteuerung** ohne OrbitControls (vermeidet Pointer-Capture-Konflikte).
+- **Quaternion-Trackball-Rotation** ohne Gimbal Lock, ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
+- **Pan** (Shift+Drag / Rechtsklick / 2-Finger-Drag): laterale Verschiebung in Kamera-Koordinaten.
 - **Auto-Rotation** mit 3s Pause nach manueller Interaktion.
 
 ### Dateien
