@@ -18,14 +18,42 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 Die Operation heißt **Rektifikation** — man ersetzt jeden Vertex durch eine neue Fläche und jede Fläche durch eine kleinere Version ihrer selbst. Die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
-Bei der Definition gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten:
+Bei der Definition gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische:
 
-- **Topologisch** — Flächen werden kombinatorisch fortgeschrieben: jede alte Fläche schrumpft, jede alte Ecke wird zu einer neuen Fläche.
-- **Convex Hull** — pro Iteration wird die konvexe Hülle aller neuen Vertices gebildet (rein geometrisch).
+### Topologische Rektifikation vs. konvexe Hülle
 
-Bis Iteration 4 sind beide Varianten identisch. Ab Iteration 5 weichen sie voneinander ab — die topologische Variante hält non-planare Vierecke als ein Polygon, die Hull-Variante spaltet sie in Dreiecke.
+Beide Operationen wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
 
-Beide Varianten konvergieren gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren bei endlichen Iterationen.
+**Konvexe Hülle.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Output:
+
+- Vertices = Teilmenge der Eingabepunkte (genau die extremen)
+- Flächen = strikt **planare** Polygone (per Definition liegt jede Fläche in einer Ebene)
+- Topologie wird **rein geometrisch** durch die Punktkoordinaten bestimmt
+
+Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
+
+**Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
+
+- Jede alte Kante → ein neuer Vertex (in der Mitte)
+- Jede alte Fläche mit n Ecken → eine neue n-eckige Fläche aus den Mittelpunkten ihrer Kanten ("geschrumpfte Fläche")
+- Jede alte Ecke mit Grad d → eine neue d-eckige Fläche aus den Mittelpunkten der dort einlaufenden Kanten ("Vertex-Figur")
+
+Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
+
+### Wo die Varianten auseinandergehen
+
+Bei einem **konvexen** Eingabepolyeder mit **planaren** Vertex-Figuren (z. B. Würfel, Kuboctaeder) liefern beide dasselbe Ergebnis. Bei nicht-planaren Vertex-Figuren divergieren sie:
+
+| | Topologisch | Konvexe Hülle |
+|--|--|--|
+| Behandelt 4 nicht-koplanare Mittelpunkte als | **ein** Quad (gewölbt) | **zwei** Dreiecke |
+| Macht aus 4 koplanaren benachbarten Quads | 4 separate Quads | **ein** Hexagon |
+| Topologie über alle Iterationen | konstant (8 Dreiecke + Rest Quads) | wechselnd |
+| Definition setzt voraus | Polyeder mit Inzidenzstruktur | nur eine Punktmenge |
+
+**Anschaulich:** Die topologische Variante "vererbt" das Schnittmuster aus der vorherigen Iteration. Die konvexe Hülle "vergisst" die Geschichte und schaut nur, wie die Punkte tatsächlich im Raum liegen.
+
+Bis Iteration 4 sind beide Varianten in unserem Fall identisch. Ab Iteration 5 weichen sie voneinander ab — die topologische Variante hält non-planare Vierecke als ein Polygon, die Hull-Variante spaltet sie in Dreiecke. Beide konvergieren gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren bei endlichen Iterationen.
 
 ### Was beide Varianten gemeinsam haben
 
@@ -128,9 +156,8 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 - **Dreiecke** (die 8 von den Würfelecken): immer exakt plan — 3 Punkte definieren eine Ebene. ✓
 - **Iter 1→2**: Der Kuboctaeder ist kantentransitiv (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
 - **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z.B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
-- **Ab Iter ~4-5**: Die meisten Quads sind fast plan (Abweichung schrumpft quadratisch mit der Kantenlänge), aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
-
-Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
+- **Ab Iter ~4-5**: Die meisten Quads sind fast plan, aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
+- **Größenordnung der Abweichung**: proportional zum Quadrat der Kantenlänge — bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
 
 #### Rendering nicht-planarer Quads
 
@@ -209,7 +236,7 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 **Bemerkenswerte Muster bei höheren Iterationen:**
 
 - **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
-- **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind 2, 3,5, 2,86. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
+- **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
 - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei iter 10 sind ~57% der Flächen Dreiecke, bei iter 12 schon ~60%.
 - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
 
@@ -220,8 +247,8 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 | Vertex-Anzahl | identisch (V' = E) | identisch (V' = E) |
 | Kanten-Anzahl | E' = 2E (immer) | ≥ 2E, divergiert ab Iter 5 |
 | Flächen | Polygone (möglicherweise non-planar) | exakt planar |
-| Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 auch Pentagons/Hexagons |
-| Konvergenz | gleicher Grenzkörper | gleicher Grenzkörper |
+| Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons, ab Iter 10 Hexagons |
+| Konvergenz | gleicher Grenzkörper im Limes | gleicher Grenzkörper im Limes |
 
 Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie laufen parallel im Hintergrund auf zwei separaten Web Workern und können dadurch unabhängig voneinander berechnet werden.
 
@@ -239,7 +266,7 @@ Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polye
 
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
 - **Iteration 1:** Kuboctaeder (12 Ecken, 24 Kanten, 14 Flächen) — ein archimedischer Körper
-- **Iteration 2:** Rhombikuboctaeder-artig (24 Ecken, 48 Kanten, 26 Flächen)
+- **Iteration 2:** Rhombikuboctaeder (24 Ecken, 48 Kanten, 26 Flächen) — ebenfalls archimedisch
 - **Ab Iteration 5:** visuell kugelähnlich, aber messbar nicht-sphärisch
 
 ## Die Anwendung
@@ -293,7 +320,7 @@ Werte zeigen "-" an, solange die Iteration noch berechnet wird.
 
 ### Vorberechnung
 
-Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo und Hull laufen auf zwei separaten Web Workern echt parallel — Topo ist üblicherweise viel schneller (~50ms bei Iter 11 vs ~25s für Hull). Beim Klick auf "Weiter" wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der anderen Variante ersetzt (sofern bereits vorberechnet).
+Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo und Hull laufen auf zwei separaten Web Workern echt parallel — Topo ist viel schneller (~50ms bei Iter 11 vs. ~17s für Hull). Beim Klick auf "Weiter" wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der anderen Variante ersetzt (sofern bereits vorberechnet).
 
 ### Mobilgeräte
 
@@ -301,7 +328,8 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 
 | Parameter | Desktop | Mobil |
 |-----------|---------|-------|
-| Max. Iterationen | 20 | 18 |
+| Max. Iterationen (Topo) | 20 | 18 |
+| Max. Iterationen (Hull) | 12 | 12 |
 | Max. Samples | 50.000 | 25.000 |
 
 ## Bedienung
