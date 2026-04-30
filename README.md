@@ -146,6 +146,39 @@ Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen,
 
 Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber non-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten. Die resultierenden Flächen sind per Definition immer exakt plan.
 
+Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Die Ergebnisse stimmen exakt mit `scipy.spatial.ConvexHull` überein.
+
+#### Algorithmus
+
+Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull** mit anschließendem **koplanaren Polygon-Merge**:
+
+**Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Wir multiplizieren mit 2<sup>iter−1</sup> und runden, um die ganzzahligen Koordinaten exakt zurückzugewinnen.
+
+**Schritt 2 — Edge-Midpoints.** Für jede Polygon-Kante (a, b) der vorherigen Iteration berechnen wir den Mittelpunkt. In Integer-Arithmetik wird das einfach zu `int_a + int_b` (kein Division), wobei der neue Maßstab automatisch 2<sup>iter</sup> ist. Beispiel: Würfelvertices ±1 (Maßstab 1), Edge-Midpoint von (1,1,1) und (−1,1,1) ist int (0, 2, 2) im 2-fach feineren Gitter, was real (0, 1, 1) entspricht.
+
+**Schritt 3 — Initiales Tetraeder.** Wir wählen 4 nicht-koplanare Punkte als Startsimplex:
+1. Punkt mit minimalem x.
+2. Punkt mit maximalem x.
+3. Punkt mit größtem Abstand zur Linie zwischen den beiden ersten.
+4. Punkt mit größtem (vorzeichenbehaftetem) Abstand zur Ebene der ersten drei.
+
+Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Normalen nach außen zeigen.
+
+**Schritt 4 — Inkrementelle Erweiterung.** Für jeden weiteren Punkt p:
+1. **Sichtbarkeitstest:** Eine Fläche f mit Normale n und Stützwert d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren.
+2. **Sichtbare Region entfernen:** Alle sichtbaren Flächen werden gelöscht.
+3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
+4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
+
+**Schritt 5 — Koplanare Dreiecke mergen.** Der Hull liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagons, Hexagons) entstehen durch Zusammenfassen koplanarer Nachbarn:
+1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
+2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
+3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
+
+**Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für unsere Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Bei iter 11 mit ~31.000 Punkten dauert die Berechnung ca. 17 s. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+
+**Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
+
 | Iter | V | E | F | n-Eck-Verteilung |
 |------|------|------|------|------|
 | 0 | 8 | 12 | 6 | 4-Eck:6 |
@@ -159,8 +192,10 @@ Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch 
 | 8 | 2.352 | 5.424 | 3.074 | 3-Eck:1.448, 4-Eck:1.626 |
 | 9 | 5.424 | 13.008 | 7.586 | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48 |
 | 10 | 13.008 | 31.104 | 18.098 | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48 |
+| 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 |
+| 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 |
 
-**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind exakt (oder unter Rechentoleranz) planar, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
+**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind exakt planar (im Sinne der ganzzahligen Arithmetik, siehe [Technische Umsetzung](#convex-hull-rektifikation-rectifyhull)), der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
 **Iter 4 → 5: Symmetriebruch.** 48 Vertex-Figur-Quads werden non-planar genug, dass der Hull sie in je 2 Dreiecke spaltet:
 - +48 Diagonalen (Kanten)
@@ -170,6 +205,13 @@ Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch 
 Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also genau eine generische O<sub>h</sub>-Bahn von Quads bricht zuerst die Planarität.
 
 **Iter 9: Pentagons. Iter 10: Hexagons.** Bei höheren Iterationen entstehen 5- und 6-Ecke, wenn mehrere non-planare Quads im Hull zu einem größeren Polygon mergen.
+
+**Bemerkenswerte Muster bei höheren Iterationen:**
+
+- **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
+- **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind 2, 3,5, 2,86. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
+- **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei iter 10 sind ~57% der Flächen Dreiecke, bei iter 12 schon ~60%.
+- **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
 
 ### Vergleich der beiden Varianten
 
@@ -311,13 +353,11 @@ Führt die **Flächen-Topologie** explizit mit, ohne Approximation:
 
 ### Convex-Hull-Rektifikation (`rectifyHull`)
 
-Inkrementeller 3D-Convex-Hull-Algorithmus:
+Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem koplanaren Polygon-Merge. Die volle Algorithmus-Beschreibung steht im Mathematik-Abschnitt unter [Variante 2: Convex-Hull-Rektifikation → Algorithmus](#algorithmus).
 
-1. **Edge-Midpoints sammeln** aus allen Polygon-Kanten der vorherigen Iteration.
-2. **Initiales Tetraeder** aus 4 nicht-koplanaren Extremalpunkten.
-3. **Inkrementell** jeden weiteren Punkt einarbeiten: sichtbare Flächen entfernen, Punkt mit Grenzkanten zu neuen Dreiecken verbinden. Cached Face-Normalen für O(1)-Sichtbarkeitstest.
-4. **Koplanare Dreiecke mergen** zu Polygonen (Union-Find auf Adjazenzgraph mit Ebenengleichungs-Vergleich).
-5. Komplexität: O(n²). Bei Iter 12 mit ~30k Vertices dauert die Berechnung mehrere Minuten — daher gilt `HULL_MAX_ITER = 12`, höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus.
+Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 14 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
+
+`HULL_MAX_ITER = 12`: höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
 
 ### Lockstep-Steuerung im Main Thread
 

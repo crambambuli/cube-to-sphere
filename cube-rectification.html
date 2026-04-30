@@ -492,7 +492,11 @@ async function rectifyTopological(vertices, faces, onProgress, skipTriangulation
 //
 // Komplexität: O(n²) im Worst Case, in der Praxis schneller.
 // Für unsere Größenordnungen (≤ 25k Punkte) ausreichend.
-function convexHull3D(points) {
+//
+// `exact` (optional): wenn true, Predikate ohne Toleranz und mit `>= 0`
+// statt `> ε` für Sichtbarkeit (koplanare Punkte werden inkludiert).
+// Sinnvoll bei ganzzahligen Koordinaten, wo Sichtbarkeitstests exakt sind.
+function convexHull3D(points, exact = false) {
   const n = points.length;
   if (n < 4) return { faces: [] };
 
@@ -565,11 +569,20 @@ function convexHull3D(points) {
     const p = points[pi];
     const px = p[0], py = p[1], pz = p[2];
     // Sichtbare Flächen finden (gecachte Normale → 1 Skalarprodukt pro Fläche)
+    // Im exakten Modus: koplanare Punkte (= 0) werden mit-inkludiert, damit
+    // sie nicht aus dem Hull verschwinden.
     const visible = [];
     const kept = [];
-    for (const f of faces) {
-      if (f.nx*px + f.ny*py + f.nz*pz > f.d + 1e-12) visible.push(f);
-      else kept.push(f);
+    if (exact) {
+      for (const f of faces) {
+        const v = f.nx*px + f.ny*py + f.nz*pz - f.d;
+        if (v >= 0) visible.push(f); else kept.push(f);
+      }
+    } else {
+      for (const f of faces) {
+        if (f.nx*px + f.ny*py + f.nz*pz > f.d + 1e-12) visible.push(f);
+        else kept.push(f);
+      }
     }
     if (visible.length === 0) continue; // Punkt liegt innerhalb des Hulls
 
@@ -605,10 +618,29 @@ function convexHull3D(points) {
 //
 // Im Unterschied zur topologischen Variante wechselt die Topologie
 // (Anzahl Dreiecke, Quads, Pentagons, Hexagons je nach Iteration).
-async function rectifyHull(vertices, faces, onProgress, skipTriangulation) {
-  // ---- SCHRITT 1: Edge-Midpoints sammeln ----
+//
+// EXAKTE ARITHMETIK: Alle Vertex-Koordinaten sind dyadisch rational mit
+// Nenner 2^iter. Speichern wir sie als ganze Zahlen im 2^iter-Gitter,
+// werden alle Hull-Predikate (Sichtbarkeit, Koplanarität) durch
+// ganzzahlige Determinanten exakt entscheidbar — keine Toleranzschwellen,
+// keine Rundungsfehler. Bei iter ≤ 12 bleiben alle Zwischenwerte innerhalb
+// des Safe-Integer-Bereichs (< 2^53).
+async function rectifyHull(vertices, faces, onProgress, skipTriangulation, iter) {
+  const scaleOld = 2 ** (iter - 1); // Skalierung der Eingabe-Vertices
+  // (Neuer Maßstab ist 2*scaleOld; statt zu dividieren summieren wir die alten Ints,
+  //  was automatisch dem neuen Maßstab entspricht.)
+
+  // Eingabe-Vertices in Integer-Koordinaten am 2^(iter-1)-Gitter
+  const intVertices = vertices.map(v => [
+    Math.round(v[0] * scaleOld),
+    Math.round(v[1] * scaleOld),
+    Math.round(v[2] * scaleOld),
+  ]);
+
+  // ---- SCHRITT 1: Edge-Midpoints (parallel als Float und Integer) ----
   const edgeSet = new Set();
-  const newVertices = [];
+  const newVertices = [];   // Floats für Rendering, Deviationen
+  const intMidpoints = [];   // Integers im 2^iter-Gitter — exakt für Hull-Predikate
   for (const face of faces) {
     for (let j = 0; j < face.length; j++) {
       const a = face[j], b = face[(j + 1) % face.length];
@@ -620,6 +652,13 @@ async function rectifyHull(vertices, faces, onProgress, skipTriangulation) {
           (vertices[a][1] + vertices[b][1]) / 2,
           (vertices[a][2] + vertices[b][2]) / 2,
         ]);
+        // Integer-Midpoint: sum der Eingangs-Ints (im 2^(iter-1)-Gitter)
+        // entspricht direkt dem korrekten Wert im 2^iter-Gitter.
+        intMidpoints.push([
+          intVertices[a][0] + intVertices[b][0],
+          intVertices[a][1] + intVertices[b][1],
+          intVertices[a][2] + intVertices[b][2],
+        ]);
       }
     }
   }
@@ -627,30 +666,18 @@ async function rectifyHull(vertices, faces, onProgress, skipTriangulation) {
   if (onProgress) onProgress('hull', 0, 1);
   await yield_();
 
-  // ---- SCHRITT 2: Convex Hull ----
-  const { faces: triFaces } = convexHull3D(newVertices);
+  // ---- SCHRITT 2: Convex Hull mit exakten Predikaten auf Integer-Punkten ----
+  const { faces: triFaces } = convexHull3D(intMidpoints, /*exact=*/true);
 
   if (onProgress) onProgress('hull', 1, 1);
   await yield_();
 
   // ---- SCHRITT 3: Koplanare Dreiecke zu Polygonen mergen ----
-  // Pro Dreieck: Ebenengleichung ax+by+cz+d=0 (normalisiert)
-  // Adjazente Dreiecke mit (fast) gleicher Ebene → gleicher Cluster.
+  // Exakter Test via 3×3-Determinante über Integer-Koordinaten:
+  // Zwei Dreiecke (a,b,c) und (a,b,d) sind koplanar iff det(b-a, c-a, d-a) = 0.
   const N = triFaces.length;
-  const planes = new Float64Array(N * 4);
-  for (let i = 0; i < N; i++) {
-    const t = triFaces[i];
-    const a = newVertices[t[0]], b = newVertices[t[1]], c = newVertices[t[2]];
-    const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
-    const vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
-    let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
-    const nl = Math.sqrt(nx*nx+ny*ny+nz*nz);
-    if (nl > 0) { nx /= nl; ny /= nl; nz /= nl; }
-    const d = -(nx*a[0] + ny*a[1] + nz*a[2]);
-    planes[i*4] = nx; planes[i*4+1] = ny; planes[i*4+2] = nz; planes[i*4+3] = d;
-  }
 
-  // Edge → [tri-Indizes] (für Adjazenz)
+  // Edge → [tri-Indizes] für Adjazenz
   const triEdges = new Map();
   for (let i = 0; i < N; i++) {
     const t = triFaces[i];
@@ -668,13 +695,25 @@ async function rectifyHull(vertices, faces, onProgress, skipTriangulation) {
   function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
   function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
 
-  const PLANE_TOL = 1e-7;
+  // Exakter Koplanaritäts-Test: 4 Punkte aus 2 adjazenten Dreiecken liegen in
+  // einer Ebene iff die 3×3-Determinante über die Integer-Differenzen 0 ergibt.
+  function coplanarExact(i, j) {
+    const ti = triFaces[i], tj = triFaces[j];
+    const inI = new Set(ti);
+    let dIdx = -1;
+    for (const x of tj) if (!inI.has(x)) { dIdx = x; break; }
+    if (dIdx === -1) return true; // identische Dreiecke — sollte nicht vorkommen
+    const pa = intMidpoints[ti[0]], pb = intMidpoints[ti[1]], pc = intMidpoints[ti[2]], pd = intMidpoints[dIdx];
+    const ux = pb[0]-pa[0], uy = pb[1]-pa[1], uz = pb[2]-pa[2];
+    const vx = pc[0]-pa[0], vy = pc[1]-pa[1], vz = pc[2]-pa[2];
+    const wx = pd[0]-pa[0], wy = pd[1]-pa[1], wz = pd[2]-pa[2];
+    // det([u v w]) — alle Werte ganze Zahlen, Vergleich mit 0 ist exakt
+    return ux*(vy*wz - vz*wy) - uy*(vx*wz - vz*wx) + uz*(vx*wy - vy*wx) === 0;
+  }
+
   for (const tris of triEdges.values()) {
     if (tris.length === 2) {
-      const i = tris[0], j = tris[1];
-      const dn = Math.abs(planes[i*4]-planes[j*4]) + Math.abs(planes[i*4+1]-planes[j*4+1]) + Math.abs(planes[i*4+2]-planes[j*4+2]);
-      const dd = Math.abs(planes[i*4+3]-planes[j*4+3]);
-      if (dn < PLANE_TOL && dd < PLANE_TOL) union(i, j);
+      if (coplanarExact(tris[0], tris[1])) union(tris[0], tris[1]);
     }
   }
 
@@ -890,7 +929,7 @@ self.onmessage = async function(e) {
     const rectFn = variant === 'hull' ? rectifyHull : rectifyTopological;
     const result = await rectFn(s.vertices, s.faces, (phase, done, total) => {
       self.postMessage({ type: 'progress', iter, variant, phase, done, total });
-    }, skipTri);
+    }, skipTri, iter);
 
     // Zustand aktualisieren für die nächste Iteration
     // Nur originale Vertices behalten (Triangulierungs-Mittelpunkte abschneiden)
