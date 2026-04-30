@@ -62,7 +62,6 @@
   }
   #stats span { color: #7ec8e3; font-weight: bold; }
   #s-progress { display: inline-block; min-width: 14em; }
-  #s-precomp-wrap { letter-spacing: 0; word-spacing: 0; }
   #controls {
     display: flex;
     gap: 6px;
@@ -118,7 +117,9 @@
     Dauer: <span id="s-time">-</span>
     Samples: <span id="s-samples">-</span>
     Abweichung: <span id="s-dev">-</span>
-    Vorberechnet: <span id="s-precomp-wrap"><span id="s-precomp">0</span>/<span id="s-max">20</span></span>
+    Flächen: <span id="s-faces">6</span>
+    n-Ecke: <span id="s-ngon">4-Eck:6</span>
+    Vorberechnet: <span id="s-precomp">topo 0, hull 0</span>
     <span id="s-progress"></span>
   </div>
 </div>
@@ -127,6 +128,7 @@
   <button id="btn-prev" disabled>&larr; Zurück</button>
   <div id="iteration-label">Iteration 0</div>
   <button id="btn-next">Weiter &rarr;</button>
+  <button id="btn-variant" title="Topologisch ↔ Convex Hull umschalten">Variante: Topologisch</button>
 </div>
 
 <script type="importmap">
@@ -142,100 +144,110 @@
 import * as THREE from 'three';
 
 // ---- Worker-Kommunikation ----
-// Der Worker berechnet die Rektifikation asynchron in einem eigenen Thread.
-// Wir senden nur { iter: N } und bekommen Koordinaten, Dreieck-Indizes,
-// Abweichungen und Statistiken zurück.
-// Date.now() im URL verhindert Browser-Caching des Worker-Scripts.
-// Worker erstellen — mit Fallback für file://-Kontext (Safari)
-let worker;
-try {
-  worker = new Worker('worker.js?v=' + Date.now());
-  // Testen ob Worker funktioniert (Safari blockt bei file://)
-  worker.onerror = () => { throw new Error('Worker blocked'); };
-} catch(e) {
-  // Fallback: Worker-Code im Main Thread ausführen via eval
-  console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
-  // Simuliertes Worker-Objekt: gleiche API (onmessage, postMessage),
-  // aber führt den Worker-Code synchron im Main Thread aus.
-  worker = {
-    _handler: null,        // Empfänger für Worker-Nachrichten
-    _workerScope: null,    // Simulierter Worker-Scope (einmalig initialisiert)
-    set onmessage(fn) { this._handler = fn; },
-    get onmessage() { return this._handler; },
-    onerror: null,
-    postMessage(data) {
-      // Worker-Code im Main Thread ausführen (blockiert UI, aber funktioniert)
-      const script = document.getElementById('worker-src');
-      if (!script) return;
-      if (!this._workerScope) {
-        // Beim ersten Aufruf: Worker-Code evaluieren und Scope aufbauen.
-        // self.postMessage wird umgeleitet auf den lokalen Handler.
-        this._workerScope = {};
-        const scope = this._workerScope;
-        scope.self = { postMessage: (msg) => {
-          if (this._handler) this._handler({ data: msg });
-        }};
-        // Worker-Code als Funktion kompilieren, die self empfängt
-        const fn = new Function('self', script.textContent + '\nreturn self;');
-        scope.self = fn(scope.self);
+// Zwei Worker, einer pro Variante (Topo, Hull) — laufen auf eigenen Threads
+// und können dadurch echt parallel rechnen. Bei file://-Kontext (Safari)
+// fallen wir auf Main-Thread-Mocks zurück (dann effektiv seriell, aber
+// funktional).
+function createWorker() {
+  try {
+    const w = new Worker('worker.js?v=' + Date.now());
+    w.onerror = () => { throw new Error('Worker blocked'); };
+    return w;
+  } catch(e) {
+    console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
+    // Mock-Worker mit eigenem Scope (eigenes State pro Mock).
+    return {
+      _handler: null,
+      _workerScope: null,
+      set onmessage(fn) { this._handler = fn; },
+      get onmessage() { return this._handler; },
+      onerror: null,
+      postMessage(data) {
+        const script = document.getElementById('worker-src');
+        if (!script) return;
+        if (!this._workerScope) {
+          this._workerScope = {};
+          const scope = this._workerScope;
+          scope.self = { postMessage: (msg) => {
+            if (this._handler) this._handler({ data: msg });
+          }};
+          const fn = new Function('self', script.textContent + '\nreturn self;');
+          scope.self = fn(scope.self);
+        }
+        if (this._workerScope.self.onmessage) {
+          this._workerScope.self.onmessage({ data });
+        }
       }
-      // onmessage im simulierten Scope aufrufen
-      if (this._workerScope.self.onmessage) {
-        this._workerScope.self.onmessage({ data });
-      }
-    }
-  };
+    };
+  }
 }
+const workers = { topo: createWorker(), hull: createWorker() };
 const pendingCallbacks = new Map();  // iter → callback wenn Ergebnis da
 const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
 
-worker.onmessage = (e) => {
+// Gemeinsamer onmessage-Handler für beide Worker — die `variant` kommt
+// in der Message mit, also brauchen wir keinen worker-spezifischen Handler.
+function onWorkerMessage(e) {
   // Fortschrittsmeldungen aktualisieren die Anzeige ohne Rendering
   if (e.data.type === 'progress') {
-    const { iter, phase, done, total } = e.data;
+    const { iter, variant, phase, done, total } = e.data;
+    if (variant !== currentVariant) return; // Hintergrund-Variante ignorieren
     const pct = total > 0 ? Math.round(done / total * 100) : 0;
     document.getElementById('s-progress').textContent =
       `Iter ${iter}: ${phase} ${pct}%`;
     return;
   }
 
-  // Ergebnis empfangen und in history speichern
-  const { iter, coords, triIndices, edgeIndices, deviations, rAvg, vertCount, edgeCount, faceCount } = e.data;
-  const elapsed = computeStartTimes.has(iter) ? performance.now() - computeStartTimes.get(iter) : null;
-  computeStartTimes.delete(iter);
+  // Ergebnis empfangen und in history der jeweiligen Variante speichern
+  const { iter, variant, coords, triIndices, edgeIndices, deviations, rAvg, vertCount, edgeCount, faceCount, ngonDist } = e.data;
+  const v = variant || 'topo';
+  const targetHistory = histories[v];
+  const targetPending = pendingComputes[v];
+  const startKey = `${v}:${iter}`;
+  const elapsed = computeStartTimes.has(startKey) ? performance.now() - computeStartTimes.get(startKey) : null;
+  computeStartTimes.delete(startKey);
 
   // Float64-Koordinaten → THREE.Vector3 für Rendering
   const vertices = [];
   for (let i = 0; i < coords.length; i += 3) {
     vertices.push(new THREE.Vector3(coords[i], coords[i+1], coords[i+2]));
   }
-  history[iter] = {
-    vertices,                                           // THREE.Vector3[] für Rendering
-    triIndices: new Uint32Array(triIndices),             // Dreieck-Indizes (BufferGeometry)
-    edgeIndices: edgeIndices ? new Uint32Array(edgeIndices) : null, // Polygon-Kanten
-    deviations: deviations ? new Float64Array(deviations) : null, // Abweichung pro Vertex
-    rAvg: rAvg || 1,                                    // Best-Fit-Kugelradius
-    duration: elapsed,                                  // Berechnungsdauer in ms
-    vertCount, edgeCount, faceCount,                    // Exakte topologische Zählung
+  targetHistory[iter] = {
+    vertices,
+    triIndices: new Uint32Array(triIndices),
+    edgeIndices: edgeIndices ? new Uint32Array(edgeIndices) : null,
+    deviations: deviations ? new Float64Array(deviations) : null,
+    rAvg: rAvg || 1,
+    duration: elapsed,
+    vertCount, edgeCount, faceCount, ngonDist,
   };
-  pendingCompute.delete(iter);
-  document.getElementById('s-progress').textContent = '';
+  targetPending.delete(iter);
+  // Precomp-Counter immer aktualisieren — auch wenn die andere Variante
+  // im Hintergrund rechnet (sonst bleibt der Counter stehen).
   updatePrecomp();
+  if (v === currentVariant) {
+    document.getElementById('s-progress').textContent = '';
+  }
 
   // Callback ausführen falls jemand auf dieses Ergebnis wartet
-  const cb = pendingCallbacks.get(iter);
-  if (cb) { pendingCallbacks.delete(iter); cb(); }
+  const cbKey = `${v}:${iter}`;
+  const cb = pendingCallbacks.get(cbKey);
+  if (cb) { pendingCallbacks.delete(cbKey); cb(); }
 
-  // Nächste Iteration vorberechnen
+  // Nächste Iteration in beiden Varianten vorberechnen (parallel)
   precomputeNext();
-};
+}
+workers.topo.onmessage = onWorkerMessage;
+workers.hull.onmessage = onWorkerMessage;
 
-// Berechnung einer Iteration beim Worker anfordern
-function requestCompute(iter) {
-  if (history[iter] || pendingCompute.has(iter)) return;
-  pendingCompute.add(iter);
-  computeStartTimes.set(iter, performance.now());
-  worker.postMessage({ iter });
+// Berechnung einer Iteration beim entsprechenden Worker anfordern
+function requestCompute(iter, variant = currentVariant) {
+  const hist = histories[variant];
+  const pend = pendingComputes[variant];
+  if (hist[iter] || pend.has(iter)) return;
+  pend.add(iter);
+  computeStartTimes.set(`${variant}:${iter}`, performance.now());
+  workers[variant].postMessage({ iter, variant });
 }
 
 // ---- Three.js Szene ----
@@ -265,10 +277,15 @@ scene.add(dl2);
 // Mobilgeräte: weniger Iterationen (Speicher + Rechenzeit)
 const MAX_ITER = (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768) ? 18 : 20;
 
-// history[i] enthält das Ergebnis der i-ten Iteration (vom Worker berechnet).
-// history[0] = Ausgangswürfel, wird ebenfalls vom Worker geliefert.
-const history = [];
-const pendingCompute = new Set(); // Iterationen die gerade berechnet werden
+// histories[variant][i] = Ergebnis der i-ten Iteration in der jeweiligen Variante.
+// 'topo' = topologische Rektifikation, 'hull' = Convex-Hull-Rektifikation.
+const histories = { topo: [], hull: [] };
+const pendingComputes = { topo: new Set(), hull: new Set() };
+let currentVariant = 'topo';
+// Aliase auf die aktive Variante. Bei Variantenwechsel werden sie über
+// switchVariant() neu gebunden, damit der bestehende Code weiterläuft.
+let history = histories.topo;
+let pendingCompute = pendingComputes.topo;
 let currentIdx = 0;
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
@@ -276,15 +293,23 @@ const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe
 let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
 
 // ---- Morph-Animation ----
-document.getElementById('s-max').textContent = MAX_ITER; // Dynamisch nach Gerät
+// MAX_ITER wird in updatePrecomp() direkt eingebaut
 let morphing = false;
 let morphStart = 0;
 const MORPH_DURATION = 1000; // ms
 let oldGroup = null; // THREE.Group mit altem Körper während Morph
 
-// Aktualisiert die "Vorberechnet: X / MAX" Anzeige in der Stats-Zeile
+// Aktualisiert die "Vorberechnet"-Anzeige in der Stats-Zeile.
+// Zeigt für beide Varianten den höchsten zusammenhängend berechneten Index.
 function updatePrecomp() {
-  document.getElementById('s-precomp').textContent = history.length - 1;
+  function highestContiguous(arr) {
+    let i = 0;
+    while (arr[i]) i++;
+    return i - 1;
+  }
+  const t = highestContiguous(histories.topo);
+  const h = highestContiguous(histories.hull);
+  document.getElementById('s-precomp').textContent = `topo ${t}/${MAX_ITER}, hull ${h}/${HULL_MAX_ITER}`;
 }
 
 // Formatiert Millisekunden als "42ms", "7s" oder "1:23"
@@ -299,11 +324,30 @@ function formatDuration(ms) {
 
 // Berechnet die nächste noch fehlende Iteration im Hintergrund.
 // Wird nach jedem Worker-Ergebnis aufgerufen (Kette: 0 → 1 → 2 → ...).
+// Hull-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-Modus).
+// Höhere Iterationen sind wegen O(n²)-Komplexität teuer:
+// Iter 11 ~25s, Iter 12 mehrere Minuten — läuft im Hintergrund weiter.
+const HULL_MAX_ITER = 12;
+// Parallele Berechnung: Topo und Hull haben eigene Chains, die unabhängig
+// voneinander Fortschritt machen. Der Worker ist single-threaded und arbeitet
+// die Anfragen in Reihenfolge ihrer Ankunft ab — die schnellere Variante
+// wartet nicht auf die langsamere.
 function precomputeNext() {
-  for (let i = 0; i <= MAX_ITER; i++) {
-    if (!history[i] && !pendingCompute.has(i) && (i === 0 || history[i-1])) {
-      requestCompute(i);
-      return;
+  // Reihenfolge: aktive Variante zuerst (kommt vorne in die Worker-Queue)
+  const order = currentVariant === 'hull' ? ['hull', 'topo'] : ['topo', 'hull'];
+  for (const v of order) {
+    const h = histories[v], p = pendingComputes[v];
+    const max = v === 'hull' ? HULL_MAX_ITER : MAX_ITER;
+    // Jeweils höchstens eine offene Anfrage pro Variante in der Queue —
+    // sonst würden beim Aufruf nach jedem Worker-Result immer mehr requests
+    // hinzukommen. Eine pro Variante reicht: nach jedem Result feuert
+    // precomputeNext erneut und queued den nächsten Schritt.
+    if (p.size > 0) continue;
+    for (let i = 0; i <= max; i++) {
+      if (h[i]) continue;
+      if (i > 0 && !h[i-1]) break; // Vorgänger fehlt → später erneut
+      requestCompute(i, v);
+      break;
     }
   }
 }
@@ -511,6 +555,14 @@ function updateStats(computing) {
   document.getElementById('s-iter').textContent = currentIdx;
   document.getElementById('s-verts').textContent = h?.vertCount?.toLocaleString() ?? '-';
   document.getElementById('s-edges').textContent = h?.edgeCount?.toLocaleString() ?? '-';
+  document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
+  if (h?.ngonDist) {
+    const parts = Object.entries(h.ngonDist).sort((a, b) => +a[0] - +b[0])
+      .map(([n, c]) => `${n}-Eck:${c.toLocaleString()}`);
+    document.getElementById('s-ngon').textContent = parts.join(', ');
+  } else {
+    document.getElementById('s-ngon').textContent = '-';
+  }
   const d = h?.duration;
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
   // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
@@ -524,6 +576,10 @@ function updateStats(computing) {
     computing ? `Iteration ${currentIdx} \u23f3` : `Iteration ${currentIdx}`;
   document.getElementById('btn-prev').disabled = currentIdx === 0;
   document.getElementById('btn-next').disabled = currentIdx >= MAX_ITER;
+  // Variante-Button nur im Polyeder-Modus (≤ HULL_MAX_ITER) sichtbar.
+  // Im Kugel-Modus wird die Hull-Variante nicht berechnet.
+  document.getElementById('btn-variant').style.display =
+    currentIdx <= HULL_MAX_ITER ? '' : 'none';
 }
 
 // Zeigt die aktuelle Iteration an. Falls noch nicht berechnet,
@@ -565,12 +621,18 @@ function showCurrent() {
     }
     buildMesh(history[currentIdx]);
   } else {
-    if (!pendingCompute.has(currentIdx)) requestCompute(currentIdx);
-    pendingCallbacks.set(currentIdx, () => {
+    // Nicht direkt requestCompute aufrufen — sonst sendet der Worker eine
+    // Out-of-order-Berechnung und das Ergebnis wird falsch zugeordnet.
+    // precomputeNext() füllt die History strikt sequenziell; sobald die
+    // gewünschte Iteration eintrifft, wird der Callback ausgeführt.
+    pendingCallbacks.set(`${currentVariant}:${currentIdx}`, () => {
       if (history[currentIdx]) {
         buildMesh(history[currentIdx]);
       }
     });
+    // Falls der Precompute-Chain pausiert (z.B. weil eine andere Variante
+    // bereits abgeschlossen ist), neu anstoßen.
+    precomputeNext();
   }
 }
 
@@ -578,6 +640,13 @@ function showCurrent() {
 function goNext() {
   if (currentIdx >= MAX_ITER) return;
   currentIdx++;
+  // Im Hull-Modus oberhalb HULL_MAX_ITER automatisch auf Topologisch zurückschalten
+  if (currentVariant === 'hull' && currentIdx > HULL_MAX_ITER) {
+    currentVariant = 'topo';
+    history = histories.topo;
+    pendingCompute = pendingComputes.topo;
+    document.getElementById('btn-variant').textContent = 'Variante: Topologisch';
+  }
   showCurrent();
 }
 function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
@@ -592,6 +661,20 @@ function btnEvent(id, fn) {
 }
 btnEvent('btn-next', () => { goNext(); });
 btnEvent('btn-prev', () => { goPrev(); });
+
+// Variante umschalten: topo ↔ hull
+function switchVariant() {
+  currentVariant = currentVariant === 'topo' ? 'hull' : 'topo';
+  history = histories[currentVariant];
+  pendingCompute = pendingComputes[currentVariant];
+  document.getElementById('btn-variant').textContent =
+    currentVariant === 'topo' ? 'Variante: Topologisch' : 'Variante: Convex Hull';
+  // Vorberechnung der neuen Variante anstoßen falls noch nicht passiert
+  precomputeNext();
+  // Aktuelle Iteration in der neuen Variante anzeigen
+  showCurrent();
+}
+btnEvent('btn-variant', () => { switchVariant(); });
 
 // Tastatursteuerung
 window.addEventListener('keydown', (e) => {

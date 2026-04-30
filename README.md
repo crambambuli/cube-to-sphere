@@ -16,29 +16,26 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 ## Mathematischer Hintergrund
 
-Die Operation heißt **Rektifikation** — man ersetzt jeden Vertex durch eine neue Fläche und jede Fläche durch eine kleinere Version ihrer selbst.
+Die Operation heißt **Rektifikation** — man ersetzt jeden Vertex durch eine neue Fläche und jede Fläche durch eine kleinere Version ihrer selbst. Die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
-### Euler-Formel
+Bei der Definition gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten:
 
-Bei jeder Iteration gilt exakt (beweisbar über V - E + F = 2):
+- **Topologisch** — Flächen werden kombinatorisch fortgeschrieben: jede alte Fläche schrumpft, jede alte Ecke wird zu einer neuen Fläche.
+- **Convex Hull** — pro Iteration wird die konvexe Hülle aller neuen Vertices gebildet (rein geometrisch).
 
-| Größe | Formel | Entwicklung |
-|-------|--------|-------------|
-| Ecken | V' = E | 8 → 12 → 24 → 48 → ... |
-| Kanten | E' = 2E | 12 → 24 → 48 → 96 → ... |
-| Flächen | F' = V + F | 6 → 14 → 26 → 50 → ... |
+Bis Iteration 4 sind beide Varianten identisch. Ab Iteration 5 weichen sie voneinander ab — die topologische Variante hält non-planare Vierecke als ein Polygon, die Hull-Variante spaltet sie in Dreiecke.
 
-Die Kanten verdoppeln sich exakt bei jeder Iteration.
+Beide Varianten konvergieren gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren bei endlichen Iterationen.
 
-### Was erhalten bleibt
+### Was beide Varianten gemeinsam haben
+
+**Vertex-Anzahl V' = E.** Pro Iteration wird jeder Kantenmittelpunkt zu einem neuen Vertex. Die alten Vertices verschwinden. V verdoppelt sich nicht ganz, aber wächst exponentiell.
 
 **O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> (48 Symmetrieoperationen). Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen. Dies ist gleichzeitig die Symmetriegruppe des Würfels und des Oktaeders, da beide duale Körper sind.
 
 Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelpunkte auf Kantenmittelpunkte ab. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant → die konvexe Hülle auch → jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
-### Warum der Grenzkörper keine Kugel ist
-
-Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der Best-Fit-Kugel gegen einen **festen Wert konvergiert**, nicht gegen null:
+**Konvergenz gegen einen nicht-sphärischen Grenzkörper.** Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der Best-Fit-Kugel gegen einen festen Wert konvergiert, nicht gegen null:
 
 ```
 Iter  Beule (außen)    Delle (innen)
@@ -77,11 +74,9 @@ Iterationen 0–2 haben exakt 0% Abweichung, weil alle Vertices gleich weit vom 
 
 Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
-**Die Ursache: topologische Nicht-Uniformität.**
+**Die Ursache: topologische Nicht-Uniformität.** Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt in der **Flächen-Nachbarschaft**: welche Flächentypen an einem Vertex zusammenkommen.
 
-Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt nicht im Vertex-Grad, sondern in der **Flächen-Nachbarschaft**: welche Flächentypen (Dreieck oder Viereck) an einem Vertex zusammenkommen.
-
-Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie schrumpfen nur). Sie sind die topologischen Singularitäten — alle anderen Flächen sind Vierecke. Damit gibt es Vertices, die an ein Dreieck grenzen, und Vertices, die nur an Vierecke grenzen:
+Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie schrumpfen nur). Sie sind die topologischen Singularitäten — alle anderen Flächen sind Vierecke oder werden aus solchen gebildet. Damit gibt es Vertices, die an ein Dreieck grenzen, und Vertices, die nur an Vierecke grenzen:
 
 - **Iter 1** (Kuboctaeder): Jeder Vertex grenzt an 2 Dreiecke + 2 Quadrate — noch homogen.
 - **Iter 2** (24 Vertices): Jeder Vertex grenzt an 1 Dreieck + 3 Vierecke — noch homogen.
@@ -92,37 +87,39 @@ Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iteration
 
 Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
 
-**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Flächen mit nicht-standardmäßiger Eckenzahl) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren. Das gleiche Prinzip gilt hier — die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh und damit die topologischen Singularitäten, die den Grenzkörper dauerhaft von der Kugel unterscheiden.
+**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Flächen mit nicht-standardmäßiger Eckenzahl) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren. Das gleiche Prinzip gilt hier — die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh.
 
-### Der Grenzkörper
+### Variante 1: Topologische Rektifikation
 
-Der Grenzkörper ist ein wohldefinierter O<sub>h</sub>-symmetrischer konvexer Körper mit:
-- 8 leichten Beulen an den Positionen der ursprünglichen Würfelecken
-- 6 leichten Dellen an den Positionen der ursprünglichen Flächenzentren
-- ca. 14% Unterschied zwischen größtem und kleinstem Durchmesser
-- unendlich vielen Flächen (im Grenzwert glatt)
+Bei jeder Iteration entstehen zwei Typen neuer Flächen:
 
-Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polyeder).
+- **Geschrumpfte Flächen**: Jede alte Fläche wird durch eine kleinere Fläche mit gleicher Kantenzahl ersetzt. Die Ecken der neuen Fläche sind die Mittelpunkte der alten Kanten. Ein Quadrat wird zu einem kleineren Quadrat, ein Dreieck zu einem kleineren Dreieck.
 
-### Zwei Typen von Flächen
+- **Vertex-Figuren**: Wenn man "die Ecken abschneidet", bleibt an jeder alten Ecke eine Schnittfläche. Ihre Kantenzahl entspricht dem Grad des alten Vertex. Beim Würfel hat jede Ecke 3 Kanten → Vertex-Figur ist ein Dreieck. Ab Iteration 1 haben alle Vertices Grad 4 → alle Vertex-Figuren sind Vierecke.
 
-Bei jeder Rektifikation entstehen zwei Typen neuer Flächen:
+#### Euler-Formeln
 
-- **Geschrumpfte Flächen** ("Quads"): Jede alte Fläche wird durch eine kleinere Fläche mit gleicher Kantenzahl ersetzt. Die Ecken der neuen Fläche sind die Mittelpunkte der alten Kanten. Ein Quadrat wird zu einem kleineren Quadrat, ein Dreieck zu einem kleineren Dreieck.
+Bei jeder Iteration gilt exakt (beweisbar über V - E + F = 2):
 
-- **Vertex-Figuren**: Wenn man "die Ecken abschneidet", bleibt an jeder alten Ecke eine Schnittfläche. Ihre Kantenzahl entspricht dem Grad des alten Vertex (= Anzahl Kanten, die dort zusammenliefen). Beim Würfel hat jede Ecke 3 Kanten → Vertex-Figur ist ein Dreieck. Ab Iteration 1 haben alle Vertices Grad 4 → alle Vertex-Figuren sind Vierecke.
+| Größe | Formel | Entwicklung |
+|-------|--------|-------------|
+| Ecken | V' = E | 8 → 12 → 24 → 48 → 96 → 192 → ... |
+| Kanten | E' = 2E | 12 → 24 → 48 → 96 → 192 → 384 → ... |
+| Flächen | F' = V + F | 6 → 14 → 26 → 50 → 98 → 194 → ... |
 
-### Nur Dreiecke und Vierecke
+Die Kanten verdoppeln sich exakt bei jeder Iteration.
+
+#### Nur Dreiecke und Vierecke
 
 Ab Iteration 1 gibt es ausschließlich **Dreiecke** und **Vierecke** — keine Fünf-, Sechsecke oder höher.
 
 Der Grund: Jeder neue Vertex ist der Mittelpunkt einer alten Kante. Jede alte Kante grenzt an genau 2 Flächen und hat 2 Endpunkte (mit je einer Vertex-Figur). Also ist jeder neue Vertex von genau 4 Flächen umgeben → **alle Vertices haben Grad 4** → alle Vertex-Figuren sind Vierecke.
 
 Konkret:
-- **8 Dreiecke** — von den 8 Würfelecken. Bleiben als geschrumpfte Dreiecke über alle Iterationen erhalten. Sie sind die topologischen Singularitäten, die verhindern, dass der Körper zur Kugel konvergiert (sie sitzen an den 8 "Beulen").
+- **8 Dreiecke** — von den 8 Würfelecken. Bleiben als geschrumpfte Dreiecke über alle Iterationen erhalten.
 - **Alle anderen Flächen: Vierecke** — geschrumpfte Quads + Vertex-Figuren (Grad 4).
 
-### Sind die Flächen immer plan?
+#### Sind die Flächen immer plan?
 
 Geschrumpfte Flächen liegen immer exakt in einer Ebene (die Mittelpunkte der Kanten einer planaren Fläche sind koplanar). ✓
 
@@ -133,21 +130,21 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 - **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z.B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
 - **Ab Iter ~4-5**: Die meisten Quads sind fast plan (Abweichung schrumpft quadratisch mit der Kantenlänge), aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
 
-**Konvexe-Hülle-Argument:** Betrachtet man die Rektifikation als konvexe Hülle aller Kantenmittelpunkte, sind alle Flächen per Definition plan. Allerdings kann die konvexe Hülle nicht-planare Vertex-Figuren in Dreiecke aufteilen — die resultierende Flächen-Topologie weicht dann von der kombinatorischen Rektifikation ab.
-
-**Rendering nicht-planarer Quads:** Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird. Es gibt mehrere Ansätze:
-
-1. **Fan-Triangulierung (2 Dreiecke):** Quad wird entlang einer willkürlichen Diagonale in 2 Dreiecke geteilt. Einfach, aber erzeugt einen Knick an der Diagonale. Die andere Diagonale hätte einen anderen Knick erzeugt — die Wahl ist ein Implementierungsartefakt.
-2. **Mittelpunkt-Triangulierung (4 Dreiecke):** ✅ Der Schwerpunkt der 4 Ecken wird als 5. Vertex eingefügt, das Quad in 4 Dreiecke geteilt. Kein willkürlicher Diagonalen-Knick, geometrisch fair — der Knick wird gleichmäßig auf alle 4 Seiten verteilt. **Diese Variante ist implementiert.**
-3. **Kürzeste Diagonale:** Wie (1), aber die Diagonale mit dem kleineren Knickwinkel wählen. Visuell besser als willkürliche Wahl, aber immer noch ein asymmetrischer Knick.
-4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter (z.B. 4×4 = 32 Dreiecke pro Quad). Kein Knick, dafür deutlich höhere GPU-Last. Bei der winzigen Nicht-Planarität (< 10⁻²) visuell nicht vom Mittelpunkt-Ansatz unterscheidbar.
-5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie (nicht mehr exakte Rektifikation).
-
 Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
 
-### Variante: Convex-Hull-Rektifikation
+#### Rendering nicht-planarer Quads
 
-Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber non-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten.
+Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird:
+
+1. **Fan-Triangulierung (2 Dreiecke):** Quad wird entlang einer willkürlichen Diagonale in 2 Dreiecke geteilt. Einfach, aber erzeugt einen Knick an der Diagonale.
+2. **Mittelpunkt-Triangulierung (4 Dreiecke):** ✅ Der Schwerpunkt der 4 Ecken wird als 5. Vertex eingefügt, das Quad in 4 Dreiecke geteilt. Der Knick wird gleichmäßig auf alle 4 Seiten verteilt. **Diese Variante ist implementiert.**
+3. **Kürzeste Diagonale:** Wie (1), aber die Diagonale mit dem kleineren Knickwinkel wählen.
+4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter. Kein Knick, dafür höhere GPU-Last.
+5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie.
+
+### Variante 2: Convex-Hull-Rektifikation
+
+Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber non-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten. Die resultierenden Flächen sind per Definition immer exakt plan.
 
 | Iter | V | E | F | n-Eck-Verteilung |
 |------|------|------|------|------|
@@ -174,7 +171,7 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 
 **Iter 9: Pentagons. Iter 10: Hexagons.** Bei höheren Iterationen entstehen 5- und 6-Ecke, wenn mehrere non-planare Quads im Hull zu einem größeren Polygon mergen.
 
-**Vergleich der beiden Varianten:**
+### Vergleich der beiden Varianten
 
 | | Topologische Rektifikation | Convex-Hull-Rektifikation |
 |--|--|--|
@@ -182,9 +179,19 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 | Kanten-Anzahl | E' = 2E (immer) | ≥ 2E, divergiert ab Iter 5 |
 | Flächen | Polygone (möglicherweise non-planar) | exakt planar |
 | Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 auch Pentagons/Hexagons |
-| Konvergenz | gleicher Grenzkörper |  gleicher Grenzkörper |
+| Konvergenz | gleicher Grenzkörper | gleicher Grenzkörper |
 
-Beide Varianten konvergieren gegen denselben Grenzkörper — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren.
+Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie laufen parallel im Hintergrund auf zwei separaten Web Workern und können dadurch unabhängig voneinander berechnet werden.
+
+### Der Grenzkörper
+
+Der Grenzkörper ist ein wohldefinierter O<sub>h</sub>-symmetrischer konvexer Körper mit:
+- 8 leichten Beulen an den Positionen der ursprünglichen Würfelecken
+- 6 leichten Dellen an den Positionen der ursprünglichen Flächenzentren
+- ca. 14% Unterschied zwischen größtem und kleinstem Durchmesser
+- unendlich vielen Flächen (im Grenzwert glatt)
+
+Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polyeder).
 
 ### Bemerkenswerte Zwischenkörper
 
@@ -231,18 +238,20 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 |------|-----------|
 | Iteration | Aktuelle Rektifikationsstufe (0 = Würfel) |
 | Ecken | Anzahl Vertices (exakt aus Topologie, nicht Euler-Schätzung) |
-| Kanten | Anzahl Kanten (verdoppelt sich pro Iteration: E' = 2E) |
+| Kanten | Anzahl Kanten |
+| Flächen | Anzahl Polygon-Flächen |
+| n-Ecke | Aufschlüsselung der Flächen nach Eckenzahl (z.B. `3-Eck:104, 4-Eck:138`) |
 | Radius | Durchschnittsabstand der Vertices vom Ursprung (schrumpft pro Iteration) |
 | Dauer | Berechnungszeit der Iteration im Web Worker |
 | Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |
 | Abweichung | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent |
-| Vorberechnet | Anzahl bereits im Hintergrund berechneter Iterationen |
+| Vorberechnet | Höchster vorberechneter Index pro Variante (z.B. `topo 12/20, hull 8/12`) |
 
 Werte zeigen "-" an, solange die Iteration noch berechnet wird.
 
 ### Vorberechnung
 
-Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Der Web Worker berechnet jeweils die nächste Iteration, sobald die vorherige fertig ist. Beim Klick auf "Weiter" wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist.
+Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo und Hull laufen auf zwei separaten Web Workern echt parallel — Topo ist üblicherweise viel schneller (~50ms bei Iter 11 vs ~25s für Hull). Beim Klick auf "Weiter" wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der anderen Variante ersetzt (sofern bereits vorberechnet).
 
 ### Mobilgeräte
 
@@ -259,6 +268,7 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 |--------|---------|-------|
 | Nächste Iteration | Weiter-Button oder → oder Leertaste | Weiter-Button |
 | Vorherige Iteration | Zurück-Button oder ← | Zurück-Button |
+| Variante umschalten (Topo ↔ Hull) | "Variante"-Button (nur im Polyeder-Modus) | "Variante"-Button |
 | Körper drehen | Maus ziehen | 1 Finger ziehen |
 | Verschieben (Pan) | Shift+Maus ziehen oder Rechtsklick ziehen | 2 Finger ziehen |
 | Zoomen | Scrollrad | 2-Finger-Pinch |
@@ -273,31 +283,48 @@ Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann 
 ### Architektur
 
 ```
-  Main Thread                                            Web Worker
-  (index.html)                                           (worker.js)
-
-                          {iter}
-  Three.js          ---------------------->              Topologische
-  Rendering                                              Rektifikation
-  UI/Events         <----------------------              Deviation-Berechnung
-                     {coords, triIndices,                 Triangulierung
-                      deviations, stats}
+  Main Thread                                Worker (topo)              Worker (hull)
+  (index.html)                               (worker.js)                (worker.js)
+                                             ─────────────              ─────────────
+                  {iter, variant: 'topo'}
+  Three.js  ────────────────────────────────► rectifyTopological()
+  Rendering ◄────────────────────────────────                            
+            {coords, triIndices, ngonDist}                               
+                  {iter, variant: 'hull'}                                
+            ─────────────────────────────────────────────────────────────► rectifyHull()
+            ◄─────────────────────────────────────────────────────────────
+            {coords, triIndices, ngonDist}
 ```
 
-- **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Keine geometrische Berechnung — nur Darstellung.
-- **Web Worker** (`worker.js`): Topologische Rektifikation mit Polygon-Flächen. Pflegt eigenen Zustand (Vertices + Faces) über Iterationen. Gibt Koordinaten, triangulierte Indizes, Abweichungen und exakte Zählungen zurück.
+- **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Verwaltet getrennte Histories für beide Varianten. Keine geometrische Berechnung — nur Darstellung.
+- **Zwei Worker** (`worker.js`): Eine Instanz für jede Variante, läuft auf eigenem Thread → echt parallel. Jeder Worker pflegt eigenen Zustand (Vertices + Faces) über Iterationen. Beide Varianten werden im Hintergrund parallel vorberechnet.
 
-### Topologische Rektifikation (worker.js)
+### Topologische Rektifikation (`rectifyTopological`)
 
-Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei fast-sphärischen Körpern), führt der Worker die **Flächen-Topologie** explizit mit:
+Führt die **Flächen-Topologie** explizit mit, ohne Approximation:
 
 1. **Kanten sammeln:** Aus den Polygon-Flächen werden alle Kanten und deren Mittelpunkte berechnet.
 2. **Geschrumpfte Flächen:** Jede alte Fläche wird durch die Mittelpunkte ihrer Kanten ersetzt.
 3. **Vertex-Figuren:** Für jeden alten Vertex werden die Mittelpunkte seiner Kanten in der richtigen zyklischen Reihenfolge (via Flächen-Adjazenz) zu einem neuen Polygon verbunden.
-4. **Keine Normalisierung:** Der Körper behält seinen natürlichen Radius (schrumpft mit jeder Iteration).
-5. **Deviations:** Abstand jedes Vertex von der Best-Fit-Kugel (Radius = Durchschnittsabstand).
-6. **Triangulierung:** Fan-Triangulierung mit konsistenter Winding-Order (Normalen nach außen).
-7. **Polygon-Kanten:** Kanten direkt aus den Polygon-Flächen (nicht aus der Triangulierung), um Diagonalen in Quads zu vermeiden.
+4. **Triangulierung:** Mittelpunkt-Triangulierung für non-planare Quads (4 Dreiecke), Fan-Triangulierung für planare Quads (2 Dreiecke).
+5. **Polygon-Kanten:** Kanten direkt aus den Polygon-Flächen, um Diagonalen-Artefakte zu vermeiden.
+
+### Convex-Hull-Rektifikation (`rectifyHull`)
+
+Inkrementeller 3D-Convex-Hull-Algorithmus:
+
+1. **Edge-Midpoints sammeln** aus allen Polygon-Kanten der vorherigen Iteration.
+2. **Initiales Tetraeder** aus 4 nicht-koplanaren Extremalpunkten.
+3. **Inkrementell** jeden weiteren Punkt einarbeiten: sichtbare Flächen entfernen, Punkt mit Grenzkanten zu neuen Dreiecken verbinden. Cached Face-Normalen für O(1)-Sichtbarkeitstest.
+4. **Koplanare Dreiecke mergen** zu Polygonen (Union-Find auf Adjazenzgraph mit Ebenengleichungs-Vergleich).
+5. Komplexität: O(n²). Bei Iter 12 mit ~30k Vertices dauert die Berechnung mehrere Minuten — daher gilt `HULL_MAX_ITER = 12`, höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus.
+
+### Lockstep-Steuerung im Main Thread
+
+- Pro Variante eine eigene `history`-Liste und Pending-Set.
+- Pro Variante max. eine offene Worker-Anfrage in flight.
+- Nach jedem fertigen Result wird die nächste Iteration in *jeder* Variante (separat) requested.
+- Aktive Variante kommt zuerst in die Worker-Queue (für UX bei Variantenwechsel).
 
 ### Rendering (index.html)
 
@@ -313,12 +340,13 @@ Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren (ungenau bei
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit inline Worker (Data-URL), funktioniert ohne Server auch per `file://` |
-| `index.html` | Main Thread: Three.js-Rendering, UI, Kamerasteuerung |
-| `worker.js` | Web Worker: Topologische Rektifikation, Deviation-Berechnung, Triangulierung |
-| `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js` (Data-URL Worker, Inline-Favicons, OG-Tags) |
+| `index.html` | Main Thread: Three.js-Rendering, Kamerasteuerung, UI, Variantenwechsel, Worker-Verwaltung |
+| `worker.js` | Web Worker: beide Rektifikationsvarianten (`rectifyTopological` + `rectifyHull` mit eigenem 3D-Convex-Hull-Algorithmus), Deviation-Berechnung, Triangulierung. Wird in der App zweimal instanziiert (eine Instanz pro Variante). |
+| `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit dem Worker-Code als inline `<script type="text/worker">`. Beide Worker-Instanzen werden über Data-URLs aus diesem inline Code erzeugt; funktioniert ohne Server auch per `file://`. |
+| `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags. |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
-| `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Social Media |
+| `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Telegram / Social Media (1920×1598, JPEG) |
+| `polyedermodus.jpg` / `kugelmodus.jpg` | Screenshots für die README (Polyeder-Modus bei niedriger Iteration, Kugel-Modus bei hoher Iteration) |
 
 ### Lokal starten
 

@@ -33,8 +33,12 @@
 
 // Alle YIELD_EVERY Schritte wird der Event-Loop freigegeben, damit
 // Fortschrittsmeldungen (postMessage) tatsächlich zugestellt werden.
-const YIELD_EVERY = 100;
-function yield_() { return new Promise(r => setTimeout(r, 0)); }
+// Hoher Wert: bei höheren Iterationen ist die Berechnung pro Vertex sehr
+// schnell, häufige Yields würden die Gesamtzeit dominieren (setTimeout(0)
+// hat in Browsern eine Mindestverzögerung von 4–16 ms).
+const YIELD_EVERY = 5000;
+// queueMicrotask hat keine Mindestverzögerung — viel schneller als setTimeout(0).
+function yield_() { return new Promise(r => queueMicrotask(r)); }
 
 // ============================================================================
 // Ausgangskörper: Einheitswürfel
@@ -166,13 +170,14 @@ async function rectifyTopological(vertices, faces, onProgress, skipTriangulation
 
   let processed = 0;
   const totalVerts = vertexEdges.size;
+  // Fortschritt nur einmal in der Mitte melden — der Worker blockiert während
+  // der Berechnung sowieso, häufige postMessage-Calls bringen keinen Nutzen
+  // und Yields via setTimeout(0) verlangsamen die Gesamtzeit deutlich.
+  const progressAt = Math.max(1, Math.floor(totalVerts / 2));
 
   for (const [v, eKeys] of vertexEdges) {
     processed++;
-    if (processed % YIELD_EVERY === 0) {
-      if (onProgress) onProgress('topo', processed, totalVerts);
-      await yield_();
-    }
+    if (processed === progressAt && onProgress) onProgress('topo', processed, totalVerts);
 
     // Kanten zyklisch ordnen via Flächen-Adjazenz:
     // Start bei beliebiger Kante, dann über die gemeinsame Fläche
@@ -338,6 +343,334 @@ async function rectifyTopological(vertices, faces, onProgress, skipTriangulation
   };
 }
 
+// ============================================================================
+// 3D-Convex-Hull (inkrementeller Algorithmus)
+// ============================================================================
+// Eingabe: points = [[x,y,z], ...]
+// Ausgabe: { faces: [[i,j,k], ...] } — Dreieck-Indizes (gegen den Uhrzeigersinn von außen)
+//
+// Algorithmus: Initiales Tetraeder aus 4 nicht-koplanaren Punkten,
+// dann iterativ jeden weiteren Punkt einarbeiten:
+//   - Finde alle Flächen, die von P aus sichtbar sind (Normale zeigt auf P)
+//   - Entferne sie, finde die Grenzkanten der entstandenen "Lücke"
+//   - Verbinde P mit jeder Grenzkante → neue Dreiecksflächen
+//
+// Komplexität: O(n²) im Worst Case, in der Praxis schneller.
+// Für unsere Größenordnungen (≤ 25k Punkte) ausreichend.
+function convexHull3D(points) {
+  const n = points.length;
+  if (n < 4) return { faces: [] };
+
+  // ---- Initiales Tetraeder ----
+  // Wir brauchen 4 Punkte, die nicht koplanar sind.
+  // Heuristik: extremale Punkte in x-, y-, z-Richtung + ein 4. nicht in der Ebene.
+  let i0 = 0, i1 = 0;
+  for (let i = 1; i < n; i++) if (points[i][0] < points[i0][0]) i0 = i;
+  for (let i = 1; i < n; i++) if (points[i][0] > points[i1][0]) i1 = i;
+  // i2: Punkt am weitesten weg von Linie i0-i1
+  const dx = points[i1][0]-points[i0][0], dy = points[i1][1]-points[i0][1], dz = points[i1][2]-points[i0][2];
+  const dl = Math.sqrt(dx*dx+dy*dy+dz*dz);
+  let i2 = -1, maxD = -1;
+  for (let i = 0; i < n; i++) {
+    if (i === i0 || i === i1) continue;
+    const ex = points[i][0]-points[i0][0], ey = points[i][1]-points[i0][1], ez = points[i][2]-points[i0][2];
+    const cx = dy*ez - dz*ey, cy = dz*ex - dx*ez, cz = dx*ey - dy*ex;
+    const d = Math.sqrt(cx*cx+cy*cy+cz*cz) / dl;
+    if (d > maxD) { maxD = d; i2 = i; }
+  }
+  // i3: Punkt am weitesten weg von Ebene i0-i1-i2
+  const a = points[i0], b = points[i1], c = points[i2];
+  const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
+  const vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
+  const nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+  const nl = Math.sqrt(nx*nx+ny*ny+nz*nz);
+  let i3 = -1, maxD3 = 0; // signed
+  for (let i = 0; i < n; i++) {
+    if (i === i0 || i === i1 || i === i2) continue;
+    const d = ((points[i][0]-a[0])*nx + (points[i][1]-a[1])*ny + (points[i][2]-a[2])*nz) / nl;
+    if (Math.abs(d) > Math.abs(maxD3)) { maxD3 = d; i3 = i; }
+  }
+  if (i3 === -1) return { faces: [] };
+
+  // Hilfsfunktion: Face-Objekt mit gecachter Normale + Stütz-d aufbauen.
+  // Eine Sichtbarkeitsprüfung wird damit zu einer einzigen Skalarprodukt-Auswertung.
+  function makeFace(ai, bi, ci) {
+    const a = points[ai], b = points[bi], c = points[ci];
+    const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
+    const vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
+    const nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+    // d = n · a, damit isVisible(p) == n·p > d
+    const d = nx*a[0] + ny*a[1] + nz*a[2];
+    return { v: [ai, bi, ci], nx, ny, nz, d };
+  }
+
+  // Tetraeder mit konsistenter Außenorientierung aufbauen.
+  let faces;
+  if (maxD3 > 0) {
+    faces = [
+      makeFace(i0, i2, i1), // Boden: Normale weg von i3
+      makeFace(i0, i1, i3),
+      makeFace(i1, i2, i3),
+      makeFace(i2, i0, i3),
+    ];
+  } else {
+    faces = [
+      makeFace(i0, i1, i2),
+      makeFace(i0, i3, i1),
+      makeFace(i1, i3, i2),
+      makeFace(i2, i3, i0),
+    ];
+  }
+
+  const initialSet = new Set([i0, i1, i2, i3]);
+
+  // ---- Inkrementell jeden weiteren Punkt einarbeiten ----
+  for (let pi = 0; pi < n; pi++) {
+    if (initialSet.has(pi)) continue;
+    const p = points[pi];
+    const px = p[0], py = p[1], pz = p[2];
+    // Sichtbare Flächen finden (gecachte Normale → 1 Skalarprodukt pro Fläche)
+    const visible = [];
+    const kept = [];
+    for (const f of faces) {
+      if (f.nx*px + f.ny*py + f.nz*pz > f.d + 1e-12) visible.push(f);
+      else kept.push(f);
+    }
+    if (visible.length === 0) continue; // Punkt liegt innerhalb des Hulls
+
+    // Grenzkanten der sichtbaren Region (Kanten, die nur in EINER sichtbaren Fläche vorkommen)
+    const edgeCount = new Map();
+    for (const f of visible) {
+      for (let j = 0; j < 3; j++) {
+        const a = f.v[j], b = f.v[(j+1)%3];
+        const key = a * 1000000 + b;
+        const revKey = b * 1000000 + a;
+        if (edgeCount.has(revKey)) edgeCount.delete(revKey);
+        else edgeCount.set(key, [a, b]);
+      }
+    }
+
+    // Neue Flächen: Grenzkante a→b + Punkt pi → Dreieck (a, b, pi)
+    faces = kept;
+    for (const [a, b] of edgeCount.values()) {
+      faces.push(makeFace(a, b, pi));
+    }
+  }
+
+  return { faces: faces.map(f => f.v) };
+}
+
+// ============================================================================
+// Convex-Hull-Rektifikation (Variante)
+// ============================================================================
+// Eingabe: vertices, faces (wie topologisch), aber Operation:
+//   1. Edge-Midpoints aller Polygon-Kanten sammeln
+//   2. Convex Hull dieser Midpoints berechnen (gibt Dreiecke)
+//   3. Adjazente koplanare Dreiecke zu Polygonen mergen
+//
+// Im Unterschied zur topologischen Variante wechselt die Topologie
+// (Anzahl Dreiecke, Quads, Pentagons, Hexagons je nach Iteration).
+async function rectifyHull(vertices, faces, onProgress, skipTriangulation) {
+  // ---- SCHRITT 1: Edge-Midpoints sammeln ----
+  const edgeSet = new Set();
+  const newVertices = [];
+  for (const face of faces) {
+    for (let j = 0; j < face.length; j++) {
+      const a = face[j], b = face[(j + 1) % face.length];
+      const key = edgeKey(a, b);
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        newVertices.push([
+          (vertices[a][0] + vertices[b][0]) / 2,
+          (vertices[a][1] + vertices[b][1]) / 2,
+          (vertices[a][2] + vertices[b][2]) / 2,
+        ]);
+      }
+    }
+  }
+
+  if (onProgress) onProgress('hull', 0, 1);
+  await yield_();
+
+  // ---- SCHRITT 2: Convex Hull ----
+  const { faces: triFaces } = convexHull3D(newVertices);
+
+  if (onProgress) onProgress('hull', 1, 1);
+  await yield_();
+
+  // ---- SCHRITT 3: Koplanare Dreiecke zu Polygonen mergen ----
+  // Pro Dreieck: Ebenengleichung ax+by+cz+d=0 (normalisiert)
+  // Adjazente Dreiecke mit (fast) gleicher Ebene → gleicher Cluster.
+  const N = triFaces.length;
+  const planes = new Float64Array(N * 4);
+  for (let i = 0; i < N; i++) {
+    const t = triFaces[i];
+    const a = newVertices[t[0]], b = newVertices[t[1]], c = newVertices[t[2]];
+    const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
+    const vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
+    let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+    const nl = Math.sqrt(nx*nx+ny*ny+nz*nz);
+    if (nl > 0) { nx /= nl; ny /= nl; nz /= nl; }
+    const d = -(nx*a[0] + ny*a[1] + nz*a[2]);
+    planes[i*4] = nx; planes[i*4+1] = ny; planes[i*4+2] = nz; planes[i*4+3] = d;
+  }
+
+  // Edge → [tri-Indizes] (für Adjazenz)
+  const triEdges = new Map();
+  for (let i = 0; i < N; i++) {
+    const t = triFaces[i];
+    for (let j = 0; j < 3; j++) {
+      const a = t[j], b = t[(j+1)%3];
+      const key = edgeKey(a, b);
+      if (!triEdges.has(key)) triEdges.set(key, []);
+      triEdges.get(key).push(i);
+    }
+  }
+
+  // Union-Find: koplanare Nachbarn zusammenfassen
+  const parent = new Int32Array(N);
+  for (let i = 0; i < N; i++) parent[i] = i;
+  function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+  function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+
+  const PLANE_TOL = 1e-7;
+  for (const tris of triEdges.values()) {
+    if (tris.length === 2) {
+      const i = tris[0], j = tris[1];
+      const dn = Math.abs(planes[i*4]-planes[j*4]) + Math.abs(planes[i*4+1]-planes[j*4+1]) + Math.abs(planes[i*4+2]-planes[j*4+2]);
+      const dd = Math.abs(planes[i*4+3]-planes[j*4+3]);
+      if (dn < PLANE_TOL && dd < PLANE_TOL) union(i, j);
+    }
+  }
+
+  // Gruppieren nach Cluster und Polygon-Umriss extrahieren
+  const groups = new Map();
+  for (let i = 0; i < N; i++) {
+    const r = find(i);
+    if (!groups.has(r)) groups.set(r, []);
+    groups.get(r).push(i);
+  }
+
+  const newFaces = [];
+  for (const tris of groups.values()) {
+    // Sammle Kanten, zähle Vorkommen — Innenkanten 2x, Boundary 1x
+    const edgeCount = new Map();
+    const edgeDir = new Map(); // a→b (für Orientierung)
+    for (const ti of tris) {
+      const t = triFaces[ti];
+      for (let j = 0; j < 3; j++) {
+        const a = t[j], b = t[(j+1)%3];
+        const key = edgeKey(a, b);
+        edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+        if (!edgeDir.has(key)) edgeDir.set(key, [a, b]);
+      }
+    }
+    const boundary = [];
+    for (const [key, c] of edgeCount) {
+      if (c === 1) boundary.push(edgeDir.get(key));
+    }
+    if (boundary.length < 3) continue;
+
+    // Boundary-Kanten zu zyklischer Liste verbinden
+    const adj = new Map();
+    for (const [a, b] of boundary) {
+      if (!adj.has(a)) adj.set(a, []);
+      if (!adj.has(b)) adj.set(b, []);
+      adj.get(a).push(b);
+      adj.get(b).push(a);
+    }
+    const start = boundary[0][0];
+    const poly = [start];
+    let prev = -1, cur = start;
+    while (poly.length < boundary.length) {
+      const nbrs = adj.get(cur);
+      const nxt = nbrs[0] !== prev ? nbrs[0] : nbrs[1];
+      if (nxt === start) break;
+      poly.push(nxt);
+      prev = cur; cur = nxt;
+    }
+    newFaces.push(poly);
+  }
+
+  // ---- SCHRITT 4: Statistik (rAvg, deviations) und Triangulation ----
+  // Reuse existing logic
+  const numOrigVerts = newVertices.length;
+
+  if (skipTriangulation) {
+    let rSum = 0;
+    for (let i = 0; i < numOrigVerts; i++) {
+      const v = newVertices[i];
+      rSum += Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+    }
+    const rAvg = rSum / numOrigVerts;
+    const deviations = new Float64Array(numOrigVerts);
+    for (let i = 0; i < numOrigVerts; i++) {
+      const v = newVertices[i];
+      deviations[i] = rAvg - Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+    }
+    return {
+      vertices: newVertices, faces: newFaces,
+      triIndices: new Uint32Array(0), edgeIndices: new Uint32Array(0),
+      coords: flatCoords(newVertices), deviations, rAvg,
+    };
+  }
+
+  // Triangulation: Dreiecke direkt, Quads als 2 Tris (Hull-Diagonale ist schon korrekt),
+  // 5+ Ecken via Mittelpunkt-Triangulierung. Da der Hull konvex ist, reicht Fan-Tri für Quads.
+  const triIndices = [];
+  for (const face of newFaces) {
+    if (face.length < 3) continue;
+    let cx=0, cy=0, cz=0;
+    for (const vi of face) {
+      cx += newVertices[vi][0]; cy += newVertices[vi][1]; cz += newVertices[vi][2];
+    }
+    const a = newVertices[face[0]], b = newVertices[face[1]], c = newVertices[face[2]];
+    const nx = (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1]);
+    const ny = (b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2]);
+    const nz = (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+    const outward = nx*cx + ny*cy + nz*cz;
+    if (face.length === 3) {
+      if (outward >= 0) triIndices.push(face[0], face[1], face[2]);
+      else triIndices.push(face[0], face[2], face[1]);
+    } else {
+      // Fan-Triangulierung (Hull-Polygone sind plan)
+      for (let j = 1; j < face.length - 1; j++) {
+        if (outward >= 0) triIndices.push(face[0], face[j], face[j+1]);
+        else triIndices.push(face[0], face[j+1], face[j]);
+      }
+    }
+  }
+
+  // rAvg + deviations
+  let rSum = 0;
+  for (let i = 0; i < numOrigVerts; i++) {
+    const v = newVertices[i];
+    rSum += Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+  }
+  const rAvg = rSum / numOrigVerts;
+  const deviations = new Float64Array(numOrigVerts);
+  for (let i = 0; i < numOrigVerts; i++) {
+    const v = newVertices[i];
+    deviations[i] = rAvg - Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+  }
+
+  // Polygon-Kanten als Liniensegmente
+  const edgeIndices = [];
+  for (const face of newFaces) {
+    for (let j = 0; j < face.length; j++) {
+      edgeIndices.push(face[j], face[(j+1)%face.length]);
+    }
+  }
+
+  return {
+    vertices: newVertices, faces: newFaces,
+    triIndices: new Uint32Array(triIndices),
+    edgeIndices: new Uint32Array(edgeIndices),
+    coords: flatCoords(newVertices),
+    deviations, rAvg,
+  };
+}
+
 // Konvertiert [[x,y,z], ...] in ein flaches Float64Array [x0,y0,z0,x1,y1,z1,...]
 // für den Transfer via postMessage (Transferable).
 function flatCoords(verts) {
@@ -354,10 +687,16 @@ function flatCoords(verts) {
 // Worker-Zustand
 // ============================================================================
 // Der Worker pflegt seinen eigenen Zustand (Vertices + Flächen) über
-// Iterationen hinweg. Der Main Thread sendet nur { iter: N } und bekommt
-// das Ergebnis zurück. Kein Hin-und-Her von Vertex-Daten.
-let currentVertices = CUBE_VERTS;
-let currentFaces = CUBE_FACES;
+// Iterationen hinweg. Der Main Thread sendet nur { iter: N, variant }
+// und bekommt das Ergebnis zurück. Kein Hin-und-Her von Vertex-Daten.
+//
+// Zwei Varianten parallel:
+//   'topo': Topologische Rektifikation (Polygone, möglicherweise non-planar)
+//   'hull': Convex-Hull-Rektifikation (immer plane Polygone)
+const state = {
+  topo: { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
+  hull: { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
+};
 
 // ============================================================================
 // Message Handler
@@ -372,13 +711,16 @@ let currentFaces = CUBE_FACES;
 self.onmessage = async function(e) {
   try {
     const iter = e.data.iter;
+    const variant = e.data.variant === 'hull' ? 'hull' : 'topo';
+    const s = state[variant];
     const t0 = performance.now();
 
     if (iter === 0) {
       // Ausgangswürfel in Originalgröße (Vertices bei ±1, Abstand √3)
-      currentVertices = CUBE_VERTS.map(v => [...v]);
-      currentFaces = CUBE_FACES;
-      const coords = flatCoords(currentVertices);
+      s.vertices = CUBE_VERTS.map(v => [...v]);
+      s.faces = CUBE_FACES;
+      s.lastIter = 0;
+      const coords = flatCoords(s.vertices);
       // Würfel-Triangulierung: 6 Quadrate × 2 Dreiecke = 12 Dreiecke
       const triIndices = new Uint32Array([
         0,2,6, 0,6,4,  // -z (hinten)
@@ -399,7 +741,7 @@ self.onmessage = async function(e) {
       }
       const edgeIndices = new Uint32Array(cubeEdgeIndices);
       self.postMessage({
-        type: 'result', iter, coords, triIndices, edgeIndices, deviations,
+        type: 'result', iter, variant, coords, triIndices, edgeIndices, deviations,
         rAvg: Math.sqrt(3),
         duration: 0,
         vertCount: 8, edgeCount: 12, faceCount: 6
@@ -410,49 +752,60 @@ self.onmessage = async function(e) {
     // Rektifikation berechnen, mit Fortschrittsmeldungen
     // Ab Iter 13 (Kugel-Modus): keine Triangulierung nötig, spart Speicher + Zeit
     const skipTri = iter > 12;
-    const result = await rectifyTopological(currentVertices, currentFaces, (phase, done, total) => {
-      self.postMessage({ type: 'progress', iter, phase, done, total });
+    const rectFn = variant === 'hull' ? rectifyHull : rectifyTopological;
+    const result = await rectFn(s.vertices, s.faces, (phase, done, total) => {
+      self.postMessage({ type: 'progress', iter, variant, phase, done, total });
     }, skipTri);
 
     // Zustand aktualisieren für die nächste Iteration
     // Nur originale Vertices behalten (Triangulierungs-Mittelpunkte abschneiden)
     const numOrig = result.deviations.length;
-    currentVertices = result.vertices.slice(0, numOrig);
-    currentFaces = result.faces;
+    s.vertices = result.vertices.slice(0, numOrig);
+    s.faces = result.faces;
+    s.lastIter = iter;
 
     const duration = performance.now() - t0;
 
     // Kantenanzahl exakt aus der Topologie berechnen
     // (jede Kante kommt in genau 2 Flächen vor)
     const edgeSet = new Set();
-    for (const face of currentFaces) {
+    for (const face of s.faces) {
       for (let j = 0; j < face.length; j++) {
         edgeSet.add(edgeKey(face[j], face[(j + 1) % face.length]));
       }
+    }
+
+    // n-Eck-Verteilung (für Hull-Modus interessant)
+    const ngonDist = {};
+    for (const face of s.faces) {
+      const n = face.length;
+      ngonDist[n] = (ngonDist[n] || 0) + 1;
     }
 
     // Ergebnis an Main Thread senden
     // Transferable Arrays (coords, triIndices, deviations) werden ohne
     // Kopie übergeben — der Worker kann sie danach nicht mehr lesen.
     self.postMessage({
-      type: 'result', iter,
-      coords: result.coords,           // Float64Array: Vertex-Positionen
-      triIndices: result.triIndices,    // Uint32Array: Dreieck-Indizes
-      edgeIndices: result.edgeIndices,  // Uint32Array: Polygon-Kanten als Liniensegmente
-      deviations: result.deviations,    // Float64Array: Abweichung von Kugel
-      rAvg: result.rAvg,               // Durchschnittsradius
-      duration,                         // Berechnungsdauer in ms
-      vertCount: result.deviations.length, // Nur originale Vertices (ohne Triangulierungs-Mittelpunkte)
-      edgeCount: edgeSet.size,           // E' = 2E (Euler)
-      faceCount: currentFaces.length,    // F' = V + F (Euler)
+      type: 'result', iter, variant,
+      coords: result.coords,
+      triIndices: result.triIndices,
+      edgeIndices: result.edgeIndices,
+      deviations: result.deviations,
+      rAvg: result.rAvg,
+      duration,
+      vertCount: result.deviations.length,
+      edgeCount: edgeSet.size,
+      faceCount: s.faces.length,
+      ngonDist,
     }, [result.coords.buffer, result.triIndices.buffer, result.edgeIndices.buffer, result.deviations.buffer]);
 
   } catch (err) {
     console.error('Worker error:', err.message, err.stack);
     // Leeres Ergebnis senden, damit der Main Thread nicht hängt
     self.postMessage({
-      type: 'result', iter: e.data.iter,
+      type: 'result', iter: e.data.iter, variant: e.data.variant || 'topo',
       coords: new Float64Array(0), triIndices: new Uint32Array(0),
+      edgeIndices: new Uint32Array(0),
       deviations: new Float64Array(0), rAvg: 1, duration: 0,
       vertCount: 0, edgeCount: 0, faceCount: 0,
     });

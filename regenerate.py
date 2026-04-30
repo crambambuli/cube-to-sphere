@@ -5,48 +5,25 @@ import base64, re
 with open('index.html') as f: idx = f.read()
 with open('worker.js') as f: wrk = f.read()
 
-# Gesamten Worker-Erstellungsblock ersetzen
-# Suche von "// Worker erstellen" bis "const pendingCallbacks"
-idx = re.sub(
-    r'// Worker erstellen.*?(?=const pendingCallbacks)',
-    """// Worker erstellen — Data-URL funktioniert auch bei file://
-const workerCode = document.getElementById('worker-src').textContent;
-const dataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(workerCode);
-let worker;
-try {
-  worker = new Worker(dataUrl);
-} catch(e1) {
-  try {
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    worker = new Worker(URL.createObjectURL(blob));
-  } catch(e2) {
-    console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
-    worker = {
-      _handler: null, _workerScope: null,
-      set onmessage(fn) { this._handler = fn; },
-      get onmessage() { return this._handler; },
-      onerror: null,
-      postMessage(data) {
-        const script = document.getElementById('worker-src');
-        if (!script) return;
-        if (!this._workerScope) {
-          this._workerScope = {};
-          const scope = this._workerScope;
-          scope.self = { postMessage: (msg) => {
-            if (this._handler) this._handler({ data: msg });
-          }};
-          const fn = new Function('self', script.textContent + '\\\\nreturn self;');
-          scope.self = fn(scope.self);
-        }
-        if (this._workerScope.self.onmessage) {
-          this._workerScope.self.onmessage({ data });
-        }
+# `new Worker('worker.js?v=' + Date.now())` durch Data-URL-Worker ersetzen.
+# Funktioniert auch bei file://-Kontext (Safari blockt Blob-URLs dort).
+# Der Worker-Code wird als <script type="text/worker"> inline eingebettet
+# und beim ersten Aufruf in eine Data-URL gewrappt.
+idx = idx.replace(
+    "new Worker('worker.js?v=' + Date.now())",
+    """(() => {
+      const code = document.getElementById('worker-src').textContent;
+      try {
+        const url = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(code);
+        return new Worker(url);
+      } catch(e1) {
+        try {
+          const blob = new Blob([code], { type: 'application/javascript' });
+          return new Worker(URL.createObjectURL(blob));
+        } catch(e2) { throw new Error('Worker blocked'); }
       }
-    };
-  }
-}
-""",
-    idx, flags=re.DOTALL)
+    })()"""
+)
 
 # Inline Worker-Code als <script type="text/worker">
 importmap_pos = idx.find('<script type="importmap">')
