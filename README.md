@@ -145,6 +145,47 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 
 Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
 
+### Variante: Convex-Hull-Rektifikation
+
+Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber non-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten.
+
+| Iter | V | E | F | n-Eck-Verteilung |
+|------|------|------|------|------|
+| 0 | 8 | 12 | 6 | 4-Eck:6 |
+| 1 | 12 | 24 | 14 | 3-Eck:8, 4-Eck:6 |
+| 2 | 24 | 48 | 26 | 3-Eck:8, 4-Eck:18 |
+| 3 | 48 | 96 | 50 | 3-Eck:8, 4-Eck:42 |
+| 4 | 96 | 192 | 98 | 3-Eck:8, 4-Eck:90 |
+| **5** | **192** | **432** | **242** | **3-Eck:104, 4-Eck:138** |
+| 6 | 432 | 1.008 | 578 | 3-Eck:296, 4-Eck:282 |
+| 7 | 1.008 | 2.352 | 1.346 | 3-Eck:680, 4-Eck:666 |
+| 8 | 2.352 | 5.424 | 3.074 | 3-Eck:1.448, 4-Eck:1.626 |
+| 9 | 5.424 | 13.008 | 7.586 | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48 |
+| 10 | 13.008 | 31.104 | 18.098 | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48 |
+
+**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind exakt (oder unter Rechentoleranz) planar, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
+
+**Iter 4 → 5: Symmetriebruch.** 48 Vertex-Figur-Quads werden non-planar genug, dass der Hull sie in je 2 Dreiecke spaltet:
+- +48 Diagonalen (Kanten)
+- +48 Flächen (-1 Quad +2 Dreiecke = +1 Fläche)
+- 0 zusätzliche Vertices
+
+Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also genau eine generische O<sub>h</sub>-Bahn von Quads bricht zuerst die Planarität.
+
+**Iter 9: Pentagons. Iter 10: Hexagons.** Bei höheren Iterationen entstehen 5- und 6-Ecke, wenn mehrere non-planare Quads im Hull zu einem größeren Polygon mergen.
+
+**Vergleich der beiden Varianten:**
+
+| | Topologische Rektifikation | Convex-Hull-Rektifikation |
+|--|--|--|
+| Vertex-Anzahl | identisch (V' = E) | identisch (V' = E) |
+| Kanten-Anzahl | E' = 2E (immer) | ≥ 2E, divergiert ab Iter 5 |
+| Flächen | Polygone (möglicherweise non-planar) | exakt planar |
+| Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 auch Pentagons/Hexagons |
+| Konvergenz | gleicher Grenzkörper |  gleicher Grenzkörper |
+
+Beide Varianten konvergieren gegen denselben Grenzkörper — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren.
+
 ### Bemerkenswerte Zwischenkörper
 
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
