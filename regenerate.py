@@ -66,8 +66,8 @@ if 'og:image' not in idx:
         '<meta property="og:description" content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.">\n'
         '<meta property="og:type" content="website">\n'
         '<meta property="og:image" content="https://crambambuli.github.io/cube-to-sphere/og-image.jpg">\n'
-        '<meta property="og:image:width" content="2628">\n'
-        '<meta property="og:image:height" content="1748">\n'
+        '<meta property="og:image:width" content="1920">\n'
+        '<meta property="og:image:height" content="1598">\n'
         '<meta property="og:url" content="https://crambambuli.github.io/cube-to-sphere/cube-rectification.html">\n'
         '<meta name="viewport"')
 
