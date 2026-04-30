@@ -159,7 +159,14 @@ Die Nicht-Planarität ist proportional zum Quadrat der Kantenlänge: bei Iter 3 
 Die Anwendung zeigt den Körper in zwei Modi:
 
 - **Iteration 0–12 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1s Cross-Fade mit Ease-in-out).
+
+![Polyeder-Modus mit Flächen, Kanten und Vertex-Punkten](polyedermodus.jpg)
+
 - **Ab Iteration 13 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
+
+![Kugel-Modus mit farbcodierten Vertex-Punkten](kugelmodus.jpg)
+
+Die roten Punkte (außerhalb der Kugel) clustern an den 8 Würfelecken-Positionen, die grünen (innerhalb) an den 6 Flächenzentren — sichtbares Resultat der topologischen Nicht-Uniformität.
 
 ### Farbcodierung der Punkte
 
