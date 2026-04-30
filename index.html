@@ -322,26 +322,23 @@ function formatDuration(ms) {
   return `${min}:${String(remSec).padStart(2, '0')}`;
 }
 
-// Berechnet die nächste noch fehlende Iteration im Hintergrund.
-// Wird nach jedem Worker-Ergebnis aufgerufen (Kette: 0 → 1 → 2 → ...).
 // Hull-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-Modus).
-// Höhere Iterationen sind wegen O(n²)-Komplexität teuer:
-// Iter 11 ~25s, Iter 12 mehrere Minuten — läuft im Hintergrund weiter.
+// Die Berechnungszeit wächst stark (Iter 11 ~17s, Iter 12 mehrere Minuten),
+// läuft aber im Hintergrund auf einem eigenen Worker-Thread weiter.
 const HULL_MAX_ITER = 12;
-// Parallele Berechnung: Topo und Hull haben eigene Chains, die unabhängig
-// voneinander Fortschritt machen. Der Worker ist single-threaded und arbeitet
-// die Anfragen in Reihenfolge ihrer Ankunft ab — die schnellere Variante
-// wartet nicht auf die langsamere.
+// Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
+// Wird nach jedem Worker-Ergebnis aufgerufen. Zwei Worker (workers.topo
+// und workers.hull) laufen auf eigenen Threads, also echt parallel — die
+// schnellere Variante wartet nicht auf die langsamere.
 function precomputeNext() {
-  // Reihenfolge: aktive Variante zuerst (kommt vorne in die Worker-Queue)
+  // Reihenfolge: aktive Variante zuerst — ist nur relevant für die initiale
+  // Queue-Position (beide Varianten laufen parallel weiter).
   const order = currentVariant === 'hull' ? ['hull', 'topo'] : ['topo', 'hull'];
   for (const v of order) {
     const h = histories[v], p = pendingComputes[v];
     const max = v === 'hull' ? HULL_MAX_ITER : MAX_ITER;
-    // Jeweils höchstens eine offene Anfrage pro Variante in der Queue —
-    // sonst würden beim Aufruf nach jedem Worker-Result immer mehr requests
-    // hinzukommen. Eine pro Variante reicht: nach jedem Result feuert
-    // precomputeNext erneut und queued den nächsten Schritt.
+    // Pro Variante max. eine offene Anfrage in flight: precomputeNext
+    // feuert nach jedem Result erneut und queued dann den nächsten Schritt.
     if (p.size > 0) continue;
     for (let i = 0; i <= max; i++) {
       if (h[i]) continue;
@@ -640,7 +637,9 @@ function showCurrent() {
 function goNext() {
   if (currentIdx >= MAX_ITER) return;
   currentIdx++;
-  // Im Hull-Modus oberhalb HULL_MAX_ITER automatisch auf Topologisch zurückschalten
+  // Hull endet bei iter 12, Topo geht bis MAX_ITER. Wer im Hull-Modus über
+  // iter 12 hinaus klickt, hat sonst nichts zum Anzeigen — automatisch auf
+  // Topo umschalten, damit der Sprung in den Kugel-Modus nahtlos klappt.
   if (currentVariant === 'hull' && currentIdx > HULL_MAX_ITER) {
     currentVariant = 'topo';
     history = histories.topo;
@@ -702,7 +701,9 @@ let autoRotateTimer = null;
 let rotationPaused = false;
 const camQuat = new THREE.Quaternion();
 let panX = 0, panY = 0; // Laterale Verschiebung in Kamera-Koordinaten
-// Initiale Orientierung (~wie vorher theta=0.7, phi=0.6)
+// Initiale Orientierung: leicht gedreht um Y-Achse (Yaw) und X-Achse (Pitch),
+// damit man beim Start eine 3D-Ansicht des Würfels mit drei sichtbaren
+// Flächen sieht statt nur einer.
 {
   const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.7);
   const qV = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.6);
@@ -798,7 +799,12 @@ renderer.domElement.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
-// Render-Loop: Kamera kreist um den Ursprung (sphärische Koordinaten)
+// Render-Loop. Pro Frame:
+//   1. Auto-Rotation: Y-Achsen-Drehung um die Trackball-Quaternion komponieren
+//   2. Morph-Animation: Cross-Fade zwischen altem und neuem Körper (Iter-Wechsel)
+//   3. Kamera positionieren aus Quaternion + Zoom-Radius + Pan-Offset
+//   4. Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
+//   5. Three.js render
 (function animate() {
   requestAnimationFrame(animate);
   if (autoRotate) {

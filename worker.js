@@ -1,43 +1,46 @@
 // ============================================================================
-// worker.js — Topologische Rektifikation eines Würfels
+// worker.js — Iterierte Rektifikation eines Würfels (zwei Varianten)
 // ============================================================================
 //
-// Dieses Modul implementiert die iterierte Rektifikation als Web Worker,
-// d.h. die gesamte Berechnung läuft in einem eigenen Thread und blockiert
-// nicht die UI.
+// Dieses Modul implementiert beide Rektifikationsvarianten als Web Worker:
+// die Berechnung läuft auf einem eigenen Thread und blockiert nicht die UI.
+// Die App instanziiert den Worker zweimal — einmal pro Variante —, damit
+// beide Varianten echt parallel auf separaten Threads rechnen.
 //
-// ANSATZ: Statt den Convex Hull zu berechnen und daraus Kanten zu extrahieren
-// (was bei fast-sphärischen Körpern durch Koplanaritäts-Schwellwerte ungenau
-// wird), führen wir die Flächen-Topologie explizit mit. Flächen sind Polygone
-// (nicht Dreiecke), Kanten ergeben sich direkt aus den Flächen.
+// VARIANTE 1: rectifyTopological()
+//   Pflegt die Flächen-Topologie kombinatorisch fort. Pro Iteration entstehen
+//   zwei Typen neuer Flächen:
+//     - Geschrumpfte Original-Flächen: Mittelpunkte der Kanten einer alten
+//       n-Eck-Fläche bilden ein neues n-Eck.
+//     - Vertex-Figuren: Mittelpunkte der Kanten an einem alten Vertex bilden
+//       eine neue Fläche (Seitenzahl = Vertex-Grad).
+//   Euler-Formel: V' = E, E' = 2E, F' = V + F (exakt, keine Approximation).
+//   Möglicher Nachteil: Vertex-Figur-Quads können non-planar sein.
 //
-// REKTIFIKATION: Bei jedem Schritt werden zwei Typen neuer Flächen erzeugt:
-//   1. Geschrumpfte Original-Flächen: Die Kantenmittelpunkte jeder alten
-//      Fläche bilden eine neue (kleinere) Fläche gleicher Seitenanzahl.
-//   2. Vertex-Figuren: Die Kantenmittelpunkte aller Kanten, die an einem
-//      alten Vertex enden, bilden eine neue Fläche (Grad des Vertex = Seitenanzahl).
+// VARIANTE 2: rectifyHull()
+//   Bildet pro Iteration die konvexe Hülle der Kantenmittelpunkte und merged
+//   anschließend koplanare Dreiecke zu Polygonen. Da alle Vertex-Koordinaten
+//   dyadisch rational sind, läuft der Hull-Algorithmus mit exakter
+//   Integer-Arithmetik (keine Toleranzschwellen, keine Rundungsfehler).
+//   Topologie wechselt: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons,
+//   ab Iter 10 Hexagons.
 //
-// EULER-FORMEL: V' = E, E' = 2E, F' = V + F (exakt, keine Approximation).
+// KEINE NORMALISIERUNG: Beide Varianten erhalten den natürlichen Radius;
+//   der Körper schrumpft mit jeder Iteration (Kantenmittelpunkte liegen
+//   näher am Zentrum als die Endpunkte). Der Durchschnittsradius (rAvg)
+//   dient nur als Referenz für die Best-Fit-Kugel und die Abweichungs-
+//   berechnung, nicht zum Skalieren.
 //
-// KEINE NORMALISIERUNG: Der Körper behält seinen natürlichen Radius und
-//   schrumpft mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum).
-//   Der Durchschnittsradius (rAvg) wird nur für die Best-Fit-Kugel und
-//   Abweichungsberechnung verwendet, nicht zum Skalieren.
-//
-// TRIANGULIERUNG: Für das Rendering werden Polygone in Dreiecke zerlegt:
-//   - Dreiecke: direkt (immer plan)
-//   - Planare Quads: 2 Dreiecke (Fan-Triangulierung)
-//   - Nicht-planare Quads: 4 Dreiecke (Schwerpunkt als 5. Vertex)
+// TRIANGULIERUNG: Für das Three.js-Rendering werden Polygone in Dreiecke
+//   zerlegt — Topo nutzt Mittelpunkt-Triangulierung für non-planare Quads,
+//   Hull nutzt Fan-Triangulierung (Hull-Polygone sind immer plan).
 //   Ab Iter 13 (Kugel-Modus) wird die Triangulierung übersprungen.
 // ============================================================================
 
-// Alle YIELD_EVERY Schritte wird der Event-Loop freigegeben, damit
-// Fortschrittsmeldungen (postMessage) tatsächlich zugestellt werden.
-// Hoher Wert: bei höheren Iterationen ist die Berechnung pro Vertex sehr
-// schnell, häufige Yields würden die Gesamtzeit dominieren (setTimeout(0)
-// hat in Browsern eine Mindestverzögerung von 4–16 ms).
-const YIELD_EVERY = 5000;
-// queueMicrotask hat keine Mindestverzögerung — viel schneller als setTimeout(0).
+// Yield zum Event-Loop: queueMicrotask hat keine Mindestverzögerung
+// (im Gegensatz zu setTimeout(0), das in Browsern auf 4–16 ms aufgerundet
+// wird). Wir verwenden es nur in rectifyHull, um zwischen Convex-Hull-
+// Berechnung und Polygon-Merge je eine Progress-Message rauszulassen.
 function yield_() { return new Promise(r => queueMicrotask(r)); }
 
 // ============================================================================
@@ -65,10 +68,9 @@ const CUBE_FACES = [
   [1,5,7,3], // +z Fläche (vorne)
 ];
 
-// Erzeugt einen eindeutigen String-Schlüssel für eine Kante zwischen
-// Vertex a und b, unabhängig von der Reihenfolge.
-// Numerischer Edge-Key statt String (viel schneller, weniger Speicher)
-// Bei max ~200K Vertices reicht Faktor 1.000.000
+// Numerischer Schlüssel für eine ungerichtete Kante zwischen Vertex a und b.
+// Schneller und speichereffizienter als String-Keys; bei < 1.000.000 Vertices
+// pro Iteration kollisionsfrei (max. ~75k Vertices bei iter 12).
 function edgeKey(a, b) { return a < b ? a * 1000000 + b : b * 1000000 + a; }
 function edgeKeyToVerts(key) { const b = key % 1000000; return [Math.floor(key / 1000000), b]; }
 
@@ -366,8 +368,10 @@ function convexHull3D(points, exact = false) {
   if (n < 4) return { faces: [] };
 
   // ---- Initiales Tetraeder ----
-  // Wir brauchen 4 Punkte, die nicht koplanar sind.
-  // Heuristik: extremale Punkte in x-, y-, z-Richtung + ein 4. nicht in der Ebene.
+  // Wir brauchen 4 Punkte, die nicht koplanar sind. Heuristik:
+  //   i0, i1: extremale x-Koordinaten (min, max)
+  //   i2:    Punkt mit größtem Abstand zur Linie i0-i1
+  //   i3:    Punkt mit größtem (signed) Abstand zur Ebene i0-i1-i2
   let i0 = 0, i1 = 0;
   for (let i = 1; i < n; i++) if (points[i][0] < points[i0][0]) i0 = i;
   for (let i = 1; i < n; i++) if (points[i][0] > points[i1][0]) i1 = i;

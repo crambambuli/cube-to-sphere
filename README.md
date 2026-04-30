@@ -32,6 +32,24 @@ Beide Operationen wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), u
 
 Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
 
+**Anschauung — Schrumpffolie / Vakuumverpackung:** Stell dir die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Lege eine elastische Plastikfolie locker um alle Punkte und sauge die Luft heraus. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
+
+- Punkte, die die Folie *berühren*, sind die **Hull-Vertices** — alle anderen Punkte sind im Inneren versteckt.
+- Stellen, an denen die Folie zwischen drei oder mehr Punkten *flach gespannt* liegt, sind die **Flächen**.
+- Stellen zwischen genau zwei Punkten sind die **Kanten**.
+
+In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band schnappt zum kleinsten konvexen Polygon zusammen, Nägel im Inneren werden ignoriert.
+
+**Charakteristische Eigenschaften einer konvexen Hülle:**
+
+- **Konvex.** Die Hülle kann nirgends nach innen einbeulen. Formal: für je zwei Punkte p, q ∈ Hülle liegt die ganze Verbindungsstrecke wieder in der Hülle. Anschaulich: eine gerade Linie zwischen zwei Hull-Punkten verläuft immer durch das Innere oder auf der Oberfläche, niemals außen herum.
+- **Minimal.** Sie ist die *engstmögliche* konvexe Verpackung der Punktmenge — jede kleinere konvexe Form würde mindestens einen Punkt nicht mehr enthalten. Formal: gleich dem Schnitt aller konvexen Mengen, die alle Eingabepunkte enthalten.
+- **Eindeutig.** Bei gegebener Punktmenge gibt es genau eine konvexe Hülle (im Gegensatz z. B. zur Triangulierung, die viele Lösungen erlaubt).
+- **Vertices ⊆ Eingabepunkte.** Jeder Hull-Vertex ist ein Eingabepunkt; keine neuen Punkte werden erfunden. Genau die *extremen* Punkte (= solche, die nicht im Inneren der Hülle der übrigen liegen) erscheinen als Vertices.
+- **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
+- **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
+- **Niemals leer (für ≥ 4 nicht-koplanare Punkte in 3D).** Bei nur 3 koplanaren Punkten degeneriert die "Hülle" zu einem Dreieck (2D im 3D-Raum).
+
 **Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
 
 - Jede alte Kante → ein neuer Vertex (in der Mitte)
@@ -52,6 +70,8 @@ Bei einem **konvexen** Eingabepolyeder mit **planaren** Vertex-Figuren (z. B. W�
 | Definition setzt voraus | Polyeder mit Inzidenzstruktur | nur eine Punktmenge |
 
 **Anschaulich:** Die topologische Variante "vererbt" das Schnittmuster aus der vorherigen Iteration. Die konvexe Hülle "vergisst" die Geschichte und schaut nur, wie die Punkte tatsächlich im Raum liegen.
+
+Mit dem Schrumpffolien-Bild wird auch klar, warum beide Varianten bis Iter 4 dasselbe liefern: solange alle Vertex-Figur-Quads exakt planar sind, schmiegt sich die Folie an genau diese Quads an. Ab Iter 5 sind manche Quads leicht gewölbt — die Folie muss sich dann um die gewölbte Form herum spannen und teilt sie in zwei Dreiecke auf, die jeweils plan sind. Genau das ist der Symmetriebruch in der Convex-Hull-Variante.
 
 Bis Iteration 4 sind beide Varianten in unserem Fall identisch. Ab Iteration 5 weichen sie voneinander ab — die topologische Variante hält non-planare Vierecke als ein Polygon, die Hull-Variante spaltet sie in Dreiecke. Beide konvergieren gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren bei endlichen Iterationen.
 
