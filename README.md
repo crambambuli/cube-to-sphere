@@ -79,16 +79,20 @@ Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konve
 
 **Die Ursache: topologische Nicht-Uniformität.**
 
-Ab Iteration 2 hat der Körper Vertices mit unterschiedlichem Grad (Anzahl angrenzender Kanten):
-- Vertices an den 8 Würfelecken-Positionen: Grad 3 (Dreiecks-Vertex-Figur)
-- Vertices an den 6 Flächenzentren: Grad 4 (Quadrat-Vertex-Figur)
-- Weitere Vertex-Typen bei höheren Iterationen
+Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt nicht im Vertex-Grad, sondern in der **Flächen-Nachbarschaft**: welche Flächentypen (Dreieck oder Viereck) an einem Vertex zusammenkommen.
 
-Diese topologische Heterogenität bleibt bei jeder Iteration erhalten — sie wird nie homogen. Unterschiedliche Vertex-Grade erzeugen unterschiedliche lokale Geometrien, die durch Mittelwertbildung nicht ausgeglichen werden können.
+Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie schrumpfen nur). Sie sind die topologischen Singularitäten — alle anderen Flächen sind Vierecke. Damit gibt es Vertices, die an ein Dreieck grenzen, und Vertices, die nur an Vierecke grenzen:
 
-Die Mittelwertbildung an einem Grad-3-Vertex mittelt über 3 Nachbarn, an einem Grad-4-Vertex über 4 Nachbarn. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
+- **Iter 1** (Kuboctaeder): Jeder Vertex grenzt an 2 Dreiecke + 2 Quadrate — noch homogen.
+- **Iter 2** (24 Vertices): Jeder Vertex grenzt an 1 Dreieck + 3 Vierecke — noch homogen.
+- **Iter 3** (48 Vertices): Zwei Vertex-Klassen
+  - 24 Vertices "nahe einem Dreieck" — grenzen an 1 geschrumpftes Dreieck + 3 Vierecke
+  - 24 Vertices "weiter weg" — grenzen an 4 Vierecke
+- **Iter 4+**: Mehr Klassen je nach Abstand zur nächsten Würfelecke.
 
-**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary vertices" (Vertices mit nicht-standardmäßiger Valenz) in Catmull-Clark- oder Loop-Subdivision die Grenzfläche lokal deformieren. Das gleiche Prinzip gilt hier — die 8 Würfelecken sind topologische Singularitäten, die den Grenzkörper dauerhaft von der Kugel unterscheiden.
+Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
+
+**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Flächen mit nicht-standardmäßiger Eckenzahl) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren. Das gleiche Prinzip gilt hier — die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh und damit die topologischen Singularitäten, die den Grenzkörper dauerhaft von der Kugel unterscheiden.
 
 ### Der Grenzkörper
 
