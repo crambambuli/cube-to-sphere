@@ -476,8 +476,9 @@ function buildMesh(data, retryWithFewerDots) {
   // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
   let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
-  const dotSizes = [0.014, 0.013, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.0035, 0.003];
-  const dotSize = currentIdx <= 12 ? dotSizes[currentIdx] : 0.003;
+  // 0,01 bei Iter 0, dann pro Iteration 0,001 kleiner, ab Iter 9 konstant 0,001
+  const dotSizes = [0.010, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001];
+  const dotSize = currentIdx < dotSizes.length ? dotSizes[currentIdx] : 0.001;
   const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
   // Nur originale Vertices (nicht Triangulierungs-Mittelpunkte) als Punkte anzeigen
   const numOrigVerts = deviations ? deviations.length : vertices.length;
