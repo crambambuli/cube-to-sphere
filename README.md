@@ -260,6 +260,51 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei iter 10 sind ~57% der Flächen Dreiecke, bei iter 12 schon ~60%.
 - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
 
+### Monotonie des Durchschnittsradius
+
+Pro Iteration ist jeder neue Vertex der Mittelpunkt einer alten Kante (a, b):
+
+|v_neu| = |v_a + v_b| / 2 ≤ (|v_a| + |v_b|) / 2
+
+Aus der Dreiecksungleichung — strikt für nicht-parallele Vektoren — folgt eine obere Schranke für den neuen Durchschnittsradius:
+
+rAvg(N+1) < (1 / (2·E_N)) · Σ_v deg(v) · |v|
+
+Das ist eine **gradgewichtete Durchschnittsbildung** über die alten Vertices. Wenn alle Grade gleich sind, fällt die Gewichtung weg und der Ausdruck ist exakt rAvg(N) — strenge Monotonie.
+
+| Variante | Vertex-Grade | Folge |
+|----------|--------------|-------|
+| Topologisch | alle Vertices Grad 4 (ab Iter 1) | rAvg(N+1) < rAvg(N) **strikt monoton fallend** |
+| Convex Hull | gemischt (4, 5, 6+) ab Iter 5 | Monotonie ist nicht garantiert |
+
+Konkrete Werte:
+
+| Iter | Topo rAvg | Hull rAvg |
+|------|-----------|-----------|
+| 5 | 1,088670 | 1,088670 |
+| 6 | 1,079595 | 1,078814 |
+| 7 | 1,075137 | 1,075601 |
+| 8 | 1,072915 | 1,074486 |
+| 9 | 1,071809 | **1,074741 ↑** |
+| 10 | 1,071257 | **1,075112 ↑** |
+| 11 | 1,070981 | **1,075743 ↑** |
+
+Topo schrumpft monoton, Hull steigt ab Iter 9 wieder leicht an.
+
+**Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
+
+- Hochgradige Vertices = "Beulen-Vertices" = überdurchschnittlich weit vom Zentrum
+- In der gradgewichteten Summe sind sie überproportional vertreten
+- Der weighted-avg übersteigt rAvg(N)
+- Die obere Schranke lässt rAvg(N+1) ≥ rAvg(N) zu
+
+**Konsequenz.** Beide Varianten konvergieren formal gegen denselben Grenzkörper, aber sie produzieren verschieden verteilte Stichproben auf seiner Oberfläche:
+
+- Topo: gleichmäßige Stichprobe (alle Vertices Grad 4) → rAvg konvergiert *von oben* gegen einen Grenzwert
+- Hull: Stichprobe mit Bias zu den Beulen → rAvg konvergiert nach kurzem Schrumpfen *von unten* gegen einen leicht höheren Wert (Bias-getrieben in Richtung Maximalradius)
+
+Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie messen lediglich unterschiedliche Sample-Verteilungen desselben Grenzkörpers.
+
 ### Vergleich der beiden Varianten
 
 | | Topologische Rektifikation | Convex-Hull-Rektifikation |
