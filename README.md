@@ -18,7 +18,7 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 Die Operation heißt **Rektifikation** (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
-#### Woher kommt das Wort?
+### Woher kommt das Wort?
 
 Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richtig) + *facere* (machen) zurück — wörtlich also "ins Lot bringen" oder "berichtigen". Der Begriff wird in mehreren Disziplinen verwendet:
 
@@ -27,7 +27,7 @@ Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richt
 - **Photogrammetrie:** Herausrechnen perspektivischer Verzerrungen, bis Bildlinien wieder gerade sind.
 - **Polyedertheorie:** geprägt von H. S. M. Coxeter Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
 
-#### Der "richtig gemachte" Körper
+### Der "richtig gemachte" Körper
 
 Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ Oktaeder: 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
 
@@ -38,11 +38,9 @@ Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist 
 
 In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
 
-Bei der Definition gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische:
-
 ### Topologische Rektifikation vs. konvexe Hülle
 
-Beide Operationen wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
+Soweit die mathematische Idee. Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische. Beide wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
 
 **Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
 
@@ -99,7 +97,7 @@ Bis Iteration 4 sind beide Varianten in unserem Fall identisch. Ab Iteration 5 w
 
 **Vertex-Anzahl V' = E.** Pro Iteration wird jeder Kantenmittelpunkt zu einem neuen Vertex. Die alten Vertices verschwinden. V verdoppelt sich nicht ganz, aber wächst exponentiell.
 
-**O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> (48 Symmetrieoperationen). Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen. Dies ist gleichzeitig die Symmetriegruppe des Würfels und des Oktaeders, da beide duale Körper sind.
+**O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> mit 48 Symmetrieoperationen. Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen.
 
 Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelpunkte auf Kantenmittelpunkte ab. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant → die konvexe Hülle auch → jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
@@ -336,7 +334,7 @@ Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie mes
 | Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons, ab Iter 10 Hexagons |
 | Konvergenz | gleicher Grenzkörper im Limes | gleicher Grenzkörper im Limes |
 
-Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie laufen parallel im Hintergrund auf zwei separaten Web Workern und können dadurch unabhängig voneinander berechnet werden.
+Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf zwei separaten Web Workern berechnet — die schnellere Topo-Variante muss nicht auf die langsamere Hull-Variante warten.
 
 ### Der Grenzkörper
 
@@ -503,7 +501,7 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 | `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit dem Worker-Code als inline `<script type="text/worker">`. Beide Worker-Instanzen werden über Data-URLs aus diesem inline Code erzeugt; funktioniert ohne Server auch per `file://`. |
 | `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags. |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
-| `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Telegram / Social Media (1920×1598, JPEG) |
+| `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Telegram / Social Media (1292×1520, JPEG) |
 | `topologische-rektifikation.jpg` / `convex-hull.jpg` / `kugelmodus.jpg` | Screenshots für die README (Topo-Polyeder-Modus, Convex-Hull-Variante, Topo-Kugel-Modus) |
 
 ### Lokal starten
