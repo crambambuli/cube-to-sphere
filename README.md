@@ -24,6 +24,14 @@ Bei der Definition gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Fl
 
 Beide Operationen wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
 
+**Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
+
+- Jede alte Kante → ein neuer Vertex (in der Mitte)
+- Jede alte Fläche mit n Ecken → eine neue n-eckige Fläche aus den Mittelpunkten ihrer Kanten ("geschrumpfte Fläche")
+- Jede alte Ecke mit Grad d → eine neue d-eckige Fläche aus den Mittelpunkten der dort einlaufenden Kanten ("Vertex-Figur")
+
+Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
+
 **Konvexe Hülle.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Output:
 
 - Vertices = Teilmenge der Eingabepunkte (genau die extremen)
@@ -49,14 +57,6 @@ In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band sch
 - **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
 - **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
 - **Niemals leer (für ≥ 4 nicht-koplanare Punkte in 3D).** Bei nur 3 koplanaren Punkten degeneriert die "Hülle" zu einem Dreieck (2D im 3D-Raum).
-
-**Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
-
-- Jede alte Kante → ein neuer Vertex (in der Mitte)
-- Jede alte Fläche mit n Ecken → eine neue n-eckige Fläche aus den Mittelpunkten ihrer Kanten ("geschrumpfte Fläche")
-- Jede alte Ecke mit Grad d → eine neue d-eckige Fläche aus den Mittelpunkten der dort einlaufenden Kanten ("Vertex-Figur")
-
-Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
 
 ### Wo die Varianten auseinandergehen
 

@@ -1169,7 +1169,6 @@ let morphing = false;
 let morphStart = 0;
 const MORPH_DURATION = 1000; // ms
 let oldGroup = null; // THREE.Group mit altem Körper während Morph
-let morphFrozenAt = null; // null oder Zahl in [0,1]: Morph an dieser Stelle anhalten
 
 // Aktualisiert die "Vorberechnet"-Anzeige in der Stats-Zeile.
 // Zeigt für beide Varianten den höchsten zusammenhängend berechneten Index.
@@ -1492,10 +1491,6 @@ function showCurrent() {
       scene.add(oldGroup);
       morphing = true;
       morphStart = performance.now();
-      // Beim Übergang von Iter 0 zu Iter 1 in der Mitte des Morphs anhalten
-      // (zeigt Würfel und Kuboctaeder gleichzeitig halbtransparent → veranschaulicht
-      // das Schrumpfen der Würfelflächen + Aufschneiden der Ecken).
-      morphFrozenAt = (currentIdx === 1 && oldGroup) ? 0.5 : null;
     }
     buildMesh(history[currentIdx]);
   } else {
@@ -1695,8 +1690,7 @@ renderer.domElement.addEventListener('touchmove', (e) => {
 
   // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
   if (morphing && oldGroup) {
-    let t = Math.min(1, (performance.now() - morphStart) / MORPH_DURATION);
-    if (morphFrozenAt !== null) t = Math.min(t, morphFrozenAt);
+    const t = Math.min(1, (performance.now() - morphStart) / MORPH_DURATION);
     // Ease-in-out für smooth Übergang
     const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
 
