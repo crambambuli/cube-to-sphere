@@ -297,7 +297,11 @@ Die Anwendung zeigt den Körper in zwei Modi:
 
 - **Iteration 0–12 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1s Cross-Fade mit Ease-in-out).
 
-![Polyeder-Modus mit Flächen, Kanten und Vertex-Punkten](polyedermodus.jpg)
+![Topologische Rektifikation mit Flächen, Kanten und Vertex-Punkten](topologische-rektifikation.jpg)
+
+In der Convex-Hull-Variante werden non-planare Vertex-Figuren in Dreiecke aufgespalten — die Topologie wechselt mit jeder Iteration:
+
+![Convex-Hull-Variante mit gemischten Polygonen](convex-hull.jpg)
 
 - **Ab Iteration 13 (Kugel-Modus):** Eine halbtransparente Best-Fit-Kugel als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
 
@@ -434,7 +438,7 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 | `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags. |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
 | `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Telegram / Social Media (1920×1598, JPEG) |
-| `polyedermodus.jpg` / `kugelmodus.jpg` | Screenshots für die README (Polyeder-Modus bei niedriger Iteration, Kugel-Modus bei hoher Iteration) |
+| `topologische-rektifikation.jpg` / `convex-hull.jpg` / `kugelmodus.jpg` | Screenshots für die README (Topo-Polyeder-Modus, Convex-Hull-Variante, Topo-Kugel-Modus) |
 
 ### Lokal starten
 
