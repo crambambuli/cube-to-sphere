@@ -117,8 +117,8 @@
     Dauer: <span id="s-time">-</span>
     Samples: <span id="s-samples">-</span>
     Abweichung: <span id="s-dev">-</span>
-    Flächen: <span id="s-faces">6</span>
-    n-Ecke: <span id="s-ngon">4-Eck:6</span>
+    <span id="s-faces-wrap">Flächen: <span id="s-faces">6</span></span>
+    <span id="s-ngon-wrap">n-Ecke: <span id="s-ngon">4-Eck:6</span></span>
     Vorberechnet: <span id="s-precomp">topo 0, hull 0</span>
     <span id="s-progress"></span>
   </div>
@@ -1429,12 +1429,17 @@ function updateStats(computing) {
   document.getElementById('s-verts').textContent = h?.vertCount?.toLocaleString() ?? '-';
   document.getElementById('s-edges').textContent = h?.edgeCount?.toLocaleString() ?? '-';
   document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
-  if (h?.ngonDist) {
+  // Flächen + n-Ecke nur im Polyeder-Modus anzeigen — im Kugel-Modus gibt
+  // es keine sichtbaren Polygon-Flächen mehr (nur Punktwolke).
+  document.getElementById('s-faces-wrap').style.display = currentIdx <= 12 ? '' : 'none';
+  const ngonWrap = document.getElementById('s-ngon-wrap');
+  if (currentIdx <= 12 && h?.ngonDist) {
     const parts = Object.entries(h.ngonDist).sort((a, b) => +a[0] - +b[0])
       .map(([n, c]) => `${n}-Eck:${c.toLocaleString()}`);
     document.getElementById('s-ngon').textContent = parts.join(', ');
+    ngonWrap.style.display = '';
   } else {
-    document.getElementById('s-ngon').textContent = '-';
+    ngonWrap.style.display = 'none';
   }
   const d = h?.duration;
   document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
