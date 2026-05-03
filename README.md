@@ -16,7 +16,27 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 ## Mathematischer Hintergrund
 
-Die Operation heißt **Rektifikation** — man ersetzt jeden Vertex durch eine neue Fläche und jede Fläche durch eine kleinere Version ihrer selbst. Die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
+Die Operation heißt **Rektifikation** (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
+
+#### Woher kommt das Wort?
+
+Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richtig) + *facere* (machen) zurück — wörtlich also "ins Lot bringen" oder "berichtigen". Der Begriff wird in mehreren Disziplinen verwendet:
+
+- **Chemie/Verfahrenstechnik:** Reinigung einer Flüssigkeit durch wiederholte Destillation.
+- **Elektrotechnik:** Gleichrichtung — Wechselstrom (oszillierende Welle) wird in Gleichstrom (gerade Linie) umgewandelt.
+- **Photogrammetrie:** Herausrechnen perspektivischer Verzerrungen, bis Bildlinien wieder gerade sind.
+- **Polyedertheorie:** geprägt von H. S. M. Coxeter Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
+
+#### Der "richtig gemachte" Körper
+
+Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ Oktaeder: 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
+
+- Die Rektifikation des Würfels (= unsere Iter 1) ist das **Kuboktaeder**.
+- Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
+
+Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist **quasiregulär** — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
+
+In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
 
 Bei der Definition gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische:
 
@@ -264,11 +284,11 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 
 Pro Iteration ist jeder neue Vertex der Mittelpunkt einer alten Kante (a, b):
 
-|v_neu| = |v_a + v_b| / 2 ≤ (|v_a| + |v_b|) / 2
+|v<sub>neu</sub>| = |v<sub>a</sub> + v<sub>b</sub>| / 2 ≤ (|v<sub>a</sub>| + |v<sub>b</sub>|) / 2
 
 Aus der Dreiecksungleichung — strikt für nicht-parallele Vektoren — folgt eine obere Schranke für den neuen Durchschnittsradius:
 
-rAvg(N+1) < (1 / (2·E_N)) · Σ_v deg(v) · |v|
+rAvg(N+1) < (1 / (2·E<sub>N</sub>)) · Σ<sub>v</sub> deg(v) · |v|
 
 Das ist eine **gradgewichtete Durchschnittsbildung** über die alten Vertices. Wenn alle Grade gleich sind, fällt die Gewichtung weg und der Ausdruck ist exakt rAvg(N) — strenge Monotonie.
 
@@ -288,8 +308,9 @@ Konkrete Werte:
 | 9 | 1,071809 | **1,074741 ↑** |
 | 10 | 1,071257 | **1,075112 ↑** |
 | 11 | 1,070981 | **1,075743 ↑** |
+| 12 | 1,070843 | 1,075705 ↓ |
 
-Topo schrumpft monoton, Hull steigt ab Iter 9 wieder leicht an.
+Topo schrumpft monoton; Hull steigt ab Iter 9 zunächst wieder an und beginnt bei Iter 12 minimal zu oszillieren — die Monotonie geht ganz verloren.
 
 **Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
 
