@@ -1348,8 +1348,12 @@ function buildMesh(data, retryWithFewerDots) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
   let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
   // 0,01 bei Iter 0, dann pro Iteration 0,001 kleiner, ab Iter 9 konstant 0,001
+  // Polyeder-Modus (Iter 0-12): von 0,010 in Schritten von 0,001 bis 0,001 ab Iter 9.
+  // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
   const dotSizes = [0.010, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001];
-  const dotSize = currentIdx < dotSizes.length ? dotSizes[currentIdx] : 0.001;
+  const dotSize = currentIdx <= 12
+    ? (currentIdx < dotSizes.length ? dotSizes[currentIdx] : 0.001)
+    : 0.003;
   const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
   // Nur originale Vertices (nicht Triangulierungs-Mittelpunkte) als Punkte anzeigen
   const numOrigVerts = deviations ? deviations.length : vertices.length;
