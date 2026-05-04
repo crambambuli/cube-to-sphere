@@ -89,9 +89,9 @@ Bei einem **konvexen** Eingabepolyeder mit **planaren** Vertex-Figuren (z. B. W�
 
 **Anschaulich:** Die topologische Variante "vererbt" das Schnittmuster aus der vorherigen Iteration. Die konvexe Hülle "vergisst" die Geschichte und schaut nur, wie die Punkte tatsächlich im Raum liegen.
 
-Mit dem Schrumpffolien-Bild wird auch klar, warum beide Varianten bis Iter 4 dasselbe liefern: solange alle Vertex-Figur-Quads exakt planar sind, schmiegt sich die Folie an genau diese Quads an. Ab Iter 5 sind manche Quads leicht gewölbt — die Folie muss sich dann um die gewölbte Form herum spannen und teilt sie in zwei Dreiecke auf, die jeweils plan sind. Genau das ist der Symmetriebruch in der Convex-Hull-Variante.
+Mit dem Schrumpffolien-Bild wird auch klar, warum beide Varianten **bis Iter 4 identisch** sind: solange alle Vertex-Figur-Quads exakt planar sind, schmiegt sich die Folie an genau diese Quads an. **Ab Iter 5** sind manche Quads leicht gewölbt — die Folie muss sich um die gewölbte Form herum spannen und teilt sie in zwei plane Dreiecke auf. Genau das ist der Symmetriebruch in der Convex-Hull-Variante.
 
-Bis Iteration 4 sind beide Varianten in unserem Fall identisch. Ab Iteration 5 weichen sie voneinander ab — die topologische Variante hält non-planare Vierecke als ein Polygon, die Hull-Variante spaltet sie in Dreiecke. Beide konvergieren gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren bei endlichen Iterationen.
+Beide konvergieren bei endloser Iteration gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der non-planaren Vertex-Figuren bei endlichen Iterationen.
 
 ### Was beide Varianten gemeinsam haben
 
@@ -153,7 +153,7 @@ Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iteration
 
 Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
 
-**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Flächen mit nicht-standardmäßiger Eckenzahl) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren. Das gleiche Prinzip gilt hier — die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh.
+**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
 
 ### Variante 1: Topologische Rektifikation
 
@@ -260,7 +260,7 @@ Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Norma
 | 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 |
 | 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 |
 
-**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind exakt planar (im Sinne der ganzzahligen Arithmetik, siehe [Technische Umsetzung](#convex-hull-rektifikation-rectifyhull)), der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
+**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie *mathematisch exakt koplanar* — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
 **Iter 4 → 5: Symmetriebruch.** 48 Vertex-Figur-Quads werden non-planar genug, dass der Hull sie in je 2 Dreiecke spaltet:
 - +48 Diagonalen (Kanten)
@@ -385,7 +385,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001.
+Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus (Iter 13+) konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
 
 Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
@@ -402,7 +402,7 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Dauer | Berechnungszeit der Iteration im Web Worker |
 | Samples | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen) |
 | Abweichung | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent |
-| Vorberechnet | Höchster vorberechneter Index pro Variante (z.B. `topo 12/20, hull 8/12`) |
+| Vorberechnet | Höchster vorberechneter Index pro Variante (z.B. `topo 20/20, hull 8/12` — Topo ist meist schneller fertig) |
 
 Werte zeigen "-" an, solange die Iteration noch berechnet wird.
 
@@ -472,12 +472,12 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 
 `HULL_MAX_ITER = 12`: höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
 
-### Lockstep-Steuerung im Main Thread
+### Parallele Vorberechnung im Main Thread
 
 - Pro Variante eine eigene `history`-Liste und Pending-Set.
-- Pro Variante max. eine offene Worker-Anfrage in flight.
-- Nach jedem fertigen Result wird die nächste Iteration in *jeder* Variante (separat) requested.
-- Aktive Variante kommt zuerst in die Worker-Queue (für UX bei Variantenwechsel).
+- Pro Variante max. eine offene Worker-Anfrage in flight (kein Queue-Aufstauen).
+- Nach jedem fertigen Result wird die nächste Iteration in *jeder* Variante separat angefordert — Topo und Hull machen unabhängig voneinander Fortschritt.
+- Bei Variantenwechsel kommt die nun aktive Variante zuerst in die jeweilige Worker-Queue (UX-Optimierung).
 
 ### Rendering (index.html)
 
