@@ -441,17 +441,14 @@ Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann 
 ### Architektur
 
 ```
-  Main Thread                                Worker (topo)              Worker (hull)
-  (index.html)                               (worker.js)                (worker.js)
-                                             ─────────────              ─────────────
-                  {iter, variant: 'topo'}
-  Three.js  ────────────────────────────────► rectifyTopological()
-  Rendering ◄────────────────────────────────                            
-            {coords, triIndices, ngonDist}                               
-                  {iter, variant: 'hull'}                                
-            ─────────────────────────────────────────────────────────────► rectifyHull()
-            ◄─────────────────────────────────────────────────────────────
-            {coords, triIndices, ngonDist}
+                  ──── {iter, variant: 'topo'} ────►   Worker (topo)
+                                                       (worker.js)
+                  ◄── {coords, triIndices, ngonDist}── rectifyTopological()
+  Main Thread
+  (index.html)
+                  ──── {iter, variant: 'hull'} ────►   Worker (hull)
+                                                       (worker.js)
+                  ◄── {coords, triIndices, ngonDist}── rectifyHull()
 ```
 
 - **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Verwaltet getrennte Histories für beide Varianten. Keine geometrische Berechnung — nur Darstellung.
