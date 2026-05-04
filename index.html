@@ -293,7 +293,8 @@ const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe
 let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
 
 // ---- Morph-Animation ----
-// MAX_ITER wird in updatePrecomp() direkt eingebaut
+// Beim Wechsel zur nächsten Iteration werden alter und neuer Körper
+// 1 Sekunde lang per Cross-Fade überblendet (Ease-in-out).
 let morphing = false;
 let morphStart = 0;
 const MORPH_DURATION = 1000; // ms
@@ -360,7 +361,14 @@ precomputeNext(); // Startet die Vorberechnung ab Iteration 0
 //   - Rot = außerhalb der Kugel (Beule)
 //   - Grün = innerhalb der Kugel (Delle)
 //   - Grau = auf der Kugel (kaum Abweichung)
-
+//
+// Parameter:
+//   data:                History-Eintrag der aktuellen Iteration:
+//                        { vertices, triIndices, edgeIndices, deviations, rAvg, ... }
+//   retryWithFewerDots:  optional. Bei Speicherfehler beim Vertex-Punkt-Rendering
+//                        ruft sich die Funktion rekursiv mit reduzierter Punktzahl
+//                        auf. Dieser Parameter überschreibt dann das
+//                        Plattform-Default (Mobile 25k / Desktop 50k).
 function buildMesh(data, retryWithFewerDots) {
   // Alte Meshes aufräumen (GPU-Speicher freigeben)
   while (meshGroup.children.length) {
@@ -476,8 +484,7 @@ function buildMesh(data, retryWithFewerDots) {
   // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
   let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
-  // 0,01 bei Iter 0, dann pro Iteration 0,001 kleiner, ab Iter 9 konstant 0,001
-  // Polyeder-Modus (Iter 0-12): von 0,010 in Schritten von 0,001 bis 0,001 ab Iter 9.
+  // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
   // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
   const dotSizes = [0.010, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001];
   const dotSize = currentIdx <= 12
@@ -720,6 +727,9 @@ let panX = 0, panY = 0; // Laterale Verschiebung in Kamera-Koordinaten
   camQuat.multiplyQuaternions(qV, qH);
 }
 
+// Pausiert die Auto-Rotation für 3 Sekunden nach manueller Interaktion.
+// Wird per Doppelklick/-Tap dauerhaft pausiert (rotationPaused = true);
+// in dem Fall macht diese Funktion nichts (keine Reset-Timer).
 function pauseAutoRotate() {
   if (rotationPaused) return;
   autoRotate = false;

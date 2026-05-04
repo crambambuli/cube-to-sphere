@@ -455,7 +455,11 @@ function convexHull3D(points, exact = false) {
     }
     if (visible.length === 0) continue; // Punkt liegt innerhalb des Hulls
 
-    // Grenzkanten der sichtbaren Region (Kanten, die nur in EINER sichtbaren Fläche vorkommen)
+    // Grenzkanten der sichtbaren Region (Kanten, die nur in EINER sichtbaren Fläche vorkommen).
+    // Trick: gerichtete Kanten (a→b). Wenn die Gegenrichtung b→a schon in der Map
+    // ist, sind beide Kanten innerhalb der sichtbaren Region (zwei adjazente
+    // Dreiecke nutzen sie in entgegengesetzter Richtung) → löschen. Was übrig bleibt,
+    // ist die Boundary, mit der korrekten Außen-Orientierung für die neuen Dreiecke.
     const edgeCount = new Map();
     for (const f of visible) {
       for (let j = 0; j < 3; j++) {
@@ -494,6 +498,13 @@ function convexHull3D(points, exact = false) {
 // ganzzahlige Determinanten exakt entscheidbar — keine Toleranzschwellen,
 // keine Rundungsfehler. Bei iter ≤ 12 bleiben alle Zwischenwerte innerhalb
 // des Safe-Integer-Bereichs (< 2^53).
+//
+// Parameter:
+//   vertices, faces:    Eingabe-Polyeder (Floats; aus voriger Iteration)
+//   onProgress:         optional, callback(phase, done, total) für UI-Updates
+//   skipTriangulation:  true ab Iter 13 (Kugel-Modus), spart Speicher + Zeit
+//   iter:               Iter-Index, der berechnet wird (≥ 1). Bestimmt die
+//                       Skalierung 2^iter für die ganzzahlige Repräsentation.
 async function rectifyHull(vertices, faces, onProgress, skipTriangulation, iter) {
   const scaleOld = 2 ** (iter - 1); // Skalierung der Eingabe-Vertices
   // (Neuer Maßstab ist 2*scaleOld; statt zu dividieren summieren wir die alten Ints,
@@ -730,10 +741,12 @@ function flatCoords(verts) {
 // Worker-Zustand
 // ============================================================================
 // Der Worker pflegt seinen eigenen Zustand (Vertices + Flächen) über
-// Iterationen hinweg. Der Main Thread sendet nur { iter: N, variant }
+// Iterationen hinweg. Der Main Thread sendet nur { iter, variant }
 // und bekommt das Ergebnis zurück. Kein Hin-und-Her von Vertex-Daten.
 //
-// Zwei Varianten parallel:
+// Die App instanziiert diesen Worker zweimal — einmal pro Variante. Jede
+// Instanz hat ihren eigenen JS-Kontext mit eigener `state`-Variable; in der
+// Praxis nutzt jede Instanz nur den Slot ihrer Variante.
 //   'topo': Topologische Rektifikation (Polygone, möglicherweise non-planar)
 //   'hull': Convex-Hull-Rektifikation (immer plane Polygone)
 const state = {
@@ -744,9 +757,13 @@ const state = {
 // ============================================================================
 // Message Handler
 // ============================================================================
-// Empfängt { iter: N } vom Main Thread.
-//   iter = 0: Gibt den Ausgangswürfel zurück (Reset).
-//   iter > 0: Berechnet die nächste Rektifikation und gibt Ergebnis zurück.
+// Empfängt { iter, variant } vom Main Thread.
+//   iter = 0:    Gibt den Ausgangswürfel zurück (Reset des entsprechenden state-Slots).
+//   iter > 0:    Berechnet die nächste Rektifikation aus state[variant] und gibt
+//                das Ergebnis zurück. Variante 'hull' ruft rectifyHull, sonst
+//                rectifyTopological.
+//   variant:     'topo' oder 'hull'. Bestimmt sowohl den state-Slot als auch
+//                die zu verwendende Rektifikationsfunktion.
 //
 // Antwortet mit:
 //   type: 'progress' — Fortschrittsmeldung während der Berechnung
