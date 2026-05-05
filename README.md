@@ -18,6 +18,8 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 Die Operation heißt **Rektifikation** (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
+Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische.
+
 <details>
 <summary><b>Woher kommt das Wort? Etymologie und Coxeter-Hintergrund</b></summary>
 
@@ -37,11 +39,13 @@ Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist 
 
 In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
 
+---
+
 </details>
 
 ### Topologische Rektifikation vs. konvexe Hülle
 
-Soweit die mathematische Idee. Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische. Beide wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
+Beide Varianten wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
 
 **Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
 
@@ -81,6 +85,8 @@ In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band sch
 - **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
 - **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
 - **Niemals leer (für ≥ 4 nicht-koplanare Punkte in 3D).** Bei nur 3 koplanaren Punkten degeneriert die "Hülle" zu einem Dreieck (2D im 3D-Raum).
+
+---
 
 </details>
 
@@ -168,6 +174,8 @@ Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durc
 
 **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
 
+---
+
 </details>
 
 ### Variante 1: Topologische Rektifikation
@@ -221,6 +229,8 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter. Kein Knick, dafür höhere GPU-Last.
 5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie.
 
+---
+
 </details>
 
 ### Variante 2: Convex-Hull-Rektifikation
@@ -261,23 +271,26 @@ Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Norma
 
 **Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
 
+---
+
 </details>
 
-| Iter | V | E | F | n-Eck-Verteilung |
-|------|------|------|------|------|
-| 0 | 8 | 12 | 6 | 4-Eck:6 |
-| 1 | 12 | 24 | 14 | 3-Eck:8, 4-Eck:6 |
-| 2 | 24 | 48 | 26 | 3-Eck:8, 4-Eck:18 |
-| 3 | 48 | 96 | 50 | 3-Eck:8, 4-Eck:42 |
-| 4 | 96 | 192 | 98 | 3-Eck:8, 4-Eck:90 |
-| **5** | **192** | **432** | **242** | **3-Eck:104, 4-Eck:138** |
-| 6 | 432 | 1.008 | 578 | 3-Eck:296, 4-Eck:282 |
-| 7 | 1.008 | 2.352 | 1.346 | 3-Eck:680, 4-Eck:666 |
-| 8 | 2.352 | 5.424 | 3.074 | 3-Eck:1.448, 4-Eck:1.626 |
-| 9 | 5.424 | 13.008 | 7.586 | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48 |
-| 10 | 13.008 | 31.104 | 18.098 | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48 |
-| 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 |
-| 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 |
+| Iter | V | E | F | n-Eck-Verteilung | Dauer |
+|------|------|------|------|------|------|
+| 0 | 8 | 12 | 6 | 4-Eck:6 | — |
+| 1 | 12 | 24 | 14 | 3-Eck:8, 4-Eck:6 | < 1 ms |
+| 2 | 24 | 48 | 26 | 3-Eck:8, 4-Eck:18 | < 1 ms |
+| 3 | 48 | 96 | 50 | 3-Eck:8, 4-Eck:42 | 2 ms |
+| 4 | 96 | 192 | 98 | 3-Eck:8, 4-Eck:90 | 2 ms |
+| **5** | **192** | **432** | **242** | **3-Eck:104, 4-Eck:138** | **6 ms** |
+| 6 | 432 | 1.008 | 578 | 3-Eck:296, 4-Eck:282 | 13 ms |
+| 7 | 1.008 | 2.352 | 1.346 | 3-Eck:680, 4-Eck:666 | 21 ms |
+| 8 | 2.352 | 5.424 | 3.074 | 3-Eck:1.448, 4-Eck:1.626 | 80 ms |
+| 9 | 5.424 | 13.008 | 7.586 | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48 | 269 ms |
+| 10 | 13.008 | 31.104 | 18.098 | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48 | 1,9 s |
+| 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 | 17 s |
+| 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 | 1:36 |
+| 13 | 181.776 | 442.800 | 261.026 | 3-Eck:160.808, 4-Eck:97.962, 5-Eck:2.208, 6-Eck:48 | 12:46 |
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie *mathematisch exakt koplanar* — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -293,10 +306,12 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 <details>
 <summary><b>Bemerkenswerte Muster bei höheren Iterationen</b></summary>
 
-- **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
-- **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
-- **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei iter 10 sind ~57% der Flächen Dreiecke, bei iter 12 schon ~60%.
+- **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12, 13. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
+- **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86, ×2,3. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
+- **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei Iter 10 sind ~57% der Flächen Dreiecke, bei Iter 12 schon ~60%, bei Iter 13 ~62%.
 - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
+
+---
 
 </details>
 
@@ -330,8 +345,9 @@ Konkrete Werte:
 | 10 | 1,071257 | **1,075112 ↑** |
 | 11 | 1,070981 | **1,075743 ↑** |
 | 12 | 1,070843 | 1,075705 ↓ |
+| 13 | 1,070775 | 1,075842 ↑ |
 
-Topo schrumpft monoton; Hull steigt ab Iter 9 zunächst wieder an und beginnt bei Iter 12 minimal zu oszillieren — die Monotonie geht ganz verloren.
+Topo schrumpft monoton; Hull oszilliert ab Iter 9 (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑) — die Monotonie ist verloren, der Wert pendelt um seinen Konvergenzwert.
 
 **Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
 
@@ -346,6 +362,8 @@ Topo schrumpft monoton; Hull steigt ab Iter 9 zunächst wieder an und beginnt be
 - Hull: Stichprobe mit Bias zu den Beulen → rAvg konvergiert nach kurzem Schrumpfen *von unten* gegen einen leicht höheren Wert (Bias-getrieben in Richtung Maximalradius)
 
 Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie messen lediglich unterschiedliche Sample-Verteilungen desselben Grenzkörpers.
+
+---
 
 </details>
 
@@ -404,7 +422,7 @@ Jeder Vertex-Punkt ist nach seiner Abweichung von der Best-Fit-Kugel eingefärbt
 
 - **Rot** — außerhalb der Kugel (Beule, an den Würfelecken-Positionen)
 - **Grün** — innerhalb der Kugel (Delle, an den Flächenzentren)
-- **Grau** — auf der Kugeloberfläche (Abweichung < 0,001%, z.B. bei Iter 0–2 wo alle Vertices exakt equidistant sind)
+- **Grau** — auf der Kugeloberfläche (Abweichung < 0,001%, z.B. bei Iter 0–2 wo alle Vertices exakt äquidistant sind)
 
 Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich verblassen Punkte und Kanten mit zunehmender Entfernung zur Kamera (Live-Update bei Rotation, auch während der Animation): vordere Elemente sind kräftig, hintere blass.
 
