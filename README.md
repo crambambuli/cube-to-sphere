@@ -287,7 +287,9 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 | 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 | 17 s |
 | 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 | 1:36 |
 | 13 | 181.776 | 442.800 | 261.026 | 3-Eck:160.808, 4-Eck:97.962, 5-Eck:2.208, 6-Eck:48 | 12:46 |
-| 14 | 442.800 | 1.074.864 | 632.066 | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48 | 89:28 |
+| 14 | 442.800 | 1.074.864 | 632.066 | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48 | 1:29:28 |
+
+> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline ermittelt — die Rechenzeit (Iter 14: ~1,5 h) und der Arbeitsspeicherbedarf (Iter 14: ~1,2 GB) übersteigen die Browser-Grenzen.
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie *mathematisch exakt koplanar* — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -343,6 +345,8 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 > | 12 | 1,070843 | 1,075705 ↓ |
 > | 13 | 1,070775 | 1,075842 ↑ |
 > | 14 | 1,070740 | 1,075965 ↑ |
+>
+> *Hull-Werte ab Iter 13 sind offline berechnet (s. n-Eck-Tabelle oben).*
 >
 > Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑ → 1,075965 ↑) — die Monotonie ist verloren. Über 6 Datenpunkte hinweg dominiert ein leichter Aufwärtstrend mit einem einzelnen Rückgang dazwischen.
 >
