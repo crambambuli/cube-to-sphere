@@ -14,7 +14,7 @@ Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobacht
 
 ## Das Problem
 
-Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten die Ecken ab. Es entsteht ein neuer konvexer Körper mit mehr Flächen, Kanten und Ecken. Dieses Verfahren wiederholt man: wieder alle Kanten halbieren, wieder die Ecken abschneiden — und immer so weiter.
+Gegeben ein Würfel. Man halbiere alle Kanten und schneide an den Mittelpunkten die Ecken ab. Es entsteht ein neuer konvexer Körper mit mehr Flächen, Kanten und Ecken. Dieses Verfahren wiederhole man: wieder alle Kanten halbieren, wieder die Ecken abschneiden — und immer so weiter.
 
 **Frage:** Welche Form entsteht, wenn man diesen Prozess unendlich oft wiederholt?
 
@@ -22,7 +22,7 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 ## Mathematischer Hintergrund
 
-Die Operation heißt [**Rektifikation**](https://en.wikipedia.org/wiki/Rectification_(geometry)) (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
+Die Operation heißt [**Rektifikation**](https://en.wikipedia.org/wiki/Rectification_(geometry)) (oder anschaulich **Mittenkappung**) — man halbiere die Kanten und kappe die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
 Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische.
 
