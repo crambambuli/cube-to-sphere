@@ -1,4 +1,4 @@
-# Iterierte Mittenkappung des Würfels
+# Iterierte Rektifikation (Mittenkappung) des Würfels
 
 *Vom Würfel zur Kugel?*
 
