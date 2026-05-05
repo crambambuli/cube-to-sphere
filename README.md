@@ -18,7 +18,8 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 Die Operation heißt **Rektifikation** (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
-### Woher kommt das Wort?
+<details>
+<summary><b>Woher kommt das Wort? Etymologie und Coxeter-Hintergrund</b></summary>
 
 Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richtig) + *facere* (machen) zurück — wörtlich also "ins Lot bringen" oder "berichtigen". Der Begriff wird in mehreren Disziplinen verwendet:
 
@@ -27,16 +28,16 @@ Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richt
 - **Photogrammetrie:** Herausrechnen perspektivischer Verzerrungen, bis Bildlinien wieder gerade sind.
 - **Polyedertheorie:** geprägt von H. S. M. Coxeter Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
 
-### Der "richtig gemachte" Körper
-
 Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ Oktaeder: 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
 
-- Die Rektifikation des Würfels (= unsere Iter 1) ist das **Kuboktaeder**.
+- Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das **Kuboktaeder**.
 - Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
 
 Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist **quasiregulär** — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
 
 In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
+
+</details>
 
 ### Topologische Rektifikation vs. konvexe Hülle
 
@@ -58,7 +59,10 @@ Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der ne
 
 Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
 
-**Anschauung — Schrumpffolie / Vakuumverpackung:** Stell dir die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Lege eine elastische Plastikfolie locker um alle Punkte und sauge die Luft heraus. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
+<details>
+<summary><b>Anschauung und charakteristische Eigenschaften der konvexen Hülle</b></summary>
+
+**Schrumpffolie / Vakuumverpackung:** Man stelle sich die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Eine elastische Plastikfolie wird locker um alle Punkte gelegt und vakuumiert. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
 
 - Punkte, die die Folie *berühren*, sind die **Hull-Vertices** — alle anderen Punkte sind im Inneren versteckt.
 - Stellen, an denen die Folie zwischen drei oder mehr Punkten *flach gespannt* liegt, sind die **Flächen**.
@@ -66,7 +70,7 @@ Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle de
 
 In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band schnappt zum kleinsten konvexen Polygon zusammen, Nägel im Inneren werden ignoriert.
 
-**Charakteristische Eigenschaften einer konvexen Hülle:**
+**Charakteristische Eigenschaften:**
 
 - **Konvex.** Die Hülle kann nirgends nach innen einbeulen. Formal: für je zwei Punkte p, q ∈ Hülle liegt die ganze Verbindungsstrecke wieder in der Hülle. Anschaulich: eine gerade Linie zwischen zwei Hull-Punkten verläuft immer durch das Innere oder auf der Oberfläche, niemals außen herum.
 - **Minimal.** Sie ist die *engstmögliche* konvexe Verpackung der Punktmenge — jede kleinere konvexe Form würde mindestens einen Punkt nicht mehr enthalten. Formal: gleich dem Schnitt aller konvexen Mengen, die alle Eingabepunkte enthalten.
@@ -75,6 +79,8 @@ In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band sch
 - **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
 - **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
 - **Niemals leer (für ≥ 4 nicht-koplanare Punkte in 3D).** Bei nur 3 koplanaren Punkten degeneriert die "Hülle" zu einem Dreieck (2D im 3D-Raum).
+
+</details>
 
 ### Wo die Varianten auseinandergehen
 
@@ -213,15 +219,16 @@ Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch 
 
 Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Die Ergebnisse stimmen exakt mit `scipy.spatial.ConvexHull` überein.
 
-#### Algorithmus
+<details>
+<summary><b>Algorithmus, Komplexität und numerische Sicherheit</b></summary>
 
 Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull** mit anschließendem **koplanaren Polygon-Merge**:
 
-**Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Wir multiplizieren mit 2<sup>iter−1</sup> und runden, um die ganzzahligen Koordinaten exakt zurückzugewinnen.
+**Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Multiplikation mit 2<sup>iter−1</sup> und Runden gewinnt die ganzzahligen Koordinaten exakt zurück.
 
-**Schritt 2 — Edge-Midpoints.** Für jede Polygon-Kante (a, b) der vorherigen Iteration berechnen wir den Mittelpunkt. In Integer-Arithmetik wird das einfach zu `int_a + int_b` (kein Division), wobei der neue Maßstab automatisch 2<sup>iter</sup> ist. Beispiel: Würfelvertices ±1 (Maßstab 1), Edge-Midpoint von (1,1,1) und (−1,1,1) ist int (0, 2, 2) im 2-fach feineren Gitter, was real (0, 1, 1) entspricht.
+**Schritt 2 — Edge-Midpoints.** Für jede Polygon-Kante (a, b) der vorherigen Iteration wird der Mittelpunkt berechnet. In Integer-Arithmetik wird das einfach zu `int_a + int_b` (kein Division), wobei der neue Maßstab automatisch 2<sup>iter</sup> ist. Beispiel: Würfelvertices ±1 (Maßstab 1), Edge-Midpoint von (1,1,1) und (−1,1,1) ist int (0, 2, 2) im 2-fach feineren Gitter, was real (0, 1, 1) entspricht.
 
-**Schritt 3 — Initiales Tetraeder.** Wir wählen 4 nicht-koplanare Punkte als Startsimplex:
+**Schritt 3 — Initiales Tetraeder.** 4 nicht-koplanare Punkte werden als Startsimplex gewählt:
 1. Punkt mit minimalem x.
 2. Punkt mit maximalem x.
 3. Punkt mit größtem Abstand zur Linie zwischen den beiden ersten.
@@ -240,9 +247,11 @@ Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Norma
 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
 
-**Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für unsere Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Bei iter 11 mit ~31.000 Punkten dauert die Berechnung ca. 17 s. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+**Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Bei iter 11 mit ~31.000 Punkten dauert die Berechnung ca. 17 s. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
 
 **Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
+
+</details>
 
 | Iter | V | E | F | n-Eck-Verteilung |
 |------|------|------|------|------|
@@ -271,14 +280,18 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 
 **Iter 9: Pentagons. Iter 10: Hexagons.** Bei höheren Iterationen entstehen 5- und 6-Ecke, wenn mehrere non-planare Quads im Hull zu einem größeren Polygon mergen.
 
-**Bemerkenswerte Muster bei höheren Iterationen:**
+<details>
+<summary><b>Bemerkenswerte Muster bei höheren Iterationen</b></summary>
 
 - **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
 - **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
 - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei iter 10 sind ~57% der Flächen Dreiecke, bei iter 12 schon ~60%.
 - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
 
-### Monotonie des Durchschnittsradius
+</details>
+
+<details>
+<summary><b>Monotonie des Durchschnittsradius — warum Topo monoton schrumpft, Hull aber nicht</b></summary>
 
 Pro Iteration ist jeder neue Vertex der Mittelpunkt einer alten Kante (a, b):
 
@@ -323,6 +336,8 @@ Topo schrumpft monoton; Hull steigt ab Iter 9 zunächst wieder an und beginnt be
 - Hull: Stichprobe mit Bias zu den Beulen → rAvg konvergiert nach kurzem Schrumpfen *von unten* gegen einen leicht höheren Wert (Bias-getrieben in Richtung Maximalradius)
 
 Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie messen lediglich unterschiedliche Sample-Verteilungen desselben Grenzkörpers.
+
+</details>
 
 ### Vergleich der beiden Varianten
 
@@ -466,7 +481,7 @@ Führt die **Flächen-Topologie** explizit mit, ohne Approximation:
 
 ### Convex-Hull-Rektifikation (`rectifyHull`)
 
-Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem koplanaren Polygon-Merge. Die volle Algorithmus-Beschreibung steht im Mathematik-Abschnitt unter [Variante 2: Convex-Hull-Rektifikation → Algorithmus](#algorithmus).
+Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem koplanaren Polygon-Merge. Die volle Algorithmus-Beschreibung steht im Mathematik-Abschnitt unter [Variante 2: Convex-Hull-Rektifikation](#variante-2-convex-hull-rektifikation) (Klappblock „Algorithmus, Komplexität und numerische Sicherheit").
 
 Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 14 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
 
