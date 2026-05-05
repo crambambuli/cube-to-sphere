@@ -271,25 +271,25 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 
 </details>
 
-| Iter | V | E | F | n-Eck-Verteilung | Dauer |
-|------|------|------|------|------|------|
-| 0 | 8 | 12 | 6 | 4-Eck:6 | — |
-| 1 | 12 | 24 | 14 | 3-Eck:8, 4-Eck:6 | < 1 ms |
-| 2 | 24 | 48 | 26 | 3-Eck:8, 4-Eck:18 | < 1 ms |
-| 3 | 48 | 96 | 50 | 3-Eck:8, 4-Eck:42 | 2 ms |
-| 4 | 96 | 192 | 98 | 3-Eck:8, 4-Eck:90 | 2 ms |
-| **5** | **192** | **432** | **242** | **3-Eck:104, 4-Eck:138** | **6 ms** |
-| 6 | 432 | 1.008 | 578 | 3-Eck:296, 4-Eck:282 | 13 ms |
-| 7 | 1.008 | 2.352 | 1.346 | 3-Eck:680, 4-Eck:666 | 21 ms |
-| 8 | 2.352 | 5.424 | 3.074 | 3-Eck:1.448, 4-Eck:1.626 | 80 ms |
-| 9 | 5.424 | 13.008 | 7.586 | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48 | 269 ms |
-| 10 | 13.008 | 31.104 | 18.098 | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48 | 1,9 s |
-| 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 | 17 s |
-| 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 | 1:36 |
-| 13 | 181.776 | 442.800 | 261.026 | 3-Eck:160.808, 4-Eck:97.962, 5-Eck:2.208, 6-Eck:48 | 12:46 |
-| 14 | 442.800 | 1.074.864 | 632.066 | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48 | 1:29:28 |
+| Iter | V | E | F | n-Eck-Verteilung | Dauer | Speicher |
+|------|------|------|------|------|------|------|
+| 0 | 8 | 12 | 6 | 4-Eck:6 | — | < 1 MB |
+| 1 | 12 | 24 | 14 | 3-Eck:8, 4-Eck:6 | < 1 ms | < 1 MB |
+| 2 | 24 | 48 | 26 | 3-Eck:8, 4-Eck:18 | < 1 ms | < 1 MB |
+| 3 | 48 | 96 | 50 | 3-Eck:8, 4-Eck:42 | 2 ms | < 1 MB |
+| 4 | 96 | 192 | 98 | 3-Eck:8, 4-Eck:90 | 2 ms | < 1 MB |
+| **5** | **192** | **432** | **242** | **3-Eck:104, 4-Eck:138** | **6 ms** | **< 1 MB** |
+| 6 | 432 | 1.008 | 578 | 3-Eck:296, 4-Eck:282 | 13 ms | 9 MB |
+| 7 | 1.008 | 2.352 | 1.346 | 3-Eck:680, 4-Eck:666 | 21 ms | 14 MB |
+| 8 | 2.352 | 5.424 | 3.074 | 3-Eck:1.448, 4-Eck:1.626 | 80 ms | 25 MB |
+| 9 | 5.424 | 13.008 | 7.586 | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48 | 269 ms | 46 MB |
+| 10 | 13.008 | 31.104 | 18.098 | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48 | 1,9 s | 75 MB |
+| 11 | 31.104 | 75.168 | 44.066 | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48 | 17 s | 135 MB |
+| 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 | 1:36 | 178 MB |
+| 13 | 181.776 | 442.800 | 261.026 | 3-Eck:160.808, 4-Eck:97.962, 5-Eck:2.208, 6-Eck:48 | 12:46 | 411 MB |
+| 14 | 442.800 | 1.074.864 | 632.066 | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48 | 1:29:28 | ~1,2 GB |
 
-> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline ermittelt — die Rechenzeit (Iter 14: ~1,5 h) und der Arbeitsspeicherbedarf (Iter 14: ~1,2 GB) übersteigen die Browser-Grenzen.
+> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen.
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie *mathematisch exakt koplanar* — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -348,7 +348,7 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 >
 > *Hull-Werte ab Iter 13 sind offline berechnet (s. n-Eck-Tabelle oben).*
 >
-> Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑ → 1,075965 ↑) — die Monotonie ist verloren. Über 6 Datenpunkte hinweg dominiert ein leichter Aufwärtstrend mit einem einzelnen Rückgang dazwischen.
+> Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑ → 1,075965 ↑) — die Monotonie ist verloren. Bei 5 von 6 Iterationsschritten (iter 8 → 14) steigt rAvg, einmal sinkt er kurz: ein klarer Aufwärtstrend mit einer Ausnahme.
 >
 > **Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
 >
