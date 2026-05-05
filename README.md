@@ -1,8 +1,10 @@
-# Vom Würfel zur Kugel?
+# Iterierte Mittenkappung des Würfels
+
+*Vom Würfel zur Kugel?*
 
 > *„Und dennoch hätten wir bei diesem Stande der Dinge gar manches gern gedruckt gesehen — nicht um des Nachruhms willen, der ja nicht minder zu den Formen des Wahnes als der Augenblick gehört, sondern weil sich im Druck das Siegel des Abgeschlossenen und Unveränderlichen verbirgt, an dessen Anblick sich auch der Einsame ergötzt. Wir gehen lieber, wenn die Dinge in Ordnung sind."*
 >
-> — Ernst Jünger, *Auf den Marmorklippen*
+> — Ernst Jünger, *[Auf den Marmorklippen](https://de.wikipedia.org/wiki/Auf_den_Marmorklippen)*
 
 Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.
 
