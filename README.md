@@ -1,5 +1,9 @@
 # Vom Würfel zur Kugel?
 
+> *„Und dennoch hätten wir bei diesem Stande der Dinge gar manches gern gedruckt gesehen — nicht um des Nachruhms willen, der ja nicht minder zu den Formen des Wahnes als der Augenblick gehört, sondern weil sich im Druck das Siegel des Abgeschlossenen und Unveränderlichen verbirgt, an dessen Anblick sich auch der Einsame ergötzt. Wir gehen lieber, wenn die Dinge in Ordnung sind."*
+>
+> — Ernst Jünger, *Auf den Marmorklippen*
+
 Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.
 
 **[Live-Demo](https://crambambuli.github.io/cube-to-sphere/cube-rectification.html)**
@@ -237,7 +241,7 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 
 Statt die Vertex-Figuren als (möglicherweise non-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber non-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten. Die resultierenden Flächen sind per Definition immer exakt plan.
 
-Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Die Ergebnisse stimmen exakt mit `scipy.spatial.ConvexHull` überein.
+Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Iter 0–10 wurden gegen die wissenschaftliche Referenzimplementierung [`scipy.spatial.ConvexHull`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.ConvexHull.html) (basierend auf der [QHull-Bibliothek](http://www.qhull.org/)) abgeglichen und stimmen dort exakt überein. Iter 11–13 sind nur intern berechnet, dank der exakten Arithmetik aber durch Konstruktion korrekt.
 
 <details>
 <summary><b>Algorithmus, Komplexität und numerische Sicherheit</b></summary>
@@ -262,12 +266,12 @@ Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Norma
 3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
 4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
 
-**Schritt 5 — Koplanare Dreiecke mergen.** Der Hull liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagons, Hexagons) entstehen durch Zusammenfassen koplanarer Nachbarn:
+**Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagons, Hexagons) entstehen durch Zusammenfassen koplanarer Nachbarn:
 1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
 
-**Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Bei iter 11 mit ~31.000 Punkten dauert die Berechnung ca. 17 s. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+**Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
 
 **Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
 
@@ -294,14 +298,14 @@ Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Norma
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie *mathematisch exakt koplanar* — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
-**Iter 4 → 5: Symmetriebruch.** 48 Vertex-Figur-Quads werden non-planar genug, dass der Hull sie in je 2 Dreiecke spaltet:
+**Iter 4 → 5: Symmetriebruch.** 48 Vertex-Figur-Quads verlieren ihre exakte Koplanarität (der Determinanten-Test liefert erstmals einen von Null verschiedenen Wert) — der Hull-Algorithmus spaltet sie daher in je 2 Dreiecke:
 - +48 Diagonalen (Kanten)
 - +48 Flächen (-1 Quad +2 Dreiecke = +1 Fläche)
 - 0 zusätzliche Vertices
 
 Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also genau eine generische O<sub>h</sub>-Bahn von Quads bricht zuerst die Planarität.
 
-**Iter 9: Pentagons. Iter 10: Hexagons.** Bei höheren Iterationen entstehen 5- und 6-Ecke, wenn mehrere non-planare Quads im Hull zu einem größeren Polygon mergen.
+**Erstmalige Pentagons und Hexagons.** Iter 9 bringt erstmals 48 Pentagons, Iter 10 erstmals 48 Hexagons — beides exakt eine O<sub>h</sub>-Bahn. Bei höheren Iterationen entstehen weitere 5- und 6-Ecke, wenn mehrere non-planare Quads im Hull zu einem größeren Polygon mergen.
 
 <details>
 <summary><b>Bemerkenswerte Muster bei höheren Iterationen</b></summary>
@@ -347,7 +351,7 @@ Konkrete Werte:
 | 12 | 1,070843 | 1,075705 ↓ |
 | 13 | 1,070775 | 1,075842 ↑ |
 
-Topo schrumpft monoton; Hull oszilliert ab Iter 9 (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑) — die Monotonie ist verloren, der Wert pendelt um seinen Konvergenzwert.
+Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑) — die Monotonie ist verloren. Mit nur 5 Datenpunkten lässt sich noch nicht eindeutig sagen, ob Hull asymptotisch wieder gegen einen festen Wert konvergiert oder noch weiter driftet.
 
 **Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
 
