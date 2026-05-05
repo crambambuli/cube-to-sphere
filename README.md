@@ -51,16 +51,18 @@ Soweit die mathematische Idee. Bei der konkreten Umsetzung gibt es eine Wahl: Wi
 
 Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
 
-**Konvexe Hülle.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Output:
+**Konvexe Hülle.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Vertices der Hülle sind genau die *extremen* Eingabepunkte; Flächen sind strikt planare Polygone; die Topologie wird rein geometrisch durch die Punktkoordinaten bestimmt.
+
+<details>
+<summary><b>Definition, Anschauung und charakteristische Eigenschaften der konvexen Hülle</b></summary>
+
+**Genauere Definition:**
 
 - Vertices = Teilmenge der Eingabepunkte (genau die extremen)
 - Flächen = strikt **planare** Polygone (per Definition liegt jede Fläche in einer Ebene)
 - Topologie wird **rein geometrisch** durch die Punktkoordinaten bestimmt
 
 Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
-
-<details>
-<summary><b>Anschauung und charakteristische Eigenschaften der konvexen Hülle</b></summary>
 
 **Schrumpffolie / Vakuumverpackung:** Man stelle sich die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Eine elastische Plastikfolie wird locker um alle Punkte gelegt und vakuumiert. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
 
@@ -146,7 +148,12 @@ Iterationen 0–2 haben exakt 0% Abweichung, weil alle Vertices gleich weit vom 
 
 Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
-**Die Ursache: topologische Nicht-Uniformität.** Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt in der **Flächen-Nachbarschaft**: welche Flächentypen an einem Vertex zusammenkommen.
+**Die Ursache** ist eine topologische Nicht-Uniformität: die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten und sind topologische Singularitäten in einem ansonsten Quad-dominierten Mesh.
+
+<details>
+<summary><b>Wie sich die topologische Nicht-Uniformität konkret auswirkt</b></summary>
+
+Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt in der **Flächen-Nachbarschaft**: welche Flächentypen an einem Vertex zusammenkommen.
 
 Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie schrumpfen nur). Sie sind die topologischen Singularitäten — alle anderen Flächen sind Vierecke oder werden aus solchen gebildet. Damit gibt es Vertices, die an ein Dreieck grenzen, und Vertices, die nur an Vierecke grenzen:
 
@@ -160,6 +167,8 @@ Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iteration
 Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
 
 **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
+
+</details>
 
 ### Variante 1: Topologische Rektifikation
 
@@ -191,7 +200,8 @@ Konkret:
 - **8 Dreiecke** — von den 8 Würfelecken. Bleiben als geschrumpfte Dreiecke über alle Iterationen erhalten.
 - **Alle anderen Flächen: Vierecke** — geschrumpfte Quads + Vertex-Figuren (Grad 4).
 
-#### Sind die Flächen immer plan?
+<details>
+<summary><b>Sind die Flächen immer plan? — und wie nicht-planare Quads gerendert werden</b></summary>
 
 Geschrumpfte Flächen liegen immer exakt in einer Ebene (die Mittelpunkte der Kanten einer planaren Fläche sind koplanar). ✓
 
@@ -203,15 +213,15 @@ Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Ve
 - **Ab Iter ~4-5**: Die meisten Quads sind fast plan, aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
 - **Größenordnung der Abweichung**: proportional zum Quadrat der Kantenlänge — bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
 
-#### Rendering nicht-planarer Quads
-
-Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird:
+**Rendering nicht-planarer Quads.** Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird:
 
 1. **Fan-Triangulierung (2 Dreiecke):** Quad wird entlang einer willkürlichen Diagonale in 2 Dreiecke geteilt. Einfach, aber erzeugt einen Knick an der Diagonale.
 2. **Mittelpunkt-Triangulierung (4 Dreiecke):** ✅ Der Schwerpunkt der 4 Ecken wird als 5. Vertex eingefügt, das Quad in 4 Dreiecke geteilt. Der Knick wird gleichmäßig auf alle 4 Seiten verteilt. **Diese Variante ist implementiert.**
 3. **Kürzeste Diagonale:** Wie (1), aber die Diagonale mit dem kleineren Knickwinkel wählen.
 4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter. Kein Knick, dafür höhere GPU-Last.
 5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie.
+
+</details>
 
 ### Variante 2: Convex-Hull-Rektifikation
 
