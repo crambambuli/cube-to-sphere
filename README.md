@@ -22,7 +22,7 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 ## Mathematischer Hintergrund
 
-Die Operation heißt [**Rektifikation**](https://de.wikipedia.org/wiki/Rektifikation_(Geometrie)) (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
+Die Operation heißt [**Rektifikation**](https://en.wikipedia.org/wiki/Rectification_(geometry)) (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
 Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische.
 
