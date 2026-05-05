@@ -29,23 +29,21 @@ Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Verti
 <details>
 <summary><b>Woher kommt das Wort? Etymologie und Coxeter-Hintergrund</b></summary>
 
-Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richtig) + *facere* (machen) zurück — wörtlich also "ins Lot bringen" oder "berichtigen". Der Begriff wird in mehreren Disziplinen verwendet:
-
-- **Chemie/Verfahrenstechnik:** Reinigung einer Flüssigkeit durch wiederholte Destillation.
-- **Elektrotechnik:** Gleichrichtung — Wechselstrom (oszillierende Welle) wird in Gleichstrom (gerade Linie) umgewandelt.
-- **Photogrammetrie:** Herausrechnen perspektivischer Verzerrungen, bis Bildlinien wieder gerade sind.
-- **Polyedertheorie:** geprägt von H. S. M. Coxeter Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
-
-Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ Oktaeder: 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
-
-- Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das **Kuboktaeder**.
-- Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
-
-Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist **quasiregulär** — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
-
-In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
-
----
+> Etymologisch geht "Rektifikation" auf lateinisch *rēctus* (gerade, recht, richtig) + *facere* (machen) zurück — wörtlich also "ins Lot bringen" oder "berichtigen". Der Begriff wird in mehreren Disziplinen verwendet:
+>
+> - **Chemie/Verfahrenstechnik:** Reinigung einer Flüssigkeit durch wiederholte Destillation.
+> - **Elektrotechnik:** Gleichrichtung — Wechselstrom (oszillierende Welle) wird in Gleichstrom (gerade Linie) umgewandelt.
+> - **Photogrammetrie:** Herausrechnen perspektivischer Verzerrungen, bis Bildlinien wieder gerade sind.
+> - **Polyedertheorie:** geprägt von H. S. M. Coxeter Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
+>
+> Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ Oktaeder: 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
+>
+> - Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das **Kuboktaeder**.
+> - Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
+>
+> Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist **quasiregulär** — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
+>
+> In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
 
 </details>
 
@@ -66,33 +64,31 @@ Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der ne
 <details>
 <summary><b>Definition, Anschauung und charakteristische Eigenschaften der konvexen Hülle</b></summary>
 
-**Genauere Definition:**
-
-- Vertices = Teilmenge der Eingabepunkte (genau die extremen)
-- Flächen = strikt **planare** Polygone (per Definition liegt jede Fläche in einer Ebene)
-- Topologie wird **rein geometrisch** durch die Punktkoordinaten bestimmt
-
-Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
-
-**Schrumpffolie / Vakuumverpackung:** Man stelle sich die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Eine elastische Plastikfolie wird locker um alle Punkte gelegt und vakuumiert. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
-
-- Punkte, die die Folie *berühren*, sind die **Hull-Vertices** — alle anderen Punkte sind im Inneren versteckt.
-- Stellen, an denen die Folie zwischen drei oder mehr Punkten *flach gespannt* liegt, sind die **Flächen**.
-- Stellen zwischen genau zwei Punkten sind die **Kanten**.
-
-In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band schnappt zum kleinsten konvexen Polygon zusammen, Nägel im Inneren werden ignoriert.
-
-**Charakteristische Eigenschaften:**
-
-- **Konvex.** Die Hülle kann nirgends nach innen einbeulen. Formal: für je zwei Punkte p, q ∈ Hülle liegt die ganze Verbindungsstrecke wieder in der Hülle. Anschaulich: eine gerade Linie zwischen zwei Hull-Punkten verläuft immer durch das Innere oder auf der Oberfläche, niemals außen herum.
-- **Minimal.** Sie ist die *engstmögliche* konvexe Verpackung der Punktmenge — jede kleinere konvexe Form würde mindestens einen Punkt nicht mehr enthalten. Formal: gleich dem Schnitt aller konvexen Mengen, die alle Eingabepunkte enthalten.
-- **Eindeutig.** Bei gegebener Punktmenge gibt es genau eine konvexe Hülle (im Gegensatz z. B. zur Triangulierung, die viele Lösungen erlaubt).
-- **Vertices ⊆ Eingabepunkte.** Jeder Hull-Vertex ist ein Eingabepunkt; keine neuen Punkte werden erfunden. Genau die *extremen* Punkte (= solche, die nicht im Inneren der Hülle der übrigen liegen) erscheinen als Vertices.
-- **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
-- **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
-- **Niemals leer (für ≥ 4 nicht-koplanare Punkte in 3D).** Bei nur 3 koplanaren Punkten degeneriert die "Hülle" zu einem Dreieck (2D im 3D-Raum).
-
----
+> **Genauere Definition:**
+>
+> - Vertices = Teilmenge der Eingabepunkte (genau die extremen)
+> - Flächen = strikt **planare** Polygone (per Definition liegt jede Fläche in einer Ebene)
+> - Topologie wird **rein geometrisch** durch die Punktkoordinaten bestimmt
+>
+> Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
+>
+> **Schrumpffolie / Vakuumverpackung:** Man stelle sich die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Eine elastische Plastikfolie wird locker um alle Punkte gelegt und vakuumiert. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
+>
+> - Punkte, die die Folie *berühren*, sind die **Hull-Vertices** — alle anderen Punkte sind im Inneren versteckt.
+> - Stellen, an denen die Folie zwischen drei oder mehr Punkten *flach gespannt* liegt, sind die **Flächen**.
+> - Stellen zwischen genau zwei Punkten sind die **Kanten**.
+>
+> In 2D ist das gleiche Bild ein Gummiband um Nägel auf einem Brett: das Band schnappt zum kleinsten konvexen Polygon zusammen, Nägel im Inneren werden ignoriert.
+>
+> **Charakteristische Eigenschaften:**
+>
+> - **Konvex.** Die Hülle kann nirgends nach innen einbeulen. Formal: für je zwei Punkte p, q ∈ Hülle liegt die ganze Verbindungsstrecke wieder in der Hülle. Anschaulich: eine gerade Linie zwischen zwei Hull-Punkten verläuft immer durch das Innere oder auf der Oberfläche, niemals außen herum.
+> - **Minimal.** Sie ist die *engstmögliche* konvexe Verpackung der Punktmenge — jede kleinere konvexe Form würde mindestens einen Punkt nicht mehr enthalten. Formal: gleich dem Schnitt aller konvexen Mengen, die alle Eingabepunkte enthalten.
+> - **Eindeutig.** Bei gegebener Punktmenge gibt es genau eine konvexe Hülle (im Gegensatz z. B. zur Triangulierung, die viele Lösungen erlaubt).
+> - **Vertices ⊆ Eingabepunkte.** Jeder Hull-Vertex ist ein Eingabepunkt; keine neuen Punkte werden erfunden. Genau die *extremen* Punkte (= solche, die nicht im Inneren der Hülle der übrigen liegen) erscheinen als Vertices.
+> - **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
+> - **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
+> - **Niemals leer (für ≥ 4 nicht-koplanare Punkte in 3D).** Bei nur 3 koplanaren Punkten degeneriert die "Hülle" zu einem Dreieck (2D im 3D-Raum).
 
 </details>
 
@@ -165,22 +161,20 @@ Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konve
 <details>
 <summary><b>Wie sich die topologische Nicht-Uniformität konkret auswirkt</b></summary>
 
-Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt in der **Flächen-Nachbarschaft**: welche Flächentypen an einem Vertex zusammenkommen.
-
-Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie schrumpfen nur). Sie sind die topologischen Singularitäten — alle anderen Flächen sind Vierecke oder werden aus solchen gebildet. Damit gibt es Vertices, die an ein Dreieck grenzen, und Vertices, die nur an Vierecke grenzen:
-
-- **Iter 1** (Kuboctaeder): Jeder Vertex grenzt an 2 Dreiecke + 2 Quadrate — noch homogen.
-- **Iter 2** (24 Vertices): Jeder Vertex grenzt an 1 Dreieck + 3 Vierecke — noch homogen.
-- **Iter 3** (48 Vertices): Zwei Vertex-Klassen
-  - 24 Vertices "nahe einem Dreieck" — grenzen an 1 geschrumpftes Dreieck + 3 Vierecke
-  - 24 Vertices "weiter weg" — grenzen an 4 Vierecke
-- **Iter 4+**: Mehr Klassen je nach Abstand zur nächsten Würfelecke.
-
-Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
-
-**Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
-
----
+> Ab Iteration 1 haben alle Vertices Grad 4 (4 angrenzende Kanten) — der Vertex-Grad ist also homogen. Die Heterogenität liegt in der **Flächen-Nachbarschaft**: welche Flächentypen an einem Vertex zusammenkommen.
+>
+> Die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie schrumpfen nur). Sie sind die topologischen Singularitäten — alle anderen Flächen sind Vierecke oder werden aus solchen gebildet. Damit gibt es Vertices, die an ein Dreieck grenzen, und Vertices, die nur an Vierecke grenzen:
+>
+> - **Iter 1** (Kuboctaeder): Jeder Vertex grenzt an 2 Dreiecke + 2 Quadrate — noch homogen.
+> - **Iter 2** (24 Vertices): Jeder Vertex grenzt an 1 Dreieck + 3 Vierecke — noch homogen.
+> - **Iter 3** (48 Vertices): Zwei Vertex-Klassen
+>   - 24 Vertices "nahe einem Dreieck" — grenzen an 1 geschrumpftes Dreieck + 3 Vierecke
+>   - 24 Vertices "weiter weg" — grenzen an 4 Vierecke
+> - **Iter 4+**: Mehr Klassen je nach Abstand zur nächsten Würfelecke.
+>
+> Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
+>
+> **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
 
 </details>
 
@@ -217,25 +211,23 @@ Konkret:
 <details>
 <summary><b>Sind die Flächen immer plan? — und wie nicht-planare Quads gerendert werden</b></summary>
 
-Geschrumpfte Flächen liegen immer exakt in einer Ebene (die Mittelpunkte der Kanten einer planaren Fläche sind koplanar). ✓
-
-Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Vertex koplanar sind. Das ist **nicht immer** der Fall:
-
-- **Dreiecke** (die 8 von den Würfelecken): immer exakt plan — 3 Punkte definieren eine Ebene. ✓
-- **Iter 1→2**: Der Kuboctaeder ist kantentransitiv (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
-- **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z.B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
-- **Ab Iter ~4-5**: Die meisten Quads sind fast plan, aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
-- **Größenordnung der Abweichung**: proportional zum Quadrat der Kantenlänge — bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
-
-**Rendering nicht-planarer Quads.** Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird:
-
-1. **Fan-Triangulierung (2 Dreiecke):** Quad wird entlang einer willkürlichen Diagonale in 2 Dreiecke geteilt. Einfach, aber erzeugt einen Knick an der Diagonale.
-2. **Mittelpunkt-Triangulierung (4 Dreiecke):** ✅ Der Schwerpunkt der 4 Ecken wird als 5. Vertex eingefügt, das Quad in 4 Dreiecke geteilt. Der Knick wird gleichmäßig auf alle 4 Seiten verteilt. **Diese Variante ist implementiert.**
-3. **Kürzeste Diagonale:** Wie (1), aber die Diagonale mit dem kleineren Knickwinkel wählen.
-4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter. Kein Knick, dafür höhere GPU-Last.
-5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie.
-
----
+> Geschrumpfte Flächen liegen immer exakt in einer Ebene (die Mittelpunkte der Kanten einer planaren Fläche sind koplanar). ✓
+>
+> Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Vertex koplanar sind. Das ist **nicht immer** der Fall:
+>
+> - **Dreiecke** (die 8 von den Würfelecken): immer exakt plan — 3 Punkte definieren eine Ebene. ✓
+> - **Iter 1→2**: Der Kuboctaeder ist kantentransitiv (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
+> - **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z.B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
+> - **Ab Iter ~4-5**: Die meisten Quads sind fast plan, aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
+> - **Größenordnung der Abweichung**: proportional zum Quadrat der Kantenlänge — bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
+>
+> **Rendering nicht-planarer Quads.** Bei einem nicht-planaren Quad muss die 3D-Darstellung eine Entscheidung treffen, wie die Fläche approximiert wird:
+>
+> 1. **Fan-Triangulierung (2 Dreiecke):** Quad wird entlang einer willkürlichen Diagonale in 2 Dreiecke geteilt. Einfach, aber erzeugt einen Knick an der Diagonale.
+> 2. **Mittelpunkt-Triangulierung (4 Dreiecke):** ✅ Der Schwerpunkt der 4 Ecken wird als 5. Vertex eingefügt, das Quad in 4 Dreiecke geteilt. Der Knick wird gleichmäßig auf alle 4 Seiten verteilt. **Diese Variante ist implementiert.**
+> 3. **Kürzeste Diagonale:** Wie (1), aber die Diagonale mit dem kleineren Knickwinkel wählen.
+> 4. **Bilineare Interpolation:** Das Quad als gewölbte Fläche (bilineares Patch) rendern, unterteilt in ein feines Gitter. Kein Knick, dafür höhere GPU-Last.
+> 5. **Catmull-Clark Subdivision:** Jedes Quad in 4 Sub-Quads mit geglätteten Positionen unterteilen. Erzeugt eine glatte Oberfläche, verändert aber die Geometrie.
 
 </details>
 
@@ -248,36 +240,34 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 <details>
 <summary><b>Algorithmus, Komplexität und numerische Sicherheit</b></summary>
 
-Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull** mit anschließendem **koplanaren Polygon-Merge**:
-
-**Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Multiplikation mit 2<sup>iter−1</sup> und Runden gewinnt die ganzzahligen Koordinaten exakt zurück.
-
-**Schritt 2 — Edge-Midpoints.** Für jede Polygon-Kante (a, b) der vorherigen Iteration wird der Mittelpunkt berechnet. In Integer-Arithmetik wird das einfach zu `int_a + int_b` (kein Division), wobei der neue Maßstab automatisch 2<sup>iter</sup> ist. Beispiel: Würfelvertices ±1 (Maßstab 1), Edge-Midpoint von (1,1,1) und (−1,1,1) ist int (0, 2, 2) im 2-fach feineren Gitter, was real (0, 1, 1) entspricht.
-
-**Schritt 3 — Initiales Tetraeder.** 4 nicht-koplanare Punkte werden als Startsimplex gewählt:
-1. Punkt mit minimalem x.
-2. Punkt mit maximalem x.
-3. Punkt mit größtem Abstand zur Linie zwischen den beiden ersten.
-4. Punkt mit größtem (vorzeichenbehaftetem) Abstand zur Ebene der ersten drei.
-
-Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Normalen nach außen zeigen.
-
-**Schritt 4 — Inkrementelle Erweiterung.** Für jeden weiteren Punkt p:
-1. **Sichtbarkeitstest:** Eine Fläche f mit Normale n und Stützwert d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren.
-2. **Sichtbare Region entfernen:** Alle sichtbaren Flächen werden gelöscht.
-3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
-4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
-
-**Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagons, Hexagons) entstehen durch Zusammenfassen koplanarer Nachbarn:
-1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
-2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
-3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
-
-**Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
-
-**Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
-
----
+> Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull** mit anschließendem **koplanaren Polygon-Merge**:
+>
+> **Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Multiplikation mit 2<sup>iter−1</sup> und Runden gewinnt die ganzzahligen Koordinaten exakt zurück.
+>
+> **Schritt 2 — Edge-Midpoints.** Für jede Polygon-Kante (a, b) der vorherigen Iteration wird der Mittelpunkt berechnet. In Integer-Arithmetik wird das einfach zu `int_a + int_b` (kein Division), wobei der neue Maßstab automatisch 2<sup>iter</sup> ist. Beispiel: Würfelvertices ±1 (Maßstab 1), Edge-Midpoint von (1,1,1) und (−1,1,1) ist int (0, 2, 2) im 2-fach feineren Gitter, was real (0, 1, 1) entspricht.
+>
+> **Schritt 3 — Initiales Tetraeder.** 4 nicht-koplanare Punkte werden als Startsimplex gewählt:
+> 1. Punkt mit minimalem x.
+> 2. Punkt mit maximalem x.
+> 3. Punkt mit größtem Abstand zur Linie zwischen den beiden ersten.
+> 4. Punkt mit größtem (vorzeichenbehaftetem) Abstand zur Ebene der ersten drei.
+>
+> Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Normalen nach außen zeigen.
+>
+> **Schritt 4 — Inkrementelle Erweiterung.** Für jeden weiteren Punkt p:
+> 1. **Sichtbarkeitstest:** Eine Fläche f mit Normale n und Stützwert d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren.
+> 2. **Sichtbare Region entfernen:** Alle sichtbaren Flächen werden gelöscht.
+> 3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
+> 4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
+>
+> **Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagons, Hexagons) entstehen durch Zusammenfassen koplanarer Nachbarn:
+> 1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
+> 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
+> 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
+>
+> **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+>
+> **Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
 
 </details>
 
@@ -312,64 +302,60 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 <details>
 <summary><b>Bemerkenswerte Muster bei höheren Iterationen</b></summary>
 
-- **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12, 13. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
-- **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86, ×2,3. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
-- **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei Iter 10 sind ~57% der Flächen Dreiecke, bei Iter 12 schon ~60%, bei Iter 13 ~62%.
-- **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
-
----
+> - **Hexagons bleiben konstant bei 48.** Seit ihrem ersten Auftreten in Iter 10 ist die Anzahl der 6-Ecke unverändert: 48 in Iter 10, 11, 12, 13. Das ist genau eine O<sub>h</sub>-Bahn — vermutlich entstehen sie an einer einzigen ausgezeichneten Symmetrie-Position (möglicherweise auf den 3-fachen Achsen durch die Würfelecken, dort wo 3 Dreiecke benachbart sind) und bleiben in jeder Iteration als ein einzelner stabiler Orbit erhalten.
+> - **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86, ×2,3. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
+> - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei Iter 10 sind ~57% der Flächen Dreiecke, bei Iter 12 schon ~60%, bei Iter 13 ~62%.
+> - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6).
 
 </details>
 
 <details>
 <summary><b>Monotonie des Durchschnittsradius — warum Topo monoton schrumpft, Hull aber nicht</b></summary>
 
-Pro Iteration ist jeder neue Vertex der Mittelpunkt einer alten Kante (a, b):
-
-|v<sub>neu</sub>| = |v<sub>a</sub> + v<sub>b</sub>| / 2 ≤ (|v<sub>a</sub>| + |v<sub>b</sub>|) / 2
-
-Aus der Dreiecksungleichung — strikt für nicht-parallele Vektoren — folgt eine obere Schranke für den neuen Durchschnittsradius:
-
-rAvg(N+1) < (1 / (2·E<sub>N</sub>)) · Σ<sub>v</sub> deg(v) · |v|
-
-Das ist eine **gradgewichtete Durchschnittsbildung** über die alten Vertices. Wenn alle Grade gleich sind, fällt die Gewichtung weg und der Ausdruck ist exakt rAvg(N) — strenge Monotonie.
-
-| Variante | Vertex-Grade | Folge |
-|----------|--------------|-------|
-| Topologisch | alle Vertices Grad 4 (ab Iter 1) | rAvg(N+1) < rAvg(N) **strikt monoton fallend** |
-| Convex Hull | gemischt (4, 5, 6+) ab Iter 5 | Monotonie ist nicht garantiert |
-
-Konkrete Werte:
-
-| Iter | Topo rAvg | Hull rAvg |
-|------|-----------|-----------|
-| 5 | 1,088670 | 1,088670 |
-| 6 | 1,079595 | 1,078814 |
-| 7 | 1,075137 | 1,075601 |
-| 8 | 1,072915 | 1,074486 |
-| 9 | 1,071809 | **1,074741 ↑** |
-| 10 | 1,071257 | **1,075112 ↑** |
-| 11 | 1,070981 | **1,075743 ↑** |
-| 12 | 1,070843 | 1,075705 ↓ |
-| 13 | 1,070775 | 1,075842 ↑ |
-
-Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑) — die Monotonie ist verloren. Mit nur 5 Datenpunkten lässt sich noch nicht eindeutig sagen, ob Hull asymptotisch wieder gegen einen festen Wert konvergiert oder noch weiter driftet.
-
-**Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
-
-- Hochgradige Vertices = "Beulen-Vertices" = überdurchschnittlich weit vom Zentrum
-- In der gradgewichteten Summe sind sie überproportional vertreten
-- Der weighted-avg übersteigt rAvg(N)
-- Die obere Schranke lässt rAvg(N+1) ≥ rAvg(N) zu
-
-**Konsequenz.** Beide Varianten konvergieren formal gegen denselben Grenzkörper, aber sie produzieren verschieden verteilte Stichproben auf seiner Oberfläche:
-
-- Topo: gleichmäßige Stichprobe (alle Vertices Grad 4) → rAvg konvergiert *von oben* gegen einen Grenzwert
-- Hull: Stichprobe mit Bias zu den Beulen → rAvg konvergiert nach kurzem Schrumpfen *von unten* gegen einen leicht höheren Wert (Bias-getrieben in Richtung Maximalradius)
-
-Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie messen lediglich unterschiedliche Sample-Verteilungen desselben Grenzkörpers.
-
----
+> Pro Iteration ist jeder neue Vertex der Mittelpunkt einer alten Kante (a, b):
+>
+> |v<sub>neu</sub>| = |v<sub>a</sub> + v<sub>b</sub>| / 2 ≤ (|v<sub>a</sub>| + |v<sub>b</sub>|) / 2
+>
+> Aus der Dreiecksungleichung — strikt für nicht-parallele Vektoren — folgt eine obere Schranke für den neuen Durchschnittsradius:
+>
+> rAvg(N+1) < (1 / (2·E<sub>N</sub>)) · Σ<sub>v</sub> deg(v) · |v|
+>
+> Das ist eine **gradgewichtete Durchschnittsbildung** über die alten Vertices. Wenn alle Grade gleich sind, fällt die Gewichtung weg und der Ausdruck ist exakt rAvg(N) — strenge Monotonie.
+>
+> | Variante | Vertex-Grade | Folge |
+> |----------|--------------|-------|
+> | Topologisch | alle Vertices Grad 4 (ab Iter 1) | rAvg(N+1) < rAvg(N) **strikt monoton fallend** |
+> | Convex Hull | gemischt (4, 5, 6+) ab Iter 5 | Monotonie ist nicht garantiert |
+>
+> Konkrete Werte:
+>
+> | Iter | Topo rAvg | Hull rAvg |
+> |------|-----------|-----------|
+> | 5 | 1,088670 | 1,088670 |
+> | 6 | 1,079595 | 1,078814 |
+> | 7 | 1,075137 | 1,075601 |
+> | 8 | 1,072915 | 1,074486 |
+> | 9 | 1,071809 | **1,074741 ↑** |
+> | 10 | 1,071257 | **1,075112 ↑** |
+> | 11 | 1,070981 | **1,075743 ↑** |
+> | 12 | 1,070843 | 1,075705 ↓ |
+> | 13 | 1,070775 | 1,075842 ↑ |
+>
+> Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑) — die Monotonie ist verloren. Mit nur 5 Datenpunkten lässt sich noch nicht eindeutig sagen, ob Hull asymptotisch wieder gegen einen festen Wert konvergiert oder noch weiter driftet.
+>
+> **Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
+>
+> - Hochgradige Vertices = "Beulen-Vertices" = überdurchschnittlich weit vom Zentrum
+> - In der gradgewichteten Summe sind sie überproportional vertreten
+> - Der weighted-avg übersteigt rAvg(N)
+> - Die obere Schranke lässt rAvg(N+1) ≥ rAvg(N) zu
+>
+> **Konsequenz.** Beide Varianten konvergieren formal gegen denselben Grenzkörper, aber sie produzieren verschieden verteilte Stichproben auf seiner Oberfläche:
+>
+> - Topo: gleichmäßige Stichprobe (alle Vertices Grad 4) → rAvg konvergiert *von oben* gegen einen Grenzwert
+> - Hull: Stichprobe mit Bias zu den Beulen → rAvg konvergiert nach kurzem Schrumpfen *von unten* gegen einen leicht höheren Wert (Bias-getrieben in Richtung Maximalradius)
+>
+> Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie messen lediglich unterschiedliche Sample-Verteilungen desselben Grenzkörpers.
 
 </details>
 
