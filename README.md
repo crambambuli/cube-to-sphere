@@ -22,7 +22,7 @@ Gegeben ein Würfel. Man halbiert alle Kanten und schneidet an den Mittelpunkten
 
 ## Mathematischer Hintergrund
 
-Die Operation heißt **Rektifikation** (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
+Die Operation heißt [**Rektifikation**](https://de.wikipedia.org/wiki/Rektifikation_(Geometrie)) (oder anschaulich **Mittenkappung**) — man halbiert die Kanten und kappt die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
 Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische.
 
@@ -34,16 +34,16 @@ Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Verti
 > - **Chemie/Verfahrenstechnik:** Reinigung einer Flüssigkeit durch wiederholte Destillation.
 > - **Elektrotechnik:** Gleichrichtung — Wechselstrom (oszillierende Welle) wird in Gleichstrom (gerade Linie) umgewandelt.
 > - **Photogrammetrie:** Herausrechnen perspektivischer Verzerrungen, bis Bildlinien wieder gerade sind.
-> - **Polyedertheorie:** geprägt von H. S. M. Coxeter Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
+> - **Polyedertheorie:** geprägt von [H. S. M. Coxeter](https://de.wikipedia.org/wiki/Harold_Scott_MacDonald_Coxeter) Anfang des 20. Jahrhunderts für die Operation, die einen konvexen Körper *symmetrischer* macht.
 >
-> Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ Oktaeder: 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
+> Coxeters Idee: ein Polyeder und sein duales Gegenstück sind in gewisser Weise "Gegensätze" (Würfel ↔ [Oktaeder](https://de.wikipedia.org/wiki/Oktaeder): 8 Ecken ↔ 8 Flächen, 6 Flächen ↔ 6 Ecken, gleiche Symmetriegruppe). Die Rektifikation ist die **ausgewogene Mitte** zwischen beiden:
 >
-> - Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das **Kuboktaeder**.
+> - Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das [**Kuboktaeder**](https://de.wikipedia.org/wiki/Kuboktaeder).
 > - Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
 >
-> Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist **quasiregulär** — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
+> Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist [**quasiregulär**](https://de.wikipedia.org/wiki/Quasireguläres_Polyeder) — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
 >
-> In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das Rhombikuboctaeder hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
+> In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das [Rhombikuboctaeder](https://de.wikipedia.org/wiki/Rhombenkuboktaeder) hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
 
 </details>
 
@@ -59,7 +59,7 @@ Beide Varianten wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unt
 
 Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
 
-**Konvexe Hülle.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Vertices der Hülle sind genau die *extremen* Eingabepunkte; Flächen sind strikt planare Polygone; die Topologie wird rein geometrisch durch die Punktkoordinaten bestimmt.
+[**Konvexe Hülle**](https://de.wikipedia.org/wiki/Konvexe_Hülle)**.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Vertices der Hülle sind genau die *extremen* Eingabepunkte; Flächen sind strikt planare Polygone; die Topologie wird rein geometrisch durch die Punktkoordinaten bestimmt.
 
 <details>
 <summary><b>Definition, Anschauung und charakteristische Eigenschaften der konvexen Hülle</b></summary>
@@ -113,7 +113,7 @@ Beide konvergieren bei endloser Iteration gegen **denselben Grenzkörper** — s
 
 **Vertex-Anzahl V' = E.** Pro Iteration wird jeder Kantenmittelpunkt zu einem neuen Vertex. Die alten Vertices verschwinden. V verdoppelt sich nicht ganz, aber wächst exponentiell.
 
-**O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> mit 48 Symmetrieoperationen. Die Bezeichnung stammt aus der Schoenflies-Notation: **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen.
+**O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> mit 48 Symmetrieoperationen. Die Bezeichnung stammt aus der [Schoenflies-Notation](https://de.wikipedia.org/wiki/Schoenflies-Symbolik): **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen.
 
 Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelpunkte auf Kantenmittelpunkte ab. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant → die konvexe Hülle auch → jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
@@ -174,7 +174,7 @@ Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konve
 >
 > Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
 >
-> **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in Catmull-Clark-Subdivision die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
+> **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in [Catmull-Clark-Subdivision](https://de.wikipedia.org/wiki/Catmull-Clark-Subdivision-Surface) die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
 
 </details>
 
@@ -188,7 +188,7 @@ Bei jeder Iteration entstehen zwei Typen neuer Flächen:
 
 #### Euler-Formeln
 
-Bei jeder Iteration gilt exakt (beweisbar über V - E + F = 2):
+Bei jeder Iteration gilt exakt (beweisbar über die [Eulersche Polyederformel](https://de.wikipedia.org/wiki/Eulerscher_Polyedersatz) V - E + F = 2):
 
 | Größe | Formel | Entwicklung |
 |-------|--------|-------------|
@@ -265,7 +265,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 > 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
 > 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
 >
-> **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. Quickhull (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+> **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. [Quickhull](https://de.wikipedia.org/wiki/Quickhull) (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
 >
 > **Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
 
@@ -369,7 +369,7 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 | Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons, ab Iter 10 Hexagons |
 | Konvergenz | gleicher Grenzkörper im Limes | gleicher Grenzkörper im Limes |
 
-Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf zwei separaten Web Workern berechnet — die schnellere Topo-Variante muss nicht auf die langsamere Hull-Variante warten.
+Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf zwei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnellere Topo-Variante muss nicht auf die langsamere Hull-Variante warten.
 
 ### Der Grenzkörper
 
@@ -384,7 +384,7 @@ Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polye
 ### Bemerkenswerte Zwischenkörper
 
 - **Iteration 0:** Würfel (8 Ecken, 12 Kanten, 6 Flächen)
-- **Iteration 1:** Kuboctaeder (12 Ecken, 24 Kanten, 14 Flächen) — ein archimedischer Körper
+- **Iteration 1:** Kuboctaeder (12 Ecken, 24 Kanten, 14 Flächen) — ein [archimedischer Körper](https://de.wikipedia.org/wiki/Archimedischer_Körper)
 - **Iteration 2:** Rhombikuboctaeder (24 Ecken, 48 Kanten, 26 Flächen) — ebenfalls archimedisch
 - **Ab Iteration 5:** visuell kugelähnlich, aber messbar nicht-sphärisch
 
@@ -420,7 +420,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt (Fisher-Yates Shuffle). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus (Iter 13+) konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
+Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt ([Fisher-Yates Shuffle](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle)). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus (Iter 13+) konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
 
 Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
@@ -486,7 +486,7 @@ Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann 
                   ◄── {coords, triIndices, ngonDist}── rectifyHull()
 ```
 
-- **Main Thread** (`index.html`): Three.js-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Verwaltet getrennte Histories für beide Varianten. Keine geometrische Berechnung — nur Darstellung.
+- **Main Thread** (`index.html`): [Three.js](https://threejs.org/)-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Verwaltet getrennte Histories für beide Varianten. Keine geometrische Berechnung — nur Darstellung.
 - **Zwei Worker** (`worker.js`): Eine Instanz für jede Variante, läuft auf eigenem Thread → echt parallel. Jeder Worker pflegt eigenen Zustand (Vertices + Faces) über Iterationen. Beide Varianten werden im Hintergrund parallel vorberechnet.
 
 ### Topologische Rektifikation (`rectifyTopological`)
@@ -516,11 +516,11 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 
 ### Rendering (index.html)
 
-- **BufferGeometry** statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
+- [**BufferGeometry**](https://threejs.org/docs/#api/en/core/BufferGeometry) statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
 - **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
 - **Morph-Animation** (Iter 0–12): Cross-Fade zwischen altem und neuem Körper (1s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
 - **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen mit `depthTest: false` (immer sichtbar, auch hinter der Kugel).
-- **Quaternion-Trackball-Rotation** ohne Gimbal Lock, ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
+- **[Quaternion](https://de.wikipedia.org/wiki/Quaternion)-Trackball-Rotation** ohne Gimbal Lock, ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
 - **Pan** (Shift+Drag / Rechtsklick / 2-Finger-Drag): laterale Verschiebung in Kamera-Koordinaten.
 - **Auto-Rotation** mit 3s Pause nach manueller Interaktion.
 
@@ -533,7 +533,7 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 | `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit dem Worker-Code als inline `<script type="text/worker">`. Beide Worker-Instanzen werden über Data-URLs aus diesem inline Code erzeugt; funktioniert ohne Server auch per `file://`. |
 | `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags. |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
-| `og-image.jpg` | Open-Graph-Vorschaubild für WhatsApp / Telegram / Social Media (1292×1520, JPEG) |
+| `og-image.jpg` | [Open-Graph](https://ogp.me/)-Vorschaubild für WhatsApp / Telegram / Social Media (1292×1520, JPEG) |
 | `topologische-rektifikation.jpg` / `convex-hull.jpg` / `kugelmodus.jpg` | Screenshots für die README (Topo-Polyeder-Modus, Convex-Hull-Variante, Topo-Kugel-Modus) |
 
 ### Lokal starten
