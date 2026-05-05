@@ -41,7 +41,7 @@ Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Verti
 > - Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das [**Kuboktaeder**](https://de.wikipedia.org/wiki/Kuboktaeder).
 > - Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
 >
-> Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist [**quasiregulär**](https://de.wikipedia.org/wiki/Quasireguläres_Polyeder) — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
+> Der Körper wird "ins Lot gebracht" im Sinne der Symmetrie: das Kuboktaeder ist [**quasiregulär**](https://en.wikipedia.org/wiki/Quasiregular_polyhedron) — alle Vertices sehen gleich aus *und* alle Kanten sehen gleich aus. Beim Würfel gilt nur "Vertices gleich" (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur "Kanten gleich". Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn "rektifiziert", also *richtig* symmetrisch.
 >
 > In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das [Rhombikuboctaeder](https://de.wikipedia.org/wiki/Rhombenkuboktaeder) hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche "Rektifikation" im Coxeter-Sinn.
 
@@ -174,7 +174,7 @@ Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konve
 >
 > Bei höheren Iterationen entstehen also immer mehr Vertex-Klassen, die sich durch ihre Entfernung zu den 8 Dreiecks-Singularitäten unterscheiden. Diese strukturelle Asymmetrie erzeugt einen stationären Zustand, in dem die Beulen an den 8 Würfelecken-Positionen und die Dellen an den 6 Flächenzentren dauerhaft bestehen bleiben.
 >
-> **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in [Catmull-Clark-Subdivision](https://de.wikipedia.org/wiki/Catmull-Clark-Subdivision-Surface) die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
+> **Vergleich mit Subdivision Surfaces:** In der Computergrafik ist bekannt, dass "extraordinary elements" (Vertices oder Flächen mit nicht-standardmäßiger Valenz) in [Catmull-Clark-Subdivision](https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface) die Grenzfläche lokal deformieren — die Glattheit nimmt dort ab, charakteristische "Falten" oder "Beulen" bleiben bestehen. Das gleiche Prinzip gilt hier: die 8 Dreiecke sind die "extraordinary faces" in einem ansonsten Quad-dominierten Mesh, und die Vertices auf ihren Ecken sind "extraordinary vertices" mit besonderer Flächen-Nachbarschaft.
 
 </details>
 
@@ -265,7 +265,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 > 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
 > 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
 >
-> **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. [Quickhull](https://de.wikipedia.org/wiki/Quickhull) (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+> **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1:36 min, Iter 13 (~182.000) ≈ 12:46 min. [Quickhull](https://en.wikipedia.org/wiki/Quickhull) (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
 >
 > **Numerische Sicherheit.** Bei iter ≤ 14 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Für höhere Iterationen wäre BigInt nötig.
 
@@ -420,7 +420,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt ([Fisher-Yates Shuffle](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle)). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus (Iter 13+) konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
+Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt ([Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren)). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus (Iter 13+) konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
 
 Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
@@ -520,7 +520,7 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 - **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
 - **Morph-Animation** (Iter 0–12): Cross-Fade zwischen altem und neuem Körper (1s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
 - **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen mit `depthTest: false` (immer sichtbar, auch hinter der Kugel).
-- **[Quaternion](https://de.wikipedia.org/wiki/Quaternion)-Trackball-Rotation** ohne Gimbal Lock, ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
+- [**Quaternion-Trackball-Rotation**](https://raw.org/code/trackball-rotation-using-quaternions/) ohne Gimbal Lock, ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
 - **Pan** (Shift+Drag / Rechtsklick / 2-Finger-Drag): laterale Verschiebung in Kamera-Koordinaten.
 - **Auto-Rotation** mit 3s Pause nach manueller Interaktion.
 
