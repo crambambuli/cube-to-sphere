@@ -8,7 +8,7 @@
 
 Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.
 
-**[Live-Demo](https://crambambuli.github.io/cube-to-sphere/cube-rectification.html)**
+**[Im Browser ausprobieren](https://crambambuli.github.io/cube-to-sphere/cube-rectification.html)**
 
 ![Vorschau](og-image.jpg)
 
