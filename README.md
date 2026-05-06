@@ -20,7 +20,11 @@ Gegeben ein Würfel. Man halbiere alle Kanten und schneide an den Mittelpunkten 
 
 Die Operation heißt [**Rektifikation**](https://en.wikipedia.org/wiki/Rectification_(geometry)) (oder anschaulich **Mittenkappung**) — man halbiere die Kanten und kappe die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
-Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **zwei Varianten** mit unterschiedlichem Verhalten — eine kombinatorische und eine rein geometrische.
+Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **drei Varianten**:
+
+- **Topologisch** (kombinatorisch) — Flächen werden vorgegeben durch die Topologie der vorherigen Iteration.
+- **Convex Hull** (rein geometrisch) — pro Iteration die konvexe Hülle aller neuen Vertices.
+- **Hybrid** — Vertex-Erzeugung wie Topo (langsames V-Wachstum), Flächen-Topologie wie Hull (planar).
 
 <details>
 <summary><b>Woher kommt das Wort? Etymologie und Coxeter-Hintergrund</b></summary>
@@ -364,17 +368,53 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 
 </details>
 
-### Vergleich der beiden Varianten
+### Variante 3: Hybrid (Topo-Vertices + Hull-Topologie)
 
-| | Topologische Rektifikation | Convex-Hull-Rektifikation |
-|--|--|--|
-| Vertex-Anzahl | identisch (V' = E) | identisch (V' = E) |
-| Kanten-Anzahl | E' = 2E (immer) | ≥ 2E, divergiert ab Iter 5 |
-| Flächen | Polygone (möglicherweise non-planar) | exakt planar |
-| Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons, ab Iter 10 Hexagons |
-| Konvergenz | gleicher Grenzkörper im Limes | gleicher Grenzkörper im Limes |
+Eine dritte Variante kombiniert die Stärken der beiden anderen: **Vertex-Erzeugung aus Topo, Flächen-Topologie aus dem Convex Hull**.
 
-Beide Varianten sind in der App per Toggle-Button umschaltbar (nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf zwei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnellere Topo-Variante muss nicht auf die langsamere Hull-Variante warten.
+Pro Iteration:
+
+1. **Topo-Schritt** liefert die neue Vertex-Menge (Mittelpunkte der Topo-Polygon-Kanten, exakt × 2 pro Iteration) und die kombinatorischen topoFaces (für die Vertex-Erzeugung in der nächsten Iteration).
+2. **Convex Hull** dieser Vertex-Menge liefert die planaren Polygon-Flächen für die Anzeige.
+3. State speichert beides — vertices und topoFaces; der Hull wird je Iteration neu berechnet.
+
+Vorteile gegenüber Hull:
+- **V wächst nur × 2** (statt überproportional wie bei Hull) — Iter 14 hat 98.304 Vertices statt 442.800
+- **Hull-Berechnung deutlich billiger** (kleineres n in O(n²))
+- **Speicher reduziert** auf einen Bruchteil
+
+Vorteil gegenüber Topo:
+- **Flächen exakt planar** (per Hull-Definition)
+
+Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke, ab Iter 5; zusätzliche Polygone bei höheren Iterationen), nur mit weniger Vertex-Inflation. Beide Varianten konvergieren formal gegen denselben Grenzkörper.
+
+<details>
+<summary><b>Hybrid-Verhalten an konkreten Iterationen</b></summary>
+
+> | Iter | V | F | n-Eck-Verteilung |
+> |------|------|------|------|
+> | 5 | 192 | 242 | 3:104, 4:138 (= identisch zu Hull) |
+> | 6 | 384 | 434 | 3:104, 4:330 (Hull hatte hier V=432, F=578) |
+> | 7 | 768 | 1.058 | 3:584, 4:474 |
+> | 8 | 1.536 | 1.826 | 3:584, 4:1.242 |
+> | 9 | 3.072 | 4.418 | 3:2.696, 4:1.722 |
+>
+> Beobachtung: Der „explosive" Vertex-Anstieg von Hull (durch Diagonal-Mittelpunkte als zusätzliche Vertices) entfällt. Die Mesh ist deutlich schlanker als bei Hull, aber mit mehr Polygonen als bei Topo.
+
+</details>
+
+### Vergleich der drei Varianten
+
+| | Topologisch | Convex Hull | Hybrid |
+|--|--|--|--|
+| Vertex-Anzahl | × 2 pro Iter | überproportional ab Iter 5 | × 2 pro Iter (wie Topo) |
+| Kanten-Anzahl | E' = 2E (immer) | ≥ 2E, divergiert ab Iter 5 | ≥ 2E (variabel) |
+| Flächen | Polygone (möglicherweise non-planar) | exakt planar | exakt planar |
+| Topologie | konstant: 8 Dreiecke + Rest Quads | wechselnd | wechselnd |
+| Speicher (Iter 14) | gering | ~1,2 GB | klein |
+| Konvergenz | gleicher Grenzkörper im Limes | gleicher Grenzkörper | gleicher Grenzkörper |
+
+Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull warten.
 
 ### Der Grenzkörper
 
@@ -481,18 +521,18 @@ Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann 
 ### Architektur
 
 ```
-                  ──── {iter, variant: 'topo'} ────►   Worker (topo)
-                                                       (worker.js)
+                  ──── {iter, variant: 'topo'} ────►    Worker (topo)
                   ◄── {coords, triIndices, ngonDist}── rectifyTopological()
   Main Thread
-  (index.html)
-                  ──── {iter, variant: 'hull'} ────►   Worker (hull)
-                                                       (worker.js)
+  (index.html)    ──── {iter, variant: 'hull'} ────►    Worker (hull)
                   ◄── {coords, triIndices, ngonDist}── rectifyHull()
+
+                  ──── {iter, variant: 'hybrid'} ──►    Worker (hybrid)
+                  ◄── {coords, triIndices, ngonDist}── rectifyHybrid()
 ```
 
-- **Main Thread** (`index.html`): [Three.js](https://threejs.org/)-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Verwaltet getrennte Histories für beide Varianten. Keine geometrische Berechnung — nur Darstellung.
-- **Zwei Worker** (`worker.js`): Eine Instanz für jede Variante, läuft auf eigenem Thread → echt parallel. Jeder Worker pflegt eigenen Zustand (Vertices + Faces) über Iterationen. Beide Varianten werden im Hintergrund parallel vorberechnet.
+- **Main Thread** (`index.html`): [Three.js](https://threejs.org/)-Szene, Kamera, Beleuchtung, Rendering, UI-Events. Verwaltet getrennte Histories pro Variante. Keine geometrische Berechnung — nur Darstellung.
+- **Drei Worker** (`worker.js`): Eine Instanz pro Variante, läuft auf eigenem Thread → echt parallel. Jeder Worker pflegt eigenen Zustand (Vertices + Faces) über Iterationen. Alle drei Varianten werden im Hintergrund parallel vorberechnet.
 
 ### Topologische Rektifikation (`rectifyTopological`)
 
@@ -512,11 +552,22 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 
 `HULL_MAX_ITER = 12`: höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
 
+### Hybrid-Rektifikation (`rectifyHybrid`)
+
+Zwei Schritte pro Iteration:
+
+1. **Topo-Schritt**: ruft `rectifyTopological` mit `skipTriangulation=true` auf, erhält neue Vertices (Topo-Wachstum × 2) und neue topoFaces (kombinatorisch).
+2. **Hull-Schritt**: konvexe Hülle der neuen Vertices via integer-arithmetischem 3D-Hull + koplanarer Polygon-Merge — analog zu `rectifyHull`, aber mit kleinerer Punktmenge.
+
+Worker-State speichert beides: `vertices` und `topoFaces`. Bei der nächsten Iteration wird `topoFaces` als Eingabe für den Topo-Schritt verwendet — die Display-Polygon-Faces (vom Hull) werden nicht persistiert, sondern bei jedem Aufruf neu berechnet.
+
+`HULL_MAX_ITER = 12` gilt auch hier (gleicher Auto-Switch in den Topo-Kugel-Modus).
+
 ### Parallele Vorberechnung im Main Thread
 
 - Pro Variante eine eigene `history`-Liste und Pending-Set.
 - Pro Variante max. eine offene Worker-Anfrage in flight (kein Queue-Aufstauen).
-- Nach jedem fertigen Result wird die nächste Iteration in *jeder* Variante separat angefordert — Topo und Hull machen unabhängig voneinander Fortschritt.
+- Nach jedem fertigen Result wird die nächste Iteration in *jeder* Variante separat angefordert — Topo, Hull und Hybrid machen unabhängig voneinander Fortschritt.
 - Bei Variantenwechsel kommt die nun aktive Variante zuerst in die jeweilige Worker-Queue (UX-Optimierung).
 
 ### Rendering (index.html)
@@ -534,7 +585,7 @@ Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational 
 | Datei | Beschreibung |
 |-------|-------------|
 | `index.html` | Main Thread: Three.js-Rendering, Kamerasteuerung, UI, Variantenwechsel, Worker-Verwaltung |
-| `worker.js` | Web Worker: beide Rektifikationsvarianten (`rectifyTopological` + `rectifyHull` mit eigenem 3D-Convex-Hull-Algorithmus), Deviation-Berechnung, Triangulierung. Wird in der App zweimal instanziiert (eine Instanz pro Variante). |
+| `worker.js` | Web Worker: alle drei Rektifikationsvarianten (`rectifyTopological`, `rectifyHull` mit eigenem 3D-Convex-Hull-Algorithmus, `rectifyHybrid`), Deviation-Berechnung, Triangulierung. Wird in der App dreimal instanziiert (eine Instanz pro Variante). |
 | `cube-rectification.html` | Standalone — eine einzige HTML-Datei mit dem Worker-Code als inline `<script type="text/worker">`. Beide Worker-Instanzen werden über Data-URLs aus diesem inline Code erzeugt; funktioniert ohne Server auch per `file://`. |
 | `regenerate.py` | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags. |
 | `favicon.png` / `favicon-32.png` | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund) |
