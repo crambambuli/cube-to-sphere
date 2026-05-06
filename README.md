@@ -2,10 +2,6 @@
 
 *Vom Würfel zur Kugel?*
 
-> *„Und dennoch hätten wir bei diesem Stande der Dinge gar manches gern gedruckt gesehen — nicht um des Nachruhms willen, der ja nicht minder zu den Formen des Wahnes als der Augenblick gehört, sondern weil sich im Druck das Siegel des Abgeschlossenen und Unveränderlichen verbirgt, an dessen Anblick sich auch der Einsame ergötzt. Wir gehen lieber, wenn die Dinge in Ordnung sind."*
->
-> — Ernst Jünger, *[Auf den Marmorklippen](https://de.wikipedia.org/wiki/Auf_den_Marmorklippen)*
-
 Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.
 
 **[Im Browser ausprobieren](https://crambambuli.github.io/cube-to-sphere/cube-rectification.html)**
@@ -113,7 +109,7 @@ Beide konvergieren bei endloser Iteration gegen **denselben Grenzkörper** — s
 
 **Vertex-Anzahl V' = E.** Pro Iteration wird jeder Kantenmittelpunkt zu einem neuen Vertex. Die alten Vertices verschwinden. V verdoppelt sich nicht ganz, aber wächst exponentiell.
 
-**O<sub>h</sub>-Symmetrie.** Der Würfel hat die Oktaedersymmetrie O<sub>h</sub> mit 48 Symmetrieoperationen. Die Bezeichnung stammt aus der [Schoenflies-Notation](https://de.wikipedia.org/wiki/Schoenflies-Symbolik): **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen.
+**O<sub>h</sub>-Symmetrie.** Der Würfel hat die [Oktaedersymmetrie O<sub>h</sub>](https://de.wikipedia.org/wiki/Oktaedergruppe) mit 48 Symmetrieoperationen. Die Bezeichnung stammt aus der [Schoenflies-Notation](https://de.wikipedia.org/wiki/Schoenflies-Symbolik): **O** steht für die Oktaeder-Drehgruppe (24 reine Drehungen), **h** für die Erweiterung um Spiegelungen.
 
 Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelpunkte auf Kantenmittelpunkte ab. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant → die konvexe Hülle auch → jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
