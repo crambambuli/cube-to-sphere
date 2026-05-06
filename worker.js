@@ -725,6 +725,184 @@ async function rectifyHull(vertices, faces, onProgress, skipTriangulation, iter)
   };
 }
 
+// ============================================================================
+// Hybrid-Rektifikation (Variante 3, prototypisch)
+// ============================================================================
+// Vertex-Erzeugung wie bei Topo (langsam wachsendes V), aber Flächen-Topologie
+// wie beim Hull (planar, splittet non-planare Quads in Dreiecke).
+//
+// Workflow pro Iteration:
+//   1. Topo-Schritt → neue Vertices + neue topoFaces (kombinatorisch)
+//   2. Convex Hull der neuen Vertices → planare Polygon-Faces für Display
+//   3. State speichert: vertices + topoFaces (für nächste Vertex-Evolution)
+//   4. Anzeige nutzt: hullPolygonFaces (planar)
+//
+// Vorteil: V wächst nur × 2 pro Iteration (wie Topo), aber Flächen sind plan
+// (wie Hull). Hull-Berechnung läuft auf kleinerem n als bei Variante Hull.
+async function rectifyHybrid(vertices, topoFaces, onProgress, skipTriangulation, iter) {
+  // ---- SCHRITT 1: Topologische Vertex-Erzeugung ----
+  const topoResult = await rectifyTopological(vertices, topoFaces, onProgress, true);
+  const newVertices = topoResult.vertices;
+  const newTopoFaces = topoResult.faces;
+  const numOrigVerts = newVertices.length;
+
+  // ---- Kugel-Modus: kein Hull, nur Deviations ----
+  if (skipTriangulation) {
+    let rSum = 0;
+    for (let i = 0; i < numOrigVerts; i++) {
+      const v = newVertices[i];
+      rSum += Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+    }
+    const rAvg = rSum / numOrigVerts;
+    const deviations = new Float64Array(numOrigVerts);
+    for (let i = 0; i < numOrigVerts; i++) {
+      const v = newVertices[i];
+      deviations[i] = rAvg - Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+    }
+    return {
+      vertices: newVertices, faces: newTopoFaces, topoFaces: newTopoFaces,
+      triIndices: new Uint32Array(0), edgeIndices: new Uint32Array(0),
+      coords: flatCoords(newVertices), deviations, rAvg,
+    };
+  }
+
+  // ---- SCHRITT 2: Integer-Koordinaten + Convex Hull ----
+  const scaleNew = 2 ** iter;
+  const intMidpoints = newVertices.map(v => [
+    Math.round(v[0] * scaleNew),
+    Math.round(v[1] * scaleNew),
+    Math.round(v[2] * scaleNew),
+  ]);
+  if (onProgress) onProgress('hybrid-hull', 0, 1);
+  await yield_();
+  const { faces: triFaces } = convexHull3D(intMidpoints, /*exact=*/true);
+  if (onProgress) onProgress('hybrid-hull', 1, 1);
+  await yield_();
+
+  // ---- SCHRITT 3: Koplanare Dreiecke mergen (wie in rectifyHull) ----
+  const N = triFaces.length;
+  const triEdges = new Map();
+  for (let i = 0; i < N; i++) {
+    const t = triFaces[i];
+    for (let j = 0; j < 3; j++) {
+      const a = t[j], b = t[(j+1)%3];
+      const key = edgeKey(a, b);
+      if (!triEdges.has(key)) triEdges.set(key, []);
+      triEdges.get(key).push(i);
+    }
+  }
+  const parent = new Int32Array(N);
+  for (let i = 0; i < N; i++) parent[i] = i;
+  function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+  function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+  function coplanarExact(i, j) {
+    const ti = triFaces[i], tj = triFaces[j];
+    const inI = new Set(ti);
+    let dIdx = -1;
+    for (const x of tj) if (!inI.has(x)) { dIdx = x; break; }
+    if (dIdx === -1) return true;
+    const pa = intMidpoints[ti[0]], pb = intMidpoints[ti[1]], pc = intMidpoints[ti[2]], pd = intMidpoints[dIdx];
+    const ux = pb[0]-pa[0], uy = pb[1]-pa[1], uz = pb[2]-pa[2];
+    const vx = pc[0]-pa[0], vy = pc[1]-pa[1], vz = pc[2]-pa[2];
+    const wx = pd[0]-pa[0], wy = pd[1]-pa[1], wz = pd[2]-pa[2];
+    return ux*(vy*wz - vz*wy) - uy*(vx*wz - vz*wx) + uz*(vx*wy - vy*wx) === 0;
+  }
+  for (const tris of triEdges.values()) {
+    if (tris.length === 2 && coplanarExact(tris[0], tris[1])) union(tris[0], tris[1]);
+  }
+  const groups = new Map();
+  for (let i = 0; i < N; i++) {
+    const r = find(i);
+    if (!groups.has(r)) groups.set(r, []);
+    groups.get(r).push(i);
+  }
+  const hullFaces = [];
+  for (const tris of groups.values()) {
+    const edgeCount = new Map();
+    const edgeDir = new Map();
+    for (const ti of tris) {
+      const t = triFaces[ti];
+      for (let j = 0; j < 3; j++) {
+        const a = t[j], b = t[(j+1)%3];
+        const key = edgeKey(a, b);
+        edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+        if (!edgeDir.has(key)) edgeDir.set(key, [a, b]);
+      }
+    }
+    const boundary = [];
+    for (const [key, c] of edgeCount) if (c === 1) boundary.push(edgeDir.get(key));
+    if (boundary.length < 3) continue;
+    const adj = new Map();
+    for (const [a, b] of boundary) {
+      if (!adj.has(a)) adj.set(a, []);
+      if (!adj.has(b)) adj.set(b, []);
+      adj.get(a).push(b);
+      adj.get(b).push(a);
+    }
+    const start = boundary[0][0];
+    const poly = [start];
+    let prev = -1, cur = start;
+    while (poly.length < boundary.length) {
+      const nbrs = adj.get(cur);
+      const nxt = nbrs[0] !== prev ? nbrs[0] : nbrs[1];
+      if (nxt === start) break;
+      poly.push(nxt);
+      prev = cur; cur = nxt;
+    }
+    hullFaces.push(poly);
+  }
+
+  // ---- SCHRITT 4: Triangulation, deviations, edge indices ----
+  const triIndices = [];
+  for (const face of hullFaces) {
+    if (face.length < 3) continue;
+    let cx=0, cy=0, cz=0;
+    for (const vi of face) {
+      cx += newVertices[vi][0]; cy += newVertices[vi][1]; cz += newVertices[vi][2];
+    }
+    const a = newVertices[face[0]], b = newVertices[face[1]], c = newVertices[face[2]];
+    const nx = (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1]);
+    const ny = (b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2]);
+    const nz = (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+    const outward = nx*cx + ny*cy + nz*cz;
+    if (face.length === 3) {
+      if (outward >= 0) triIndices.push(face[0], face[1], face[2]);
+      else triIndices.push(face[0], face[2], face[1]);
+    } else {
+      for (let j = 1; j < face.length - 1; j++) {
+        if (outward >= 0) triIndices.push(face[0], face[j], face[j+1]);
+        else triIndices.push(face[0], face[j+1], face[j]);
+      }
+    }
+  }
+  let rSum = 0;
+  for (let i = 0; i < numOrigVerts; i++) {
+    const v = newVertices[i];
+    rSum += Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+  }
+  const rAvg = rSum / numOrigVerts;
+  const deviations = new Float64Array(numOrigVerts);
+  for (let i = 0; i < numOrigVerts; i++) {
+    const v = newVertices[i];
+    deviations[i] = rAvg - Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+  }
+  const edgeIndices = [];
+  for (const face of hullFaces) {
+    for (let j = 0; j < face.length; j++) {
+      edgeIndices.push(face[j], face[(j+1)%face.length]);
+    }
+  }
+  return {
+    vertices: newVertices,
+    faces: hullFaces,           // für Display: planar
+    topoFaces: newTopoFaces,    // für nächste Iter: kombinatorisch
+    triIndices: new Uint32Array(triIndices),
+    edgeIndices: new Uint32Array(edgeIndices),
+    coords: flatCoords(newVertices),
+    deviations, rAvg,
+  };
+}
+
 // Konvertiert [[x,y,z], ...] in ein flaches Float64Array [x0,y0,z0,x1,y1,z1,...]
 // für den Transfer via postMessage (Transferable).
 function flatCoords(verts) {
@@ -750,8 +928,9 @@ function flatCoords(verts) {
 //   'topo': Topologische Rektifikation (Polygone, möglicherweise non-planar)
 //   'hull': Convex-Hull-Rektifikation (immer plane Polygone)
 const state = {
-  topo: { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
-  hull: { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
+  topo:   { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
+  hull:   { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
+  hybrid: { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
 };
 
 // ============================================================================
@@ -771,7 +950,7 @@ const state = {
 self.onmessage = async function(e) {
   try {
     const iter = e.data.iter;
-    const variant = e.data.variant === 'hull' ? 'hull' : 'topo';
+    const variant = ['hull', 'hybrid', 'topo'].includes(e.data.variant) ? e.data.variant : 'topo';
     const s = state[variant];
     const t0 = performance.now();
 
@@ -812,7 +991,9 @@ self.onmessage = async function(e) {
     // Rektifikation berechnen, mit Fortschrittsmeldungen
     // Ab Iter 13 (Kugel-Modus): keine Triangulierung nötig, spart Speicher + Zeit
     const skipTri = iter > 12;
-    const rectFn = variant === 'hull' ? rectifyHull : rectifyTopological;
+    const rectFn = variant === 'hull' ? rectifyHull
+                 : variant === 'hybrid' ? rectifyHybrid
+                 : rectifyTopological;
     const result = await rectFn(s.vertices, s.faces, (phase, done, total) => {
       self.postMessage({ type: 'progress', iter, variant, phase, done, total });
     }, skipTri, iter);
@@ -821,23 +1002,26 @@ self.onmessage = async function(e) {
     // Nur originale Vertices behalten (Triangulierungs-Mittelpunkte abschneiden)
     const numOrig = result.deviations.length;
     s.vertices = result.vertices.slice(0, numOrig);
-    s.faces = result.faces;
+    // Hybrid: speichert topo's combinatorische Faces, nicht die Hull-Polygon-Faces
+    s.faces = variant === 'hybrid' ? result.topoFaces : result.faces;
     s.lastIter = iter;
 
     const duration = performance.now() - t0;
 
-    // Kantenanzahl exakt aus der Topologie berechnen
-    // (jede Kante kommt in genau 2 Flächen vor)
+    // Statistik aus den DISPLAY-Faces (für Hybrid: Hull-Polygone, nicht topoFaces)
+    const displayFaces = result.faces;
+
+    // Kantenanzahl exakt aus den Display-Flächen
     const edgeSet = new Set();
-    for (const face of s.faces) {
+    for (const face of displayFaces) {
       for (let j = 0; j < face.length; j++) {
         edgeSet.add(edgeKey(face[j], face[(j + 1) % face.length]));
       }
     }
 
-    // n-Eck-Verteilung (für Hull-Modus interessant)
+    // n-Eck-Verteilung (für Hull/Hybrid interessant)
     const ngonDist = {};
-    for (const face of s.faces) {
+    for (const face of displayFaces) {
       const n = face.length;
       ngonDist[n] = (ngonDist[n] || 0) + 1;
     }
@@ -855,7 +1039,7 @@ self.onmessage = async function(e) {
       duration,
       vertCount: result.deviations.length,
       edgeCount: edgeSet.size,
-      faceCount: s.faces.length,
+      faceCount: displayFaces.length,
       ngonDist,
     }, [result.coords.buffer, result.triIndices.buffer, result.edgeIndices.buffer, result.deviations.buffer]);
 

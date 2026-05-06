@@ -181,7 +181,7 @@ function createWorker() {
     };
   }
 }
-const workers = { topo: createWorker(), hull: createWorker() };
+const workers = { topo: createWorker(), hull: createWorker(), hybrid: createWorker() };
 const pendingCallbacks = new Map();  // iter → callback wenn Ergebnis da
 const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
 
@@ -239,6 +239,7 @@ function onWorkerMessage(e) {
 }
 workers.topo.onmessage = onWorkerMessage;
 workers.hull.onmessage = onWorkerMessage;
+workers.hybrid.onmessage = onWorkerMessage;
 
 // Berechnung einer Iteration beim entsprechenden Worker anfordern
 function requestCompute(iter, variant = currentVariant) {
@@ -278,9 +279,11 @@ scene.add(dl2);
 const MAX_ITER = (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768) ? 18 : 20;
 
 // histories[variant][i] = Ergebnis der i-ten Iteration in der jeweiligen Variante.
-// 'topo' = topologische Rektifikation, 'hull' = Convex-Hull-Rektifikation.
-const histories = { topo: [], hull: [] };
-const pendingComputes = { topo: new Set(), hull: new Set() };
+// 'topo' = topologische Rektifikation
+// 'hull' = Convex-Hull-Rektifikation
+// 'hybrid' = Topo-Vertex-Evolution + Hull-Flächen-Topologie
+const histories = { topo: [], hull: [], hybrid: [] };
+const pendingComputes = { topo: new Set(), hull: new Set(), hybrid: new Set() };
 let currentVariant = 'topo';
 // Aliase auf die aktive Variante. Bei Variantenwechsel werden sie über
 // switchVariant() neu gebunden, damit der bestehende Code weiterläuft.
@@ -310,7 +313,9 @@ function updatePrecomp() {
   }
   const t = highestContiguous(histories.topo);
   const h = highestContiguous(histories.hull);
-  document.getElementById('s-precomp').textContent = `topo ${t}/${MAX_ITER}, hull ${h}/${HULL_MAX_ITER}`;
+  const y = highestContiguous(histories.hybrid);
+  document.getElementById('s-precomp').textContent =
+    `topo ${t}/${MAX_ITER}, hull ${h}/${HULL_MAX_ITER}, hybrid ${y}/${HULL_MAX_ITER}`;
 }
 
 // Formatiert Millisekunden als "42ms", "7s" oder "1:23"
@@ -333,11 +338,12 @@ const HULL_MAX_ITER = 12;
 // schnellere Variante wartet nicht auf die langsamere.
 function precomputeNext() {
   // Reihenfolge: aktive Variante zuerst — ist nur relevant für die initiale
-  // Queue-Position (beide Varianten laufen parallel weiter).
-  const order = currentVariant === 'hull' ? ['hull', 'topo'] : ['topo', 'hull'];
+  // Queue-Position (alle Varianten laufen parallel weiter).
+  const others = ['topo', 'hull', 'hybrid'].filter(v => v !== currentVariant);
+  const order = [currentVariant, ...others];
   for (const v of order) {
     const h = histories[v], p = pendingComputes[v];
-    const max = v === 'hull' ? HULL_MAX_ITER : MAX_ITER;
+    const max = v === 'topo' ? MAX_ITER : HULL_MAX_ITER;
     // Pro Variante max. eine offene Anfrage in flight: precomputeNext
     // feuert nach jedem Result erneut und queued dann den nächsten Schritt.
     if (p.size > 0) continue;
@@ -654,16 +660,23 @@ function showCurrent() {
 function goNext() {
   if (currentIdx >= MAX_ITER) return;
   currentIdx++;
-  // Hull endet bei iter 12, Topo geht bis MAX_ITER. Wer im Hull-Modus über
-  // iter 12 hinaus klickt, hat sonst nichts zum Anzeigen — automatisch auf
-  // Topo umschalten, damit der Sprung in den Kugel-Modus nahtlos klappt.
-  if (currentVariant === 'hull' && currentIdx > HULL_MAX_ITER) {
+  // Hull/Hybrid enden bei iter 12, Topo geht bis MAX_ITER. Wer in Hull/Hybrid-
+  // Modus über iter 12 hinaus klickt, hat sonst nichts zum Anzeigen —
+  // automatisch auf Topo umschalten.
+  if ((currentVariant === 'hull' || currentVariant === 'hybrid') && currentIdx > HULL_MAX_ITER) {
     currentVariant = 'topo';
     history = histories.topo;
     pendingCompute = pendingComputes.topo;
-    document.getElementById('btn-variant').textContent = 'Variante: Topologisch';
+    document.getElementById('btn-variant').textContent = variantLabel('topo');
   }
   showCurrent();
+}
+
+// Anzeige-Text für den Variante-Button
+function variantLabel(v) {
+  if (v === 'topo') return 'Variante: Topologisch';
+  if (v === 'hull') return 'Variante: Convex Hull';
+  if (v === 'hybrid') return 'Variante: Hybrid';
 }
 function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
 
@@ -678,13 +691,13 @@ function btnEvent(id, fn) {
 btnEvent('btn-next', () => { goNext(); });
 btnEvent('btn-prev', () => { goPrev(); });
 
-// Variante umschalten: topo ↔ hull
+// Variante umschalten: zyklisch topo → hull → hybrid → topo
 function switchVariant() {
-  currentVariant = currentVariant === 'topo' ? 'hull' : 'topo';
+  const cycle = { topo: 'hull', hull: 'hybrid', hybrid: 'topo' };
+  currentVariant = cycle[currentVariant];
   history = histories[currentVariant];
   pendingCompute = pendingComputes[currentVariant];
-  document.getElementById('btn-variant').textContent =
-    currentVariant === 'topo' ? 'Variante: Topologisch' : 'Variante: Convex Hull';
+  document.getElementById('btn-variant').textContent = variantLabel(currentVariant);
   // Vorberechnung der neuen Variante anstoßen falls noch nicht passiert
   precomputeNext();
   // Aktuelle Iteration in der neuen Variante anzeigen

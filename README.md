@@ -284,6 +284,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 | 12 | 75.168 | 181.776 | 106.610 | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48 | 1:36 | 178 MB |
 | 13 | 181.776 | 442.800 | 261.026 | 3-Eck:160.808, 4-Eck:97.962, 5-Eck:2.208, 6-Eck:48 | 12:46 | 411 MB |
 | 14 | 442.800 | 1.074.864 | 632.066 | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48 | 1:29:28 | ~1,2 GB |
+| 15 | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck:940.184, 4-Eck:584.178, 5-Eck:13.008, 6-Eck:480, 7-Eck:48 | 16:47:31 | ~3 GB |
 
 > **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen.
 
@@ -301,10 +302,10 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 <details>
 <summary><b>Bemerkenswerte Muster bei höheren Iterationen</b></summary>
 
-> - **Hexagons konstant bei 48 — bis Iter 13.** Von ihrem ersten Auftreten bei Iter 10 bis Iter 13 unverändert 48 Stück (eine einzelne O<sub>h</sub>-Bahn, vermutlich an den 3-fachen Achsen durch die Würfelecken). Bei **Iter 14 springt die Anzahl auf 144** (= 3 × 48) — der stabile Orbit verzweigt sich.
-> - **Erstes Heptagon (7-Eck) bei Iter 14**: genau 48 Stück, also wieder eine O<sub>h</sub>-Bahn — analog zu Pentagons (erstmals 48 bei Iter 9) und Hexagons (erstmals 48 bei Iter 10).
-> - **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208 → 5.328. Die Sprünge folgen keinem einfachen Verdopplungsmuster — die Wachstumsfaktoren sind ×2, ×3,5, ×2,86, ×2,3, ×2,4. Sie entstehen an immer mehr Symmetrie-Positionen, wenn weitere Quads non-planar werden.
-> - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei Iter 10 sind ~57% der Flächen Dreiecke, bei Iter 12 schon ~60%, bei Iter 14 ~61%.
+> - **Hexagons konstant bei 48 — bis Iter 13.** Von ihrem ersten Auftreten bei Iter 10 bis Iter 13 unverändert 48 Stück (eine einzelne O<sub>h</sub>-Bahn, vermutlich an den 3-fachen Achsen durch die Würfelecken). Bei Iter 14 springt die Anzahl auf 144 (= 3 × 48), bei **Iter 15 dann auf 480 (= 10 × 48)** — der Orbit verzweigt sich rasant.
+> - **Erstes Heptagon (7-Eck) bei Iter 14**: genau 48 Stück, und diese Anzahl bleibt **bei Iter 15 konstant 48** — eine einzelne stabile O<sub>h</sub>-Bahn (analog zur frühen Hexagon-Phase).
+> - **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208 → 5.328 → 13.008. Wachstumsfaktoren: ×2, ×3,5, ×2,86, ×2,3, ×2,4, ×2,4. Tendenziell stabilisiert sich der Faktor um ×2,3-2,4.
+> - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei Iter 10 sind ~57% der Flächen Dreiecke, bei Iter 12 schon ~60%, bei Iter 14 ~61%, bei Iter 15 ~61%.
 > - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6), und Vielfache von 48 entstehen, wenn mehrere Bahnen denselben Polygon-Typ produzieren.
 
 </details>
@@ -341,10 +342,11 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 > | 12 | 1,070843 | 1,075705 ↓ |
 > | 13 | 1,070775 | 1,075842 ↑ |
 > | 14 | 1,070740 | 1,075965 ↑ |
+> | 15 | 1,070723 | 1,076085 ↑ |
 >
 > *Hull-Werte ab Iter 13 sind offline berechnet (s. n-Eck-Tabelle oben).*
 >
-> Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑ → 1,075965 ↑) — die Monotonie ist verloren. Bei 5 von 6 Iterationsschritten (iter 8 → 14) steigt rAvg, einmal sinkt er kurz: ein klarer Aufwärtstrend mit einer Ausnahme.
+> Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑ → 1,075965 ↑ → 1,076085 ↑) — die Monotonie ist verloren. Bei 6 von 7 Iterationsschritten (iter 8 → 15) steigt rAvg, einmal sinkt er kurz: ein klarer Aufwärtstrend mit einer Ausnahme.
 >
 > **Warum?** In der Hull-Variante haben Vertices, an denen non-planare Quads getrennt wurden, einen Diagonalen-Zuschlag im Grad: aus 4 wird 5 oder mehr. Diese hochgradigen Vertices sitzen genau dort, wo die lokale Geometrie am stärksten von der Sphärizität abweicht — **an den Beulen** (an den 8 Würfelecken-Positionen). Damit:
 >
