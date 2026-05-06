@@ -144,10 +144,10 @@
 import * as THREE from 'three';
 
 // ---- Worker-Kommunikation ----
-// Zwei Worker, einer pro Variante (Topo, Hull) — laufen auf eigenen Threads
-// und können dadurch echt parallel rechnen. Bei file://-Kontext (Safari)
-// fallen wir auf Main-Thread-Mocks zurück (dann effektiv seriell, aber
-// funktional).
+// Drei Worker, einer pro Variante (Topo, Hull, Hybrid) — laufen auf eigenen
+// Threads und können dadurch echt parallel rechnen. Bei file://-Kontext
+// (Safari) fallen wir auf Main-Thread-Mocks zurück (dann effektiv seriell,
+// aber funktional).
 function createWorker() {
   try {
     const w = new Worker('worker.js?v=' + Date.now());
@@ -304,7 +304,7 @@ const MORPH_DURATION = 1000; // ms
 let oldGroup = null; // THREE.Group mit altem Körper während Morph
 
 // Aktualisiert die "Vorberechnet"-Anzeige in der Stats-Zeile.
-// Zeigt für beide Varianten den höchsten zusammenhängend berechneten Index.
+// Zeigt für alle drei Varianten den höchsten zusammenhängend berechneten Index.
 function updatePrecomp() {
   function highestContiguous(arr) {
     let i = 0;
@@ -328,14 +328,14 @@ function formatDuration(ms) {
   return `${min}:${String(remSec).padStart(2, '0')}`;
 }
 
-// Hull-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-Modus).
-// Die Berechnungszeit wächst stark (Iter 11 ~17s, Iter 12 mehrere Minuten),
-// läuft aber im Hintergrund auf einem eigenen Worker-Thread weiter.
+// Hull- und Hybrid-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-
+// Modus). Die Berechnungszeit wächst stark (Hull Iter 11 ~17s, Iter 12 mehrere
+// Minuten), läuft aber im Hintergrund auf eigenen Worker-Threads weiter.
 const HULL_MAX_ITER = 12;
 // Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
-// Wird nach jedem Worker-Ergebnis aufgerufen. Zwei Worker (workers.topo
-// und workers.hull) laufen auf eigenen Threads, also echt parallel — die
-// schnellere Variante wartet nicht auf die langsamere.
+// Wird nach jedem Worker-Ergebnis aufgerufen. Drei Worker (workers.topo,
+// workers.hull, workers.hybrid) laufen auf eigenen Threads, also echt
+// parallel — die schnelleren Varianten warten nicht auf die langsameren.
 function precomputeNext() {
   // Reihenfolge: aktive Variante zuerst — ist nur relevant für die initiale
   // Queue-Position (alle Varianten laufen parallel weiter).
@@ -597,7 +597,7 @@ function updateStats(computing) {
   document.getElementById('btn-prev').disabled = currentIdx === 0;
   document.getElementById('btn-next').disabled = currentIdx >= MAX_ITER;
   // Variante-Button nur im Polyeder-Modus (≤ HULL_MAX_ITER) sichtbar.
-  // Im Kugel-Modus wird die Hull-Variante nicht berechnet.
+  // Im Kugel-Modus werden Hull/Hybrid nicht berechnet.
   document.getElementById('btn-variant').style.display =
     currentIdx <= HULL_MAX_ITER ? '' : 'none';
 }

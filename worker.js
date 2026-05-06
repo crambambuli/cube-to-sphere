@@ -1,11 +1,11 @@
 // ============================================================================
-// worker.js — Iterierte Rektifikation eines Würfels (zwei Varianten)
+// worker.js — Iterierte Rektifikation eines Würfels (drei Varianten)
 // ============================================================================
 //
-// Dieses Modul implementiert beide Rektifikationsvarianten als Web Worker:
+// Dieses Modul implementiert alle drei Rektifikationsvarianten als Web Worker:
 // die Berechnung läuft auf einem eigenen Thread und blockiert nicht die UI.
-// Die App instanziiert den Worker zweimal — einmal pro Variante —, damit
-// beide Varianten echt parallel auf separaten Threads rechnen.
+// Die App instanziiert den Worker dreimal — einmal pro Variante —, damit
+// alle drei Varianten echt parallel auf separaten Threads rechnen.
 //
 // VARIANTE 1: rectifyTopological()
 //   Pflegt die Flächen-Topologie kombinatorisch fort. Pro Iteration entstehen
@@ -23,9 +23,17 @@
 //   dyadisch rational sind, läuft der Hull-Algorithmus mit exakter
 //   Integer-Arithmetik (keine Toleranzschwellen, keine Rundungsfehler).
 //   Topologie wechselt: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons,
-//   ab Iter 10 Hexagons.
+//   ab Iter 10 Hexagons, ab Iter 14 Heptagons.
 //
-// KEINE NORMALISIERUNG: Beide Varianten erhalten den natürlichen Radius;
+// VARIANTE 3: rectifyHybrid()
+//   Vertex-Erzeugung wie Topo (langsames V-Wachstum, ×2 pro Iteration),
+//   Flächen-Topologie wie Hull (planar). Pro Iteration: erst Topo-Schritt
+//   (für neue Vertices + topoFaces als Eingabe für die nächste Iteration),
+//   dann Convex Hull dieser Vertices für die Display-Polygone. Ergebnis:
+//   schlankes Mesh mit planaren Flächen — bleibt aber bei Dreiecken und
+//   Vierecken (keine Pentagons bis Iter 14).
+//
+// KEINE NORMALISIERUNG: Alle drei Varianten erhalten den natürlichen Radius;
 //   der Körper schrumpft mit jeder Iteration (Kantenmittelpunkte liegen
 //   näher am Zentrum als die Endpunkte). Der Durchschnittsradius (rAvg)
 //   dient nur als Referenz für die Best-Fit-Kugel und die Abweichungs-
@@ -33,14 +41,15 @@
 //
 // TRIANGULIERUNG: Für das Three.js-Rendering werden Polygone in Dreiecke
 //   zerlegt — Topo nutzt Mittelpunkt-Triangulierung für non-planare Quads,
-//   Hull nutzt Fan-Triangulierung (Hull-Polygone sind immer plan).
+//   Hull und Hybrid nutzen Fan-Triangulierung (deren Polygone sind immer plan).
 //   Ab Iter 13 (Kugel-Modus) wird die Triangulierung übersprungen.
 // ============================================================================
 
 // Yield zum Event-Loop: queueMicrotask hat keine Mindestverzögerung
 // (im Gegensatz zu setTimeout(0), das in Browsern auf 4–16 ms aufgerundet
-// wird). Wir verwenden es nur in rectifyHull, um zwischen Convex-Hull-
-// Berechnung und Polygon-Merge je eine Progress-Message rauszulassen.
+// wird). Wir verwenden es in rectifyHull und rectifyHybrid, um zwischen
+// Convex-Hull-Berechnung und Polygon-Merge je eine Progress-Message
+// rauszulassen.
 function yield_() { return new Promise(r => queueMicrotask(r)); }
 
 // ============================================================================
@@ -922,11 +931,14 @@ function flatCoords(verts) {
 // Iterationen hinweg. Der Main Thread sendet nur { iter, variant }
 // und bekommt das Ergebnis zurück. Kein Hin-und-Her von Vertex-Daten.
 //
-// Die App instanziiert diesen Worker zweimal — einmal pro Variante. Jede
+// Die App instanziiert diesen Worker dreimal — einmal pro Variante. Jede
 // Instanz hat ihren eigenen JS-Kontext mit eigener `state`-Variable; in der
 // Praxis nutzt jede Instanz nur den Slot ihrer Variante.
-//   'topo': Topologische Rektifikation (Polygone, möglicherweise non-planar)
-//   'hull': Convex-Hull-Rektifikation (immer plane Polygone)
+//   'topo':   Topologische Rektifikation (Polygone, möglicherweise non-planar)
+//   'hull':   Convex-Hull-Rektifikation (immer plane Polygone)
+//   'hybrid': Topo-Vertex-Evolution + Hull-Flächen-Topologie. Im 'faces'-Slot
+//             des States werden die topoFaces gespeichert (für die nächste
+//             Iteration); die Hull-Polygone werden je Iteration neu berechnet.
 const state = {
   topo:   { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
   hull:   { vertices: CUBE_VERTS, faces: CUBE_FACES, lastIter: -1 },
@@ -939,10 +951,10 @@ const state = {
 // Empfängt { iter, variant } vom Main Thread.
 //   iter = 0:    Gibt den Ausgangswürfel zurück (Reset des entsprechenden state-Slots).
 //   iter > 0:    Berechnet die nächste Rektifikation aus state[variant] und gibt
-//                das Ergebnis zurück. Variante 'hull' ruft rectifyHull, sonst
-//                rectifyTopological.
-//   variant:     'topo' oder 'hull'. Bestimmt sowohl den state-Slot als auch
-//                die zu verwendende Rektifikationsfunktion.
+//                das Ergebnis zurück. Je nach variant: rectifyTopological,
+//                rectifyHull oder rectifyHybrid.
+//   variant:     'topo', 'hull' oder 'hybrid'. Bestimmt sowohl den state-Slot
+//                als auch die zu verwendende Rektifikationsfunktion.
 //
 // Antwortet mit:
 //   type: 'progress' — Fortschrittsmeldung während der Berechnung
