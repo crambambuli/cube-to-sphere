@@ -424,7 +424,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 >
 > **Beobachtung 2: nur Dreiecke und Vierecke.** Im Gegensatz zu Hull entstehen bei Hybrid bis Iter 15 _keine_ Pentagons, Hexagons oder Heptagons — die Topologie bleibt strukturell einfacher.
 >
-> **Beobachtung 3: Triangle-Plateaus.** Anzahl der Triangles bleibt jeweils zwei Iterationen lang konstant, dann ein Sprung auf das ~4-fache: 8 → 104 (Iter 5–6) → 584 (Iter 7–8) → 2.696 (Iter 9–10) → 11.528 (Iter 11–12) → 47.624 (Iter 13–14) → 193.544 (Iter 15). Jede Stufe ein Vielfaches von 8.
+> **Beobachtung 3: Dreieck-Plateaus.** Anzahl der Dreiecke bleibt jeweils zwei Iterationen lang konstant, dann ein Sprung auf das ~4-fache: 8 → 104 (Iter 5–6) → 584 (Iter 7–8) → 2.696 (Iter 9–10) → 11.528 (Iter 11–12) → 47.624 (Iter 13–14) → 193.544 (Iter 15). Jede Stufe ein Vielfaches von 8.
 
 </details>
 
