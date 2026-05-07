@@ -9,8 +9,8 @@ with open('worker.js') as f: wrk = f.read()
 # Funktioniert auch bei file://-Kontext (Safari blockt Blob-URLs dort).
 # Der Worker-Code wird als <script type="text/worker"> inline eingebettet
 # und beim ersten Aufruf in eine Data-URL gewrappt.
-idx = idx.replace(
-    "new Worker('worker.js?v=' + Date.now())",
+idx = re.sub(
+    r"""new Worker\(["']worker\.js\?v=["'] \+ Date\.now\(\)\)""",
     """(() => {
       const code = document.getElementById('worker-src').textContent;
       try {
@@ -22,7 +22,8 @@ idx = idx.replace(
           return new Worker(URL.createObjectURL(blob));
         } catch(e2) { throw new Error('Worker blocked'); }
       }
-    })()"""
+    })()""",
+    idx,
 )
 
 # Inline Worker-Code als <script type="text/worker">

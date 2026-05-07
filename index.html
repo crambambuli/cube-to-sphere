@@ -1,927 +1,1216 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-<meta charset="UTF-8">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
-<link rel="apple-touch-icon" sizes="64x64" href="favicon.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="description" content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.">
-<meta property="og:title" content="Vom Würfel zur Kugel?">
-<meta property="og:description" content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.">
-<meta property="og:type" content="website">
-<meta property="og:image" content="https://crambambuli.github.io/cube-to-sphere/og-image.jpg?v=3">
-<meta property="og:image:width" content="1292">
-<meta property="og:image:height" content="1520">
-<meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:alt" content="Iteration 5 der Würfel-Rektifikation: kugelähnlicher Körper mit farbcodierten Vertices">
-<meta property="og:url" content="https://crambambuli.github.io/cube-to-sphere/">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Vom Würfel zur Kugel?">
-<meta name="twitter:description" content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert.">
-<meta name="twitter:image" content="https://crambambuli.github.io/cube-to-sphere/og-image.jpg?v=3">
-<title>Iterative Rektifikation eines Würfels</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #1a1a2e;
-    color: #eee;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    overflow: hidden;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    touch-action: none;
-  }
-  #header {
-    text-align: center;
-    padding: 10px 8px 4px;
-    flex-shrink: 0;
-  }
-  #header h1 { font-size: clamp(0.9rem, 3.5vw, 1.3rem); color: #e0e0ff; }
-  #header p { font-size: clamp(0.65rem, 2.5vw, 0.8rem); color: #aaa; margin-top: 2px; }
-  #scene-container {
-    flex: 1;
-    position: relative;
-    min-height: 0;
-  }
-  #stats {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 5;
-    display: flex;
-    gap: 6px 14px;
-    justify-content: center;
-    flex-wrap: wrap;
-    pointer-events: none;
-    padding: 4px 8px;
-    font-size: clamp(0.6rem, 2.2vw, 0.8rem);
-    flex-shrink: 0;
-  }
-  #stats span { color: #7ec8e3; font-weight: bold; }
-  #s-progress { display: inline-block; min-width: 14em; }
-  #controls {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-    align-items: center;
-    padding: 10px 6px;
-    flex-shrink: 0;
-    background: #1a1a2e;
-    flex-wrap: wrap;
-    z-index: 10;
-    position: relative;
-  }
-  button {
-    background: #16213e;
-    color: #e0e0ff;
-    border: 1px solid #0f3460;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: clamp(0.8rem, 3vw, 0.95rem);
-    cursor: pointer;
-    transition: all 0.2s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  button:hover { background: #0f3460; }
-  button:active { background: #0f3460; }
-  button:disabled { opacity: 0.4; cursor: default; }
-  #iteration-label {
-    font-size: clamp(0.85rem, 3vw, 1.1rem);
-    color: #7ec8e3;
-    font-weight: bold;
-    text-align: center;
-  }
-  @media (max-width: 480px) {
-    #header { padding: 6px 4px 2px; }
-    #controls { gap: 4px; padding: 8px 4px; }
-    button { padding: 8px 10px; }
-  }
-</style>
-</head>
-<body>
-
-<div id="header">
-  <h1>Iterative Rektifikation</h1>
-  <p>Seiten halbieren, Ecken abschneiden &mdash; Ziehen zum Drehen, Pinch/Scroll zum Zoomen</p>
-</div>
-
-<div id="scene-container">
-  <div id="stats">
-    Iteration: <span id="s-iter">0</span>
-    Ecken: <span id="s-verts">8</span>
-    Kanten: <span id="s-edges">12</span>
-    Radius: <span id="s-radius">-</span>
-    Dauer: <span id="s-time">-</span>
-    Samples: <span id="s-samples">-</span>
-    Abweichung: <span id="s-dev">-</span>
-    <span id="s-faces-wrap">Flächen: <span id="s-faces">6</span></span>
-    <span id="s-ngon-wrap">n-Ecke: <span id="s-ngon">4-Eck: 6</span></span>
-    Vorberechnet: <span id="s-precomp">topo 0, hull 0</span>
-    <span id="s-progress"></span>
-  </div>
-</div>
-
-<div id="controls">
-  <button id="btn-prev" disabled>&larr; Zurück</button>
-  <div id="iteration-label">Iteration 0</div>
-  <button id="btn-next">Weiter &rarr;</button>
-  <button id="btn-variant" title="Topologisch ↔ Convex Hull umschalten">Variante: Topologisch</button>
-</div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
-  }
-}
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-
-// ---- Worker-Kommunikation ----
-// Drei Worker, einer pro Variante (Topo, Hull, Hybrid) — laufen auf eigenen
-// Threads und können dadurch echt parallel rechnen. Bei file://-Kontext
-// (Safari) fallen wir auf Main-Thread-Mocks zurück (dann effektiv seriell,
-// aber funktional).
-function createWorker() {
-  try {
-    const w = new Worker('worker.js?v=' + Date.now());
-    w.onerror = () => { throw new Error('Worker blocked'); };
-    return w;
-  } catch(e) {
-    console.warn('Web Worker nicht verfügbar, Fallback auf Main Thread');
-    // Mock-Worker mit eigenem Scope (eigenes State pro Mock).
-    return {
-      _handler: null,
-      _workerScope: null,
-      set onmessage(fn) { this._handler = fn; },
-      get onmessage() { return this._handler; },
-      onerror: null,
-      postMessage(data) {
-        const script = document.getElementById('worker-src');
-        if (!script) return;
-        if (!this._workerScope) {
-          this._workerScope = {};
-          const scope = this._workerScope;
-          scope.self = { postMessage: (msg) => {
-            if (this._handler) this._handler({ data: msg });
-          }};
-          const fn = new Function('self', script.textContent + '\nreturn self;');
-          scope.self = fn(scope.self);
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="favicon.png" />
+    <link rel="apple-touch-icon" sizes="64x64" href="favicon.png" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <meta
+      name="description"
+      content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert."
+    />
+    <meta property="og:title" content="Vom Würfel zur Kugel?" />
+    <meta
+      property="og:description"
+      content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:image"
+      content="https://crambambuli.github.io/cube-to-sphere/og-image.jpg?v=3"
+    />
+    <meta property="og:image:width" content="1292" />
+    <meta property="og:image:height" content="1520" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta
+      property="og:image:alt"
+      content="Iteration 5 der Würfel-Rektifikation: kugelähnlicher Körper mit farbcodierten Vertices"
+    />
+    <meta
+      property="og:url"
+      content="https://crambambuli.github.io/cube-to-sphere/"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Vom Würfel zur Kugel?" />
+    <meta
+      name="twitter:description"
+      content="Interaktive 3D-Visualisierung: Einen Würfel iterativ rektifizieren und beobachten, wohin er konvergiert."
+    />
+    <meta
+      name="twitter:image"
+      content="https://crambambuli.github.io/cube-to-sphere/og-image.jpg?v=3"
+    />
+    <title>Iterative Rektifikation eines Würfels</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #1a1a2e;
+        color: #eee;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        overflow: hidden;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        touch-action: none;
+      }
+      #header {
+        text-align: center;
+        padding: 10px 8px 4px;
+        flex-shrink: 0;
+      }
+      #header h1 {
+        font-size: clamp(0.9rem, 3.5vw, 1.3rem);
+        color: #e0e0ff;
+      }
+      #header p {
+        font-size: clamp(0.65rem, 2.5vw, 0.8rem);
+        color: #aaa;
+        margin-top: 2px;
+      }
+      #scene-container {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+      }
+      #stats {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 5;
+        display: flex;
+        gap: 6px 14px;
+        justify-content: center;
+        flex-wrap: wrap;
+        pointer-events: none;
+        padding: 4px 8px;
+        font-size: clamp(0.6rem, 2.2vw, 0.8rem);
+        flex-shrink: 0;
+      }
+      #stats span {
+        color: #7ec8e3;
+        font-weight: bold;
+      }
+      #s-progress {
+        display: inline-block;
+        min-width: 14em;
+      }
+      #controls {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        align-items: center;
+        padding: 10px 6px;
+        flex-shrink: 0;
+        background: #1a1a2e;
+        flex-wrap: wrap;
+        z-index: 10;
+        position: relative;
+      }
+      button {
+        background: #16213e;
+        color: #e0e0ff;
+        border: 1px solid #0f3460;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: clamp(0.8rem, 3vw, 0.95rem);
+        cursor: pointer;
+        transition: all 0.2s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button:hover {
+        background: #0f3460;
+      }
+      button:active {
+        background: #0f3460;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      #iteration-label {
+        font-size: clamp(0.85rem, 3vw, 1.1rem);
+        color: #7ec8e3;
+        font-weight: bold;
+        text-align: center;
+      }
+      @media (max-width: 480px) {
+        #header {
+          padding: 6px 4px 2px;
         }
-        if (this._workerScope.self.onmessage) {
-          this._workerScope.self.onmessage({ data });
+        #controls {
+          gap: 4px;
+          padding: 8px 4px;
+        }
+        button {
+          padding: 8px 10px;
         }
       }
-    };
-  }
-}
-const workers = { topo: createWorker(), hull: createWorker(), hybrid: createWorker() };
-const pendingCallbacks = new Map();  // iter → callback wenn Ergebnis da
-const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h1>Iterative Rektifikation</h1>
+      <p>
+        Seiten halbieren, Ecken abschneiden &mdash; Ziehen zum Drehen,
+        Pinch/Scroll zum Zoomen
+      </p>
+    </div>
 
-// Gemeinsamer onmessage-Handler für beide Worker — die `variant` kommt
-// in der Message mit, also brauchen wir keinen worker-spezifischen Handler.
-function onWorkerMessage(e) {
-  // Fortschrittsmeldungen aktualisieren die Anzeige ohne Rendering
-  if (e.data.type === 'progress') {
-    const { iter, variant, phase, done, total } = e.data;
-    if (variant !== currentVariant) return; // Hintergrund-Variante ignorieren
-    const pct = total > 0 ? Math.round(done / total * 100) : 0;
-    document.getElementById('s-progress').textContent =
-      `Iter ${iter}: ${phase} ${pct}%`;
-    return;
-  }
+    <div id="scene-container">
+      <div id="stats">
+        Iteration: <span id="s-iter">0</span> Ecken:
+        <span id="s-verts">8</span> Kanten: <span id="s-edges">12</span> Radius:
+        <span id="s-radius">-</span> Dauer: <span id="s-time">-</span> Samples:
+        <span id="s-samples">-</span> Abweichung: <span id="s-dev">-</span>
+        <span id="s-faces-wrap">Flächen: <span id="s-faces">6</span></span>
+        <span id="s-ngon-wrap">n-Ecke: <span id="s-ngon">4-Eck: 6</span></span>
+        Vorberechnet: <span id="s-precomp">topo 0, hull 0</span>
+        <span id="s-progress"></span>
+      </div>
+    </div>
 
-  // Ergebnis empfangen und in history der jeweiligen Variante speichern
-  const { iter, variant, coords, triIndices, edgeIndices, deviations, rAvg, vertCount, edgeCount, faceCount, ngonDist } = e.data;
-  const v = variant || 'topo';
-  const targetHistory = histories[v];
-  const targetPending = pendingComputes[v];
-  const startKey = `${v}:${iter}`;
-  const elapsed = computeStartTimes.has(startKey) ? performance.now() - computeStartTimes.get(startKey) : null;
-  computeStartTimes.delete(startKey);
+    <div id="controls">
+      <button id="btn-prev" disabled>&larr; Zurück</button>
+      <div id="iteration-label">Iteration 0</div>
+      <button id="btn-next">Weiter &rarr;</button>
+      <button
+        id="btn-variant"
+        title="Variante umschalten: Topo → Hull → Hybrid (Shift+Klick: rückwärts)"
+      >
+        Variante: Topologisch
+      </button>
+    </div>
 
-  // Float64-Koordinaten → THREE.Vector3 für Rendering
-  const vertices = [];
-  for (let i = 0; i < coords.length; i += 3) {
-    vertices.push(new THREE.Vector3(coords[i], coords[i+1], coords[i+2]));
-  }
-  targetHistory[iter] = {
-    vertices,
-    triIndices: new Uint32Array(triIndices),
-    edgeIndices: edgeIndices ? new Uint32Array(edgeIndices) : null,
-    deviations: deviations ? new Float64Array(deviations) : null,
-    rAvg: rAvg || 1,
-    duration: elapsed,
-    vertCount, edgeCount, faceCount, ngonDist,
-  };
-  targetPending.delete(iter);
-  // Precomp-Counter immer aktualisieren — auch wenn die andere Variante
-  // im Hintergrund rechnet (sonst bleibt der Counter stehen).
-  updatePrecomp();
-  if (v === currentVariant) {
-    document.getElementById('s-progress').textContent = '';
-  }
-
-  // Callback ausführen falls jemand auf dieses Ergebnis wartet
-  const cbKey = `${v}:${iter}`;
-  const cb = pendingCallbacks.get(cbKey);
-  if (cb) { pendingCallbacks.delete(cbKey); cb(); }
-
-  // Nächste Iteration in beiden Varianten vorberechnen (parallel)
-  precomputeNext();
-}
-workers.topo.onmessage = onWorkerMessage;
-workers.hull.onmessage = onWorkerMessage;
-workers.hybrid.onmessage = onWorkerMessage;
-
-// Berechnung einer Iteration beim entsprechenden Worker anfordern
-function requestCompute(iter, variant = currentVariant) {
-  const hist = histories[variant];
-  const pend = pendingComputes[variant];
-  if (hist[iter] || pend.has(iter)) return;
-  pend.add(iter);
-  computeStartTimes.set(`${variant}:${iter}`, performance.now());
-  workers[variant].postMessage({ iter, variant });
-}
-
-// ---- Three.js Szene ----
-const container = document.getElementById('scene-container');
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(3, 2.5, 3);
-camera.lookAt(0, 0, 0);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(devicePixelRatio);
-renderer.setClearColor(0x1a1a2e); // Dunkles Blau als Hintergrund
-
-container.appendChild(renderer.domElement);
-
-// Beleuchtung: ambientes Licht + 2 gerichtete Lichtquellen
-scene.add(new THREE.AmbientLight(0x404060, 1.5));
-const dl1 = new THREE.DirectionalLight(0xffffff, 1.2);
-dl1.position.set(5, 8, 5);  // oben rechts vorne
-scene.add(dl1);
-const dl2 = new THREE.DirectionalLight(0x8888ff, 0.6);
-dl2.position.set(-5, -2, -5); // unten links hinten (bläulich)
-scene.add(dl2);
-
-// ---- Zustand ----
-// Mobilgeräte: weniger Iterationen (Speicher + Rechenzeit)
-const MAX_ITER = (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768) ? 18 : 20;
-
-// histories[variant][i] = Ergebnis der i-ten Iteration in der jeweiligen Variante.
-// 'topo' = topologische Rektifikation
-// 'hull' = Convex-Hull-Rektifikation
-// 'hybrid' = Topo-Vertex-Evolution + Hull-Flächen-Topologie
-const histories = { topo: [], hull: [], hybrid: [] };
-const pendingComputes = { topo: new Set(), hull: new Set(), hybrid: new Set() };
-let currentVariant = 'topo';
-// Aliase auf die aktive Variante. Bei Variantenwechsel werden sie über
-// switchVariant() neu gebunden, damit der bestehende Code weiterläuft.
-let history = histories.topo;
-let pendingCompute = pendingComputes.topo;
-let currentIdx = 0;
-const meshGroup = new THREE.Group();
-scene.add(meshGroup);
-const palette = [0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
-let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
-
-// ---- Morph-Animation ----
-// Beim Wechsel zur nächsten Iteration werden alter und neuer Körper
-// 1 Sekunde lang per Cross-Fade überblendet (Ease-in-out).
-let morphing = false;
-let morphStart = 0;
-const MORPH_DURATION = 1000; // ms
-let oldGroup = null; // THREE.Group mit altem Körper während Morph
-
-// Aktualisiert die "Vorberechnet"-Anzeige in der Stats-Zeile.
-// Zeigt für alle drei Varianten den höchsten zusammenhängend berechneten Index.
-function updatePrecomp() {
-  function highestContiguous(arr) {
-    let i = 0;
-    while (arr[i]) i++;
-    return i - 1;
-  }
-  const t = highestContiguous(histories.topo);
-  const h = highestContiguous(histories.hull);
-  const y = highestContiguous(histories.hybrid);
-  document.getElementById('s-precomp').textContent =
-    `topo ${t}/${MAX_ITER}, hull ${h}/${HULL_MAX_ITER}, hybrid ${y}/${HULL_MAX_ITER}`;
-}
-
-// Formatiert Millisekunden als "42ms", "7s" oder "1:23"
-function formatDuration(ms) {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return `${sec}s`;
-  const min = Math.floor(sec / 60);
-  const remSec = sec % 60;
-  return `${min}:${String(remSec).padStart(2, '0')}`;
-}
-
-// Hull- und Hybrid-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-
-// Modus). Die Berechnungszeit wächst stark (Hull Iter 11 ~17s, Iter 12 mehrere
-// Minuten), läuft aber im Hintergrund auf eigenen Worker-Threads weiter.
-const HULL_MAX_ITER = 12;
-// Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
-// Wird nach jedem Worker-Ergebnis aufgerufen. Drei Worker (workers.topo,
-// workers.hull, workers.hybrid) laufen auf eigenen Threads, also echt
-// parallel — die schnelleren Varianten warten nicht auf die langsameren.
-function precomputeNext() {
-  // Reihenfolge: aktive Variante zuerst — ist nur relevant für die initiale
-  // Queue-Position (alle Varianten laufen parallel weiter).
-  const others = ['topo', 'hull', 'hybrid'].filter(v => v !== currentVariant);
-  const order = [currentVariant, ...others];
-  for (const v of order) {
-    const h = histories[v], p = pendingComputes[v];
-    const max = v === 'topo' ? MAX_ITER : HULL_MAX_ITER;
-    // Pro Variante max. eine offene Anfrage in flight: precomputeNext
-    // feuert nach jedem Result erneut und queued dann den nächsten Schritt.
-    if (p.size > 0) continue;
-    for (let i = 0; i <= max; i++) {
-      if (h[i]) continue;
-      if (i > 0 && !h[i-1]) break; // Vorgänger fehlt → später erneut
-      requestCompute(i, v);
-      break;
-    }
-  }
-}
-precomputeNext(); // Startet die Vorberechnung ab Iteration 0
-
-// ============================================================================
-// Rendering
-// ============================================================================
-// Baut die 3D-Szene für die aktuelle Iteration:
-//   - Iter 0-12: Polyeder mit Flächen, Kanten und Vertex-Punkten
-//   - Ab Iter 13: Best-Fit-Kugel als Referenz + Vertex-Punkte
-// Vertex-Punkte sind farbcodiert nach Abweichung von der Best-Fit-Kugel:
-//   - Rot = außerhalb der Kugel (Beule)
-//   - Grün = innerhalb der Kugel (Delle)
-//   - Grau = auf der Kugel (kaum Abweichung)
-//
-// Parameter:
-//   data:                History-Eintrag der aktuellen Iteration:
-//                        { vertices, triIndices, edgeIndices, deviations, rAvg, ... }
-//   retryWithFewerDots:  optional. Bei Speicherfehler beim Vertex-Punkt-Rendering
-//                        ruft sich die Funktion rekursiv mit reduzierter Punktzahl
-//                        auf. Dieser Parameter überschreibt dann das
-//                        Plattform-Default (Mobile 25k / Desktop 50k).
-function buildMesh(data, retryWithFewerDots) {
-  // Alte Meshes aufräumen (GPU-Speicher freigeben)
-  while (meshGroup.children.length) {
-    const c = meshGroup.children[0];
-    c.geometry?.dispose();
-    c.material?.dispose();
-    meshGroup.remove(c);
-  }
-
-  const { vertices, triIndices, deviations, rAvg } = data;
-  const color = palette[currentIdx % palette.length];
-  // Echter Radius (nicht normiert) — Körper schrumpft mit jeder Iteration
-  const sphereRadius = rAvg || 1;
-  document.getElementById('s-radius').textContent = sphereRadius.toFixed(4).replace('.', ',');
-
-  // ---- Körper / Kugel rendern ----
-  if (currentIdx <= 12 && triIndices && triIndices.length > 0) {
-    // POLYEDER-MODUS (Iter 0-12):
-    // Flächen aus triangulierten Polygonen (vom Worker), Kanten aus Polygon-Flächen
-
-    // Vertex-Positionen als Float32Array (Three.js-Format)
-    const positions = new Float32Array(vertices.length * 3);
-    for (let i = 0; i < vertices.length; i++) {
-      positions[i*3] = vertices[i].x; positions[i*3+1] = vertices[i].y; positions[i*3+2] = vertices[i].z;
-    }
-    const polyGeom = new THREE.BufferGeometry();
-    polyGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    polyGeom.setIndex(new THREE.BufferAttribute(triIndices, 1));
-    polyGeom.computeVertexNormals(); // Für korrekte Beleuchtung
-
-    // Zwei-Pass-Rendering für korrektes Alpha-Blending bei transparenten Flächen:
-    // Pass 1: Rückseiten (dunkler, zuerst gerendert → hinter Vorderseiten)
-    const initOpacity = morphing ? 0 : undefined; // Bei Morph: starte unsichtbar
-
-    const backMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
-      color, transparent: true, opacity: initOpacity ?? 0.4, roughness: 0.4, metalness: 0.05,
-      side: THREE.BackSide, depthWrite: false,
-    }));
-    backMesh.userData.targetOpacity = 0.15;
-    backMesh.renderOrder = 0;
-    meshGroup.add(backMesh);
-
-    const frontMesh = new THREE.Mesh(polyGeom, new THREE.MeshPhysicalMaterial({
-      color, transparent: true, opacity: initOpacity ?? 0.8, roughness: 0.4, metalness: 0.05,
-      side: THREE.FrontSide, depthWrite: false,
-    }));
-    frontMesh.userData.targetOpacity = 0.25;
-    frontMesh.renderOrder = 1;
-    meshGroup.add(frontMesh);
-
-    // Kanten direkt aus Polygon-Flächen (nicht EdgesGeometry, die Triangulierungs-Diagonalen zeigt)
-    if (data.edgeIndices && data.edgeIndices.length > 0) {
-      const edgePositions = new Float32Array(data.edgeIndices.length * 3);
-      for (let i = 0; i < data.edgeIndices.length; i++) {
-        const vi = data.edgeIndices[i];
-        edgePositions[i * 3] = vertices[vi].x;
-        edgePositions[i * 3 + 1] = vertices[vi].y;
-        edgePositions[i * 3 + 2] = vertices[vi].z;
-      }
-      const edgesGeom = new THREE.BufferGeometry();
-      edgesGeom.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
-      const edgeColors = new Float32Array(data.edgeIndices.length * 3);
-      edgeColors.fill(1); // Weiß initial
-      edgesGeom.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
-      const edgeMat = new THREE.LineBasicMaterial({
-        vertexColors: true, transparent: true, opacity: initOpacity ?? 0.7,
-      });
-      const edgeMesh = new THREE.LineSegments(edgesGeom, edgeMat);
-      edgeMesh.userData.targetOpacity = 0.7;
-      edgeMesh.userData.isEdge = true;
-      meshGroup.add(edgeMesh);
-    }
-
-  } else {
-    // KUGEL-MODUS (ab Iter 13):
-    // Best-Fit-Kugel als Referenzkörper — zeigt wie weit die Vertices
-    // von der idealen Kugel abweichen
-    const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
-    meshGroup.add(new THREE.Mesh(sphereGeom, new THREE.MeshPhysicalMaterial({
-      color: 0x6699cc, transparent: true, opacity: 0.6, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide,
-    })));
-    // Dezentes Kugel-Wireframe als Orientierungshilfe
-    meshGroup.add(new THREE.LineSegments(
-      new THREE.EdgesGeometry(sphereGeom, 15),
-      new THREE.LineBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.2 })
-    ));
-  }
-
-  // ---- Farbcodierte Vertex-Punkte ----
-
-  // Maximale absolute Abweichung bestimmen (für Farbskalierung 0..1)
-  let maxAbsDev = 0;
-  if (deviations) {
-    for (let i = 0; i < deviations.length; i++) {
-      const abs = Math.abs(deviations[i]);
-      if (abs > maxAbsDev) maxAbsDev = abs;
-    }
-  }
-
-  // Deviation → Farbe: grau bei 0, kräftig rot/grün bei maximaler Abweichung
-  function devColor(dev) {
-    // Unter 0.001% Abweichung: alles grau (verhindert Farbverstärkung bei Fließkomma-Rauschen)
-    const t = maxAbsDev > 1e-5 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
-    if (dev < 0) {
-      // Außerhalb der Kugel: grau → rot
-      return new THREE.Color(0.4 + 0.6 * t, 0.4 * (1 - t), 0.4 * (1 - t));
-    } else {
-      // Innerhalb der Kugel: grau → grün
-      return new THREE.Color(0.4 * (1 - t), 0.4 + 0.6 * t, 0.4 * (1 - t));
-    }
-  }
-
-  // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-  let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
-  // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
-  // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
-  const dotSizes = [0.010, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001];
-  const dotSize = currentIdx <= 12
-    ? (currentIdx < dotSizes.length ? dotSizes[currentIdx] : 0.001)
-    : 0.003;
-  const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
-  // Nur originale Vertices (nicht Triangulierungs-Mittelpunkte) als Punkte anzeigen
-  const numOrigVerts = deviations ? deviations.length : vertices.length;
-  const candidates = Array.from({ length: numOrigVerts }, (_, i) => ({ i }));
-  if (candidates.length > maxDots) {
-    // Fisher-Yates Shuffle → ersten maxDots nehmen = gleichmäßiges Sample
-    for (let i = candidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-    }
-    candidates.length = maxDots;
-  }
-
-  // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
-  // Opacity wird live in animate() basierend auf Kamera-Entfernung aktualisiert
-  // Bei Speicherfehler: mit weniger Punkten nochmal versuchen
-  dotMeshes = [];
-  try {
-    for (const { i } of candidates) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: devColor(deviations ? deviations[i] : 1),
-        transparent: true, opacity: morphing ? 0 : 1,
-        depthTest: false,
-      });
-      const dot = new THREE.Mesh(dotGeom, mat);
-      dot.userData.targetOpacity = 1;
-      dot.position.copy(vertices[i]);
-      dotMeshes.push(dot);
-      meshGroup.add(dot);
-    }
-  } catch(e) {
-    console.warn(`Speicherfehler bei ${candidates.length} Punkten, reduziere auf ${Math.floor(maxDots/2)}`);
-    // Aufräumen und mit halber Punktzahl nochmal versuchen
-    while (meshGroup.children.length) {
-      const c = meshGroup.children[0];
-      c.geometry?.dispose(); c.material?.dispose();
-      meshGroup.remove(c);
-    }
-    if (maxDots > 1000) {
-      return buildMesh(data, Math.floor(maxDots / 2));
-    }
-  }
-  document.getElementById('s-samples').textContent = candidates.length.toLocaleString();
-
-  // ---- Abweichungs-Statistik ----
-  // Min/Max Abweichung als Prozent des Kugelradius
-  if (deviations && deviations.length > 0) {
-    let minDev = Infinity, maxDev = -Infinity;
-    for (let i = 0; i < deviations.length; i++) {
-      if (deviations[i] < minDev) minDev = deviations[i];
-      if (deviations[i] > maxDev) maxDev = deviations[i];
-    }
-    const r = sphereRadius || 1;
-    const minPct = (minDev / r * 100).toFixed(3).replace('.', ',');
-    const maxPct = (maxDev / r * 100).toFixed(3).replace('.', ',');
-    document.getElementById('s-dev').textContent = `${minPct}% .. +${maxPct}%`;
-    // Min-Zoom dynamisch: knapp über dem äußersten Vertex
-    minZoom = (r + maxDev) * 1.15;
-    if (radius < minZoom) radius = minZoom;
-  } else {
-    minZoom = sphereRadius * 1.15;
-    if (radius < minZoom) radius = minZoom;
-    document.getElementById('s-dev').textContent = '-';
-  }
-
-  updateStats(false);
-}
-
-// Aktualisiert die Stats-Zeile (Ecken, Kanten, Dauer, etc.)
-function updateStats(computing) {
-  const h = history[currentIdx];
-  document.getElementById('s-iter').textContent = currentIdx;
-  document.getElementById('s-verts').textContent = h?.vertCount?.toLocaleString() ?? '-';
-  document.getElementById('s-edges').textContent = h?.edgeCount?.toLocaleString() ?? '-';
-  document.getElementById('s-faces').textContent = h?.faceCount?.toLocaleString() ?? '-';
-  // Flächen + n-Ecke nur im Polyeder-Modus anzeigen — im Kugel-Modus gibt
-  // es keine sichtbaren Polygon-Flächen mehr (nur Punktwolke).
-  document.getElementById('s-faces-wrap').style.display = currentIdx <= 12 ? '' : 'none';
-  const ngonWrap = document.getElementById('s-ngon-wrap');
-  if (currentIdx <= 12 && h?.ngonDist) {
-    const parts = Object.entries(h.ngonDist).sort((a, b) => +a[0] - +b[0])
-      .map(([n, c]) => `${n}-Eck: ${c.toLocaleString()}`);
-    document.getElementById('s-ngon').textContent = parts.join(', ');
-    ngonWrap.style.display = '';
-  } else {
-    ngonWrap.style.display = 'none';
-  }
-  const d = h?.duration;
-  document.getElementById('s-time').textContent = d != null ? formatDuration(d) : '-';
-  // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
-  if (computing) {
-    document.getElementById('s-radius').textContent = '-';
-    document.getElementById('s-samples').textContent = '-';
-    document.getElementById('s-dev').textContent = '-';
-  }
-  // Sanduhr ⏳ anzeigen wenn noch berechnet wird
-  document.getElementById('iteration-label').textContent =
-    computing ? `Iteration ${currentIdx} \u23f3` : `Iteration ${currentIdx}`;
-  document.getElementById('btn-prev').disabled = currentIdx === 0;
-  document.getElementById('btn-next').disabled = currentIdx >= MAX_ITER;
-  // Variante-Button nur im Polyeder-Modus (≤ HULL_MAX_ITER) sichtbar.
-  // Im Kugel-Modus werden Hull/Hybrid nicht berechnet.
-  document.getElementById('btn-variant').style.display =
-    currentIdx <= HULL_MAX_ITER ? '' : 'none';
-}
-
-// Zeigt die aktuelle Iteration an. Falls noch nicht berechnet,
-// wird eine Sanduhr angezeigt und beim Eintreffen des Ergebnisses gerendert.
-function showCurrent() {
-  updateStats(!history[currentIdx]);
-
-  if (history[currentIdx]) {
-    // Laufenden Morph abbrechen wenn nötig
-    if (morphing && oldGroup) {
-      scene.remove(oldGroup);
-      oldGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
-      oldGroup = null;
-      morphing = false;
-    }
-
-    // Morph starten wenn Polyeder-Modus (iter 0-12) und alter Körper vorhanden
-    if (currentIdx <= 12 && meshGroup.children.length > 0) {
-      // Alten Körper in oldGroup verschieben
-      if (oldGroup) {
-        scene.remove(oldGroup);
-        oldGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
-      }
-      oldGroup = new THREE.Group();
-      while (meshGroup.children.length > 0) {
-        const child = meshGroup.children[0];
-        meshGroup.remove(child);
-        oldGroup.add(child);
-      }
-      // Initiale Opacity des alten Körpers merken
-      oldGroup.traverse(child => {
-        if (child.material) {
-          child.userData.startOpacity = child.material.opacity;
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
         }
-      });
-      scene.add(oldGroup);
-      morphing = true;
-      morphStart = performance.now();
-    }
-    buildMesh(history[currentIdx]);
-  } else {
-    // Nicht direkt requestCompute aufrufen — sonst sendet der Worker eine
-    // Out-of-order-Berechnung und das Ergebnis wird falsch zugeordnet.
-    // precomputeNext() füllt die History strikt sequenziell; sobald die
-    // gewünschte Iteration eintrifft, wird der Callback ausgeführt.
-    pendingCallbacks.set(`${currentVariant}:${currentIdx}`, () => {
-      if (history[currentIdx]) {
-        buildMesh(history[currentIdx]);
       }
-    });
-    // Falls der Precompute-Chain pausiert (z.B. weil eine andere Variante
-    // bereits abgeschlossen ist), neu anstoßen.
-    precomputeNext();
-  }
-}
+    </script>
 
-// ---- Steuerung ----
-function goNext() {
-  if (currentIdx >= MAX_ITER) return;
-  currentIdx++;
-  // Hull/Hybrid enden bei iter 12, Topo geht bis MAX_ITER. Wer in Hull/Hybrid-
-  // Modus über iter 12 hinaus klickt, hat sonst nichts zum Anzeigen —
-  // automatisch auf Topo umschalten.
-  if ((currentVariant === 'hull' || currentVariant === 'hybrid') && currentIdx > HULL_MAX_ITER) {
-    currentVariant = 'topo';
-    history = histories.topo;
-    pendingCompute = pendingComputes.topo;
-    document.getElementById('btn-variant').textContent = variantLabel('topo');
-  }
-  showCurrent();
-}
+    <script type="module">
+      import * as THREE from "three";
 
-// Anzeige-Text für den Variante-Button
-function variantLabel(v) {
-  if (v === 'topo') return 'Variante: Topologisch';
-  if (v === 'hull') return 'Variante: Convex Hull';
-  if (v === 'hybrid') return 'Variante: Hybrid';
-}
-function goPrev() { if (currentIdx > 0) { currentIdx--; showCurrent(); } }
-
-// Button-Events: sowohl pointerdown als auch click für maximale Kompatibilität
-// (pointerdown reagiert sofort, click als Fallback)
-function btnEvent(id, fn) {
-  const el = document.getElementById(id);
-  let handled = false;
-  el.addEventListener('pointerdown', (e) => { e.preventDefault(); handled = true; fn(); });
-  el.addEventListener('click', () => { if (!handled) fn(); handled = false; });
-}
-btnEvent('btn-next', () => { goNext(); });
-btnEvent('btn-prev', () => { goPrev(); });
-
-// Variante umschalten: zyklisch topo → hull → hybrid → topo
-function switchVariant() {
-  const cycle = { topo: 'hull', hull: 'hybrid', hybrid: 'topo' };
-  currentVariant = cycle[currentVariant];
-  history = histories[currentVariant];
-  pendingCompute = pendingComputes[currentVariant];
-  document.getElementById('btn-variant').textContent = variantLabel(currentVariant);
-  // Vorberechnung der neuen Variante anstoßen falls noch nicht passiert
-  precomputeNext();
-  // Aktuelle Iteration in der neuen Variante anzeigen
-  showCurrent();
-}
-btnEvent('btn-variant', () => { switchVariant(); });
-
-// Tastatursteuerung
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
-  else if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
-});
-
-// Canvas-Größe an Fenstergröße anpassen
-window.addEventListener('resize', () => {
-  camera.aspect = container.clientWidth / container.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(container.clientWidth, container.clientHeight);
-});
-
-showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
-
-// ---- Kamera-Rotation (Trackball) ----
-// Quaternion-basiert: Mausbewegung → Rotation um die Achse senkrecht
-// zur Mausrichtung in Bildschirmkoordinaten. Kein Gimbal Lock,
-// keine Richtungsumkehr, keine Pol-Probleme.
-let radius = 4;
-let minZoom = 1.8; // Dynamisch: knapp über maximalem Vertex-Radius
-let dragging = false, lastX = 0, lastY = 0, autoRotate = true;
-let autoRotateTimer = null;
-let rotationPaused = false;
-const camQuat = new THREE.Quaternion();
-let panX = 0, panY = 0; // Laterale Verschiebung in Kamera-Koordinaten
-// Initiale Orientierung: leicht gedreht um Y-Achse (Yaw) und X-Achse (Pitch),
-// damit man beim Start eine 3D-Ansicht des Würfels mit drei sichtbaren
-// Flächen sieht statt nur einer.
-{
-  const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.7);
-  const qV = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.6);
-  camQuat.multiplyQuaternions(qV, qH);
-}
-
-// Pausiert die Auto-Rotation für 3 Sekunden nach manueller Interaktion.
-// Wird per Doppelklick/-Tap dauerhaft pausiert (rotationPaused = true);
-// in dem Fall macht diese Funktion nichts (keine Reset-Timer).
-function pauseAutoRotate() {
-  if (rotationPaused) return;
-  autoRotate = false;
-  clearTimeout(autoRotateTimer);
-  autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
-}
-
-renderer.domElement.addEventListener('dblclick', (e) => {
-  e.preventDefault();
-  rotationPaused = !rotationPaused;
-  if (rotationPaused) { autoRotate = false; clearTimeout(autoRotateTimer); }
-  else { autoRotate = true; }
-});
-
-let panning = false; // Shift-Taste oder Rechtsklick → Pan statt Rotation
-renderer.domElement.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  panning = e.shiftKey || e.button === 2;
-  lastX = e.clientX; lastY = e.clientY;
-  pauseAutoRotate();
-});
-// Rechtsklick-Kontextmenü unterdrücken
-renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-window.addEventListener('pointermove', (e) => {
-  if (!dragging) return;
-  const dx = (e.clientX - lastX) * 0.005;
-  const dy = (e.clientY - lastY) * 0.005;
-
-  if (panning || e.shiftKey) {
-    // PAN: laterale Verschiebung in Kamera-Koordinaten
-    const panSpeed = radius * 0.5;
-    panX -= dx * panSpeed;
-    panY += dy * panSpeed;
-  } else {
-    // ROTATION: Trackball
-    const angle = Math.sqrt(dx * dx + dy * dy);
-    if (angle > 0.0001) {
-      const axis = new THREE.Vector3(-dy / angle, -dx / angle, 0);
-      axis.applyQuaternion(camera.quaternion);
-      const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-      camQuat.premultiply(q);
-      camQuat.normalize();
-    }
-  }
-  lastX = e.clientX; lastY = e.clientY;
-});
-window.addEventListener('pointerup', () => { dragging = false; panning = false; });
-renderer.domElement.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  radius = Math.max(minZoom, Math.min(5, radius + e.deltaY * 0.005));
-  pauseAutoRotate();
-}, { passive: false });
-
-// 2-Finger-Gesten: Pinch = Zoom, Drag = Pan
-let lastPinchDist = 0;
-let lastTouchMidX = 0, lastTouchMidY = 0;
-renderer.domElement.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    lastPinchDist = Math.sqrt(dx*dx + dy*dy);
-    lastTouchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    lastTouchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-  }
-}, { passive: true });
-renderer.domElement.addEventListener('touchmove', (e) => {
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-    if (lastPinchDist > 0) {
-      // Pinch → Zoom
-      radius = Math.max(minZoom, Math.min(5, radius * (lastPinchDist / dist)));
-      // 2-Finger-Drag → Pan
-      const panDx = (midX - lastTouchMidX) * 0.005;
-      const panDy = (midY - lastTouchMidY) * 0.005;
-      const panSpeed = radius * 0.5;
-      panX -= panDx * panSpeed;
-      panY += panDy * panSpeed;
-      pauseAutoRotate();
-    }
-    lastPinchDist = dist;
-    lastTouchMidX = midX;
-    lastTouchMidY = midY;
-  }
-}, { passive: true });
-
-// Render-Loop. Pro Frame:
-//   1. Auto-Rotation: Y-Achsen-Drehung um die Trackball-Quaternion komponieren
-//   2. Morph-Animation: Cross-Fade zwischen altem und neuem Körper (Iter-Wechsel)
-//   3. Kamera positionieren aus Quaternion + Zoom-Radius + Pan-Offset
-//   4. Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
-//   5. Three.js render
-(function animate() {
-  requestAnimationFrame(animate);
-  if (autoRotate) {
-    const qAuto = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.003);
-    camQuat.premultiply(qAuto);
-  }
-
-  // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
-  if (morphing && oldGroup) {
-    const t = Math.min(1, (performance.now() - morphStart) / MORPH_DURATION);
-    // Ease-in-out für smooth Übergang
-    const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
-
-    // Alten Körper ausblenden
-    oldGroup.traverse(child => {
-      if (child.material && child.userData.startOpacity != null) {
-        child.material.opacity = child.userData.startOpacity * (1 - ease);
+      // ---- Worker-Kommunikation ----
+      // Drei Worker, einer pro Variante (Topo, Hull, Hybrid) — laufen auf eigenen
+      // Threads und können dadurch echt parallel rechnen. Bei file://-Kontext
+      // (Safari) fallen wir auf Main-Thread-Mocks zurück (dann effektiv seriell,
+      // aber funktional).
+      function createWorker() {
+        try {
+          const w = new Worker("worker.js?v=" + Date.now());
+          w.onerror = () => {
+            throw new Error("Worker blocked");
+          };
+          return w;
+        } catch (e) {
+          console.warn("Web Worker nicht verfügbar, Fallback auf Main Thread");
+          // Mock-Worker mit eigenem Scope (eigenes State pro Mock).
+          return {
+            _handler: null,
+            _workerScope: null,
+            set onmessage(fn) {
+              this._handler = fn;
+            },
+            get onmessage() {
+              return this._handler;
+            },
+            onerror: null,
+            postMessage(data) {
+              const script = document.getElementById("worker-src");
+              if (!script) return;
+              if (!this._workerScope) {
+                this._workerScope = {};
+                const scope = this._workerScope;
+                scope.self = {
+                  postMessage: (msg) => {
+                    if (this._handler) this._handler({ data: msg });
+                  },
+                };
+                const fn = new Function(
+                  "self",
+                  script.textContent + "\nreturn self;",
+                );
+                scope.self = fn(scope.self);
+              }
+              if (this._workerScope.self.onmessage) {
+                this._workerScope.self.onmessage({ data });
+              }
+            },
+          };
+        }
       }
-    });
+      const workers = {
+        topo: createWorker(),
+        hull: createWorker(),
+        hybrid: createWorker(),
+      };
+      const pendingCallbacks = new Map(); // iter → callback wenn Ergebnis da
+      const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
 
-    // Neuen Körper einblenden
-    meshGroup.traverse(child => {
-      if (child.material && child.userData.targetOpacity != null) {
-        child.material.opacity = child.userData.targetOpacity * ease;
+      // Gemeinsamer onmessage-Handler für beide Worker — die `variant` kommt
+      // in der Message mit, also brauchen wir keinen worker-spezifischen Handler.
+      function onWorkerMessage(e) {
+        // Fortschrittsmeldungen aktualisieren die Anzeige ohne Rendering
+        if (e.data.type === "progress") {
+          const { iter, variant, phase, done, total } = e.data;
+          if (variant !== currentVariant) return; // Hintergrund-Variante ignorieren
+          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+          document.getElementById("s-progress").textContent =
+            `Iter ${iter}: ${phase} ${pct}%`;
+          return;
+        }
+
+        // Ergebnis empfangen und in history der jeweiligen Variante speichern
+        const {
+          iter,
+          variant,
+          coords,
+          triIndices,
+          edgeIndices,
+          deviations,
+          rAvg,
+          vertCount,
+          edgeCount,
+          faceCount,
+          ngonDist,
+        } = e.data;
+        const v = variant || "topo";
+        const targetHistory = histories[v];
+        const targetPending = pendingComputes[v];
+        const startKey = `${v}:${iter}`;
+        const elapsed = computeStartTimes.has(startKey)
+          ? performance.now() - computeStartTimes.get(startKey)
+          : null;
+        computeStartTimes.delete(startKey);
+
+        // Float64-Koordinaten → THREE.Vector3 für Rendering
+        const vertices = [];
+        for (let i = 0; i < coords.length; i += 3) {
+          vertices.push(
+            new THREE.Vector3(coords[i], coords[i + 1], coords[i + 2]),
+          );
+        }
+        targetHistory[iter] = {
+          vertices,
+          triIndices: new Uint32Array(triIndices),
+          edgeIndices: edgeIndices ? new Uint32Array(edgeIndices) : null,
+          deviations: deviations ? new Float64Array(deviations) : null,
+          rAvg: rAvg || 1,
+          duration: elapsed,
+          vertCount,
+          edgeCount,
+          faceCount,
+          ngonDist,
+        };
+        targetPending.delete(iter);
+        // Precomp-Counter immer aktualisieren — auch wenn die andere Variante
+        // im Hintergrund rechnet (sonst bleibt der Counter stehen).
+        updatePrecomp();
+        if (v === currentVariant) {
+          document.getElementById("s-progress").textContent = "";
+        }
+
+        // Callback ausführen falls jemand auf dieses Ergebnis wartet
+        const cbKey = `${v}:${iter}`;
+        const cb = pendingCallbacks.get(cbKey);
+        if (cb) {
+          pendingCallbacks.delete(cbKey);
+          cb();
+        }
+
+        // Nächste Iteration in beiden Varianten vorberechnen (parallel)
+        precomputeNext();
       }
-    });
+      workers.topo.onmessage = onWorkerMessage;
+      workers.hull.onmessage = onWorkerMessage;
+      workers.hybrid.onmessage = onWorkerMessage;
 
-    // Morph fertig
-    if (t >= 1) {
-      scene.remove(oldGroup);
-      oldGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
-      oldGroup = null;
-      morphing = false;
-    }
-  }
-
-  // Kameraposition: Rotation um Ursprung (Körpermittelpunkt), Pan lateral
-  const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
-  const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);
-  const panOffset = camRight.clone().multiplyScalar(panX).add(camUp.clone().multiplyScalar(panY));
-  camera.position.set(0, 0, radius).applyQuaternion(camQuat).add(panOffset);
-  camera.up.copy(camUp);
-  camera.lookAt(panOffset); // Blickziel = Ursprung + lateraler Offset
-
-  // Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
-  {
-    const camPos = camera.position;
-
-    // Punkte
-    if (dotMeshes.length > 0) {
-      let minD = Infinity, maxD = 0;
-      for (const dot of dotMeshes) {
-        const d = camPos.distanceTo(dot.position);
-        if (d < minD) minD = d;
-        if (d > maxD) maxD = d;
-      }
-      const range = maxD - minD || 1;
-      for (const dot of dotMeshes) {
-        const d = camPos.distanceTo(dot.position);
-        const t = (d - minD) / range;
-        dot.material.opacity = 1.0 - 0.85 * t;
+      // Berechnung einer Iteration beim entsprechenden Worker anfordern
+      function requestCompute(iter, variant = currentVariant) {
+        const hist = histories[variant];
+        const pend = pendingComputes[variant];
+        if (hist[iter] || pend.has(iter)) return;
+        pend.add(iter);
+        computeStartTimes.set(`${variant}:${iter}`, performance.now());
+        workers[variant].postMessage({ iter, variant });
       }
 
-      // Kanten: Vertex-Colors basierend auf Entfernung dimmen
-      meshGroup.traverse(child => {
-        if (child.userData.isEdge && child.geometry.attributes.color) {
-          const pos = child.geometry.attributes.position;
-          const col = child.geometry.attributes.color;
-          const v = new THREE.Vector3();
-          for (let i = 0; i < pos.count; i++) {
-            v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
-            const d = camPos.distanceTo(v);
-            const t = (d - minD) / range;
-            const brightness = 1.0 - 0.85 * t;
-            col.setXYZ(i, brightness, brightness, brightness);
+      // ---- Three.js Szene ----
+      const container = document.getElementById("scene-container");
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        50,
+        container.clientWidth / container.clientHeight,
+        0.1,
+        100,
+      );
+      camera.position.set(3, 2.5, 3);
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(devicePixelRatio);
+      renderer.setClearColor(0x1a1a2e); // Dunkles Blau als Hintergrund
+
+      container.appendChild(renderer.domElement);
+
+      // Beleuchtung: ambientes Licht + 2 gerichtete Lichtquellen
+      scene.add(new THREE.AmbientLight(0x404060, 1.5));
+      const dl1 = new THREE.DirectionalLight(0xffffff, 1.2);
+      dl1.position.set(5, 8, 5); // oben rechts vorne
+      scene.add(dl1);
+      const dl2 = new THREE.DirectionalLight(0x8888ff, 0.6);
+      dl2.position.set(-5, -2, -5); // unten links hinten (bläulich)
+      scene.add(dl2);
+
+      // ---- Zustand ----
+      // Mobilgeräte: weniger Iterationen (Speicher + Rechenzeit)
+      const MAX_ITER =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        window.innerWidth < 768
+          ? 18
+          : 20;
+
+      // histories[variant][i] = Ergebnis der i-ten Iteration in der jeweiligen Variante.
+      // 'topo' = topologische Rektifikation
+      // 'hull' = Convex-Hull-Rektifikation
+      // 'hybrid' = Topo-Vertex-Evolution + Hull-Flächen-Topologie
+      const histories = { topo: [], hull: [], hybrid: [] };
+      const pendingComputes = {
+        topo: new Set(),
+        hull: new Set(),
+        hybrid: new Set(),
+      };
+      let currentVariant = "topo";
+      // Aliase auf die aktive Variante. Bei Variantenwechsel werden sie über
+      // switchVariant() neu gebunden, damit der bestehende Code weiterläuft.
+      let history = histories.topo;
+      let pendingCompute = pendingComputes.topo;
+      let currentIdx = 0;
+      const meshGroup = new THREE.Group();
+      scene.add(meshGroup);
+      const palette = [
+        0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22,
+        0x3498db,
+      ];
+      let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
+
+      // ---- Morph-Animation ----
+      // Beim Wechsel zur nächsten Iteration werden alter und neuer Körper
+      // 1 Sekunde lang per Cross-Fade überblendet (Ease-in-out).
+      let morphing = false;
+      let morphStart = 0;
+      const MORPH_DURATION = 1000; // ms
+      let oldGroup = null; // THREE.Group mit altem Körper während Morph
+
+      // Aktualisiert die "Vorberechnet"-Anzeige in der Stats-Zeile.
+      // Zeigt für alle drei Varianten den höchsten zusammenhängend berechneten Index.
+      function updatePrecomp() {
+        function highestContiguous(arr) {
+          let i = 0;
+          while (arr[i]) i++;
+          return i - 1;
+        }
+        const t = highestContiguous(histories.topo);
+        const h = highestContiguous(histories.hull);
+        const y = highestContiguous(histories.hybrid);
+        document.getElementById("s-precomp").textContent =
+          `topo ${t}/${MAX_ITER}, hull ${h}/${HULL_MAX_ITER}, hybrid ${y}/${HULL_MAX_ITER}`;
+      }
+
+      // Formatiert Millisekunden als "42ms", "7s" oder "1:23"
+      function formatDuration(ms) {
+        if (ms < 1000) return `${Math.round(ms)}ms`;
+        const sec = Math.floor(ms / 1000);
+        if (sec < 60) return `${sec}s`;
+        const min = Math.floor(sec / 60);
+        const remSec = sec % 60;
+        return `${min}:${String(remSec).padStart(2, "0")}`;
+      }
+
+      // Hull- und Hybrid-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-
+      // Modus). Die Berechnungszeit wächst stark (Hull Iter 11 ~17s, Iter 12 mehrere
+      // Minuten), läuft aber im Hintergrund auf eigenen Worker-Threads weiter.
+      const HULL_MAX_ITER = 12;
+      // Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
+      // Wird nach jedem Worker-Ergebnis aufgerufen. Drei Worker (workers.topo,
+      // workers.hull, workers.hybrid) laufen auf eigenen Threads, also echt
+      // parallel — die schnelleren Varianten warten nicht auf die langsameren.
+      function precomputeNext() {
+        // Reihenfolge: aktive Variante zuerst — ist nur relevant für die initiale
+        // Queue-Position (alle Varianten laufen parallel weiter).
+        const others = ["topo", "hull", "hybrid"].filter(
+          (v) => v !== currentVariant,
+        );
+        const order = [currentVariant, ...others];
+        for (const v of order) {
+          const h = histories[v],
+            p = pendingComputes[v];
+          const max = v === "topo" ? MAX_ITER : HULL_MAX_ITER;
+          // Pro Variante max. eine offene Anfrage in flight: precomputeNext
+          // feuert nach jedem Result erneut und queued dann den nächsten Schritt.
+          if (p.size > 0) continue;
+          for (let i = 0; i <= max; i++) {
+            if (h[i]) continue;
+            if (i > 0 && !h[i - 1]) break; // Vorgänger fehlt → später erneut
+            requestCompute(i, v);
+            break;
           }
-          col.needsUpdate = true;
+        }
+      }
+      precomputeNext(); // Startet die Vorberechnung ab Iteration 0
+
+      // ============================================================================
+      // Rendering
+      // ============================================================================
+      // Baut die 3D-Szene für die aktuelle Iteration:
+      //   - Iter 0-12: Polyeder mit Flächen, Kanten und Vertex-Punkten
+      //   - Ab Iter 13: Best-Fit-Kugel als Referenz + Vertex-Punkte
+      // Vertex-Punkte sind farbcodiert nach Abweichung von der Best-Fit-Kugel:
+      //   - Rot = außerhalb der Kugel (Beule)
+      //   - Grün = innerhalb der Kugel (Delle)
+      //   - Grau = auf der Kugel (kaum Abweichung)
+      //
+      // Parameter:
+      //   data:                History-Eintrag der aktuellen Iteration:
+      //                        { vertices, triIndices, edgeIndices, deviations, rAvg, ... }
+      //   retryWithFewerDots:  optional. Bei Speicherfehler beim Vertex-Punkt-Rendering
+      //                        ruft sich die Funktion rekursiv mit reduzierter Punktzahl
+      //                        auf. Dieser Parameter überschreibt dann das
+      //                        Plattform-Default (Mobile 25k / Desktop 50k).
+      function buildMesh(data, retryWithFewerDots) {
+        // Alte Meshes aufräumen (GPU-Speicher freigeben)
+        while (meshGroup.children.length) {
+          const c = meshGroup.children[0];
+          c.geometry?.dispose();
+          c.material?.dispose();
+          meshGroup.remove(c);
+        }
+
+        const { vertices, triIndices, deviations, rAvg } = data;
+        const color = palette[currentIdx % palette.length];
+        // Echter Radius (nicht normiert) — Körper schrumpft mit jeder Iteration
+        const sphereRadius = rAvg || 1;
+        document.getElementById("s-radius").textContent = sphereRadius
+          .toFixed(4)
+          .replace(".", ",");
+
+        // ---- Körper / Kugel rendern ----
+        if (currentIdx <= 12 && triIndices && triIndices.length > 0) {
+          // POLYEDER-MODUS (Iter 0-12):
+          // Flächen aus triangulierten Polygonen (vom Worker), Kanten aus Polygon-Flächen
+
+          // Vertex-Positionen als Float32Array (Three.js-Format)
+          const positions = new Float32Array(vertices.length * 3);
+          for (let i = 0; i < vertices.length; i++) {
+            positions[i * 3] = vertices[i].x;
+            positions[i * 3 + 1] = vertices[i].y;
+            positions[i * 3 + 2] = vertices[i].z;
+          }
+          const polyGeom = new THREE.BufferGeometry();
+          polyGeom.setAttribute(
+            "position",
+            new THREE.BufferAttribute(positions, 3),
+          );
+          polyGeom.setIndex(new THREE.BufferAttribute(triIndices, 1));
+          polyGeom.computeVertexNormals(); // Für korrekte Beleuchtung
+
+          // Zwei-Pass-Rendering für korrektes Alpha-Blending bei transparenten Flächen:
+          // Pass 1: Rückseiten (dunkler, zuerst gerendert → hinter Vorderseiten)
+          const initOpacity = morphing ? 0 : undefined; // Bei Morph: starte unsichtbar
+
+          const backMesh = new THREE.Mesh(
+            polyGeom,
+            new THREE.MeshPhysicalMaterial({
+              color,
+              transparent: true,
+              opacity: initOpacity ?? 0.4,
+              roughness: 0.4,
+              metalness: 0.05,
+              side: THREE.BackSide,
+              depthWrite: false,
+            }),
+          );
+          backMesh.userData.targetOpacity = 0.15;
+          backMesh.renderOrder = 0;
+          meshGroup.add(backMesh);
+
+          const frontMesh = new THREE.Mesh(
+            polyGeom,
+            new THREE.MeshPhysicalMaterial({
+              color,
+              transparent: true,
+              opacity: initOpacity ?? 0.8,
+              roughness: 0.4,
+              metalness: 0.05,
+              side: THREE.FrontSide,
+              depthWrite: false,
+            }),
+          );
+          frontMesh.userData.targetOpacity = 0.25;
+          frontMesh.renderOrder = 1;
+          meshGroup.add(frontMesh);
+
+          // Kanten direkt aus Polygon-Flächen (nicht EdgesGeometry, die Triangulierungs-Diagonalen zeigt)
+          if (data.edgeIndices && data.edgeIndices.length > 0) {
+            const edgePositions = new Float32Array(data.edgeIndices.length * 3);
+            for (let i = 0; i < data.edgeIndices.length; i++) {
+              const vi = data.edgeIndices[i];
+              edgePositions[i * 3] = vertices[vi].x;
+              edgePositions[i * 3 + 1] = vertices[vi].y;
+              edgePositions[i * 3 + 2] = vertices[vi].z;
+            }
+            const edgesGeom = new THREE.BufferGeometry();
+            edgesGeom.setAttribute(
+              "position",
+              new THREE.BufferAttribute(edgePositions, 3),
+            );
+            const edgeColors = new Float32Array(data.edgeIndices.length * 3);
+            edgeColors.fill(1); // Weiß initial
+            edgesGeom.setAttribute(
+              "color",
+              new THREE.BufferAttribute(edgeColors, 3),
+            );
+            const edgeMat = new THREE.LineBasicMaterial({
+              vertexColors: true,
+              transparent: true,
+              opacity: initOpacity ?? 0.7,
+            });
+            const edgeMesh = new THREE.LineSegments(edgesGeom, edgeMat);
+            edgeMesh.userData.targetOpacity = 0.7;
+            edgeMesh.userData.isEdge = true;
+            meshGroup.add(edgeMesh);
+          }
+        } else {
+          // KUGEL-MODUS (ab Iter 13):
+          // Best-Fit-Kugel als Referenzkörper — zeigt wie weit die Vertices
+          // von der idealen Kugel abweichen
+          const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
+          meshGroup.add(
+            new THREE.Mesh(
+              sphereGeom,
+              new THREE.MeshPhysicalMaterial({
+                color: 0x6699cc,
+                transparent: true,
+                opacity: 0.6,
+                roughness: 0.3,
+                metalness: 0.1,
+                side: THREE.DoubleSide,
+              }),
+            ),
+          );
+          // Dezentes Kugel-Wireframe als Orientierungshilfe
+          meshGroup.add(
+            new THREE.LineSegments(
+              new THREE.EdgesGeometry(sphereGeom, 15),
+              new THREE.LineBasicMaterial({
+                color: 0x88aacc,
+                transparent: true,
+                opacity: 0.2,
+              }),
+            ),
+          );
+        }
+
+        // ---- Farbcodierte Vertex-Punkte ----
+
+        // Maximale absolute Abweichung bestimmen (für Farbskalierung 0..1)
+        let maxAbsDev = 0;
+        if (deviations) {
+          for (let i = 0; i < deviations.length; i++) {
+            const abs = Math.abs(deviations[i]);
+            if (abs > maxAbsDev) maxAbsDev = abs;
+          }
+        }
+
+        // Deviation → Farbe: grau bei 0, kräftig rot/grün bei maximaler Abweichung
+        function devColor(dev) {
+          // Unter 0.001% Abweichung: alles grau (verhindert Farbverstärkung bei Fließkomma-Rauschen)
+          const t =
+            maxAbsDev > 1e-5 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
+          if (dev < 0) {
+            // Außerhalb der Kugel: grau → rot
+            return new THREE.Color(0.4 + 0.6 * t, 0.4 * (1 - t), 0.4 * (1 - t));
+          } else {
+            // Innerhalb der Kugel: grau → grün
+            return new THREE.Color(0.4 * (1 - t), 0.4 + 0.6 * t, 0.4 * (1 - t));
+          }
+        }
+
+        // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
+        const isMobile =
+          /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+          window.innerWidth < 768;
+        let maxDots = retryWithFewerDots || (isMobile ? 25000 : 50000);
+        // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
+        // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
+        const dotSizes = [
+          0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001,
+        ];
+        const dotSize =
+          currentIdx <= 12
+            ? currentIdx < dotSizes.length
+              ? dotSizes[currentIdx]
+              : 0.001
+            : 0.003;
+        const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
+        // Nur originale Vertices (nicht Triangulierungs-Mittelpunkte) als Punkte anzeigen
+        const numOrigVerts = deviations ? deviations.length : vertices.length;
+        const candidates = Array.from({ length: numOrigVerts }, (_, i) => ({
+          i,
+        }));
+        if (candidates.length > maxDots) {
+          // Fisher-Yates Shuffle → ersten maxDots nehmen = gleichmäßiges Sample
+          for (let i = candidates.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+          }
+          candidates.length = maxDots;
+        }
+
+        // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
+        // Opacity wird live in animate() basierend auf Kamera-Entfernung aktualisiert
+        // Bei Speicherfehler: mit weniger Punkten nochmal versuchen
+        dotMeshes = [];
+        try {
+          for (const { i } of candidates) {
+            const mat = new THREE.MeshBasicMaterial({
+              color: devColor(deviations ? deviations[i] : 1),
+              transparent: true,
+              opacity: morphing ? 0 : 1,
+              depthTest: false,
+            });
+            const dot = new THREE.Mesh(dotGeom, mat);
+            dot.userData.targetOpacity = 1;
+            dot.position.copy(vertices[i]);
+            dotMeshes.push(dot);
+            meshGroup.add(dot);
+          }
+        } catch (e) {
+          console.warn(
+            `Speicherfehler bei ${candidates.length} Punkten, reduziere auf ${Math.floor(maxDots / 2)}`,
+          );
+          // Aufräumen und mit halber Punktzahl nochmal versuchen
+          while (meshGroup.children.length) {
+            const c = meshGroup.children[0];
+            c.geometry?.dispose();
+            c.material?.dispose();
+            meshGroup.remove(c);
+          }
+          if (maxDots > 1000) {
+            return buildMesh(data, Math.floor(maxDots / 2));
+          }
+        }
+        document.getElementById("s-samples").textContent =
+          candidates.length.toLocaleString();
+
+        // ---- Abweichungs-Statistik ----
+        // Min/Max Abweichung als Prozent des Kugelradius
+        if (deviations && deviations.length > 0) {
+          let minDev = Infinity,
+            maxDev = -Infinity;
+          for (let i = 0; i < deviations.length; i++) {
+            if (deviations[i] < minDev) minDev = deviations[i];
+            if (deviations[i] > maxDev) maxDev = deviations[i];
+          }
+          const r = sphereRadius || 1;
+          const minPct = ((minDev / r) * 100).toFixed(3).replace(".", ",");
+          const maxPct = ((maxDev / r) * 100).toFixed(3).replace(".", ",");
+          document.getElementById("s-dev").textContent =
+            `${minPct}% .. +${maxPct}%`;
+          // Min-Zoom dynamisch: knapp über dem äußersten Vertex
+          minZoom = (r + maxDev) * 1.15;
+          if (radius < minZoom) radius = minZoom;
+        } else {
+          minZoom = sphereRadius * 1.15;
+          if (radius < minZoom) radius = minZoom;
+          document.getElementById("s-dev").textContent = "-";
+        }
+
+        updateStats(false);
+      }
+
+      // Aktualisiert die Stats-Zeile (Ecken, Kanten, Dauer, etc.)
+      function updateStats(computing) {
+        const h = history[currentIdx];
+        document.getElementById("s-iter").textContent = currentIdx;
+        document.getElementById("s-verts").textContent =
+          h?.vertCount?.toLocaleString() ?? "-";
+        document.getElementById("s-edges").textContent =
+          h?.edgeCount?.toLocaleString() ?? "-";
+        document.getElementById("s-faces").textContent =
+          h?.faceCount?.toLocaleString() ?? "-";
+        // Flächen + n-Ecke nur im Polyeder-Modus anzeigen — im Kugel-Modus gibt
+        // es keine sichtbaren Polygon-Flächen mehr (nur Punktwolke).
+        document.getElementById("s-faces-wrap").style.display =
+          currentIdx <= 12 ? "" : "none";
+        const ngonWrap = document.getElementById("s-ngon-wrap");
+        if (currentIdx <= 12 && h?.ngonDist) {
+          const parts = Object.entries(h.ngonDist)
+            .sort((a, b) => +a[0] - +b[0])
+            .map(([n, c]) => `${n}-Eck: ${c.toLocaleString()}`);
+          document.getElementById("s-ngon").textContent = parts.join(", ");
+          ngonWrap.style.display = "";
+        } else {
+          ngonWrap.style.display = "none";
+        }
+        const d = h?.duration;
+        document.getElementById("s-time").textContent =
+          d != null ? formatDuration(d) : "-";
+        // Nur zurücksetzen wenn noch berechnet wird — buildMesh setzt die Werte danach
+        if (computing) {
+          document.getElementById("s-radius").textContent = "-";
+          document.getElementById("s-samples").textContent = "-";
+          document.getElementById("s-dev").textContent = "-";
+        }
+        // Sanduhr ⏳ anzeigen wenn noch berechnet wird
+        document.getElementById("iteration-label").textContent = computing
+          ? `Iteration ${currentIdx} \u23f3`
+          : `Iteration ${currentIdx}`;
+        document.getElementById("btn-prev").disabled = currentIdx === 0;
+        document.getElementById("btn-next").disabled = currentIdx >= MAX_ITER;
+        // Variante-Button nur im Polyeder-Modus (≤ HULL_MAX_ITER) sichtbar.
+        // Im Kugel-Modus werden Hull/Hybrid nicht berechnet.
+        document.getElementById("btn-variant").style.display =
+          currentIdx <= HULL_MAX_ITER ? "" : "none";
+      }
+
+      // Zeigt die aktuelle Iteration an. Falls noch nicht berechnet,
+      // wird eine Sanduhr angezeigt und beim Eintreffen des Ergebnisses gerendert.
+      function showCurrent() {
+        updateStats(!history[currentIdx]);
+
+        if (history[currentIdx]) {
+          // Laufenden Morph abbrechen wenn nötig
+          if (morphing && oldGroup) {
+            scene.remove(oldGroup);
+            oldGroup.traverse((c) => {
+              c.geometry?.dispose();
+              c.material?.dispose();
+            });
+            oldGroup = null;
+            morphing = false;
+          }
+
+          // Morph starten wenn Polyeder-Modus (iter 0-12) und alter Körper vorhanden
+          if (currentIdx <= 12 && meshGroup.children.length > 0) {
+            // Alten Körper in oldGroup verschieben
+            if (oldGroup) {
+              scene.remove(oldGroup);
+              oldGroup.traverse((c) => {
+                c.geometry?.dispose();
+                c.material?.dispose();
+              });
+            }
+            oldGroup = new THREE.Group();
+            while (meshGroup.children.length > 0) {
+              const child = meshGroup.children[0];
+              meshGroup.remove(child);
+              oldGroup.add(child);
+            }
+            // Initiale Opacity des alten Körpers merken
+            oldGroup.traverse((child) => {
+              if (child.material) {
+                child.userData.startOpacity = child.material.opacity;
+              }
+            });
+            scene.add(oldGroup);
+            morphing = true;
+            morphStart = performance.now();
+          }
+          buildMesh(history[currentIdx]);
+        } else {
+          // Nicht direkt requestCompute aufrufen — sonst sendet der Worker eine
+          // Out-of-order-Berechnung und das Ergebnis wird falsch zugeordnet.
+          // precomputeNext() füllt die History strikt sequenziell; sobald die
+          // gewünschte Iteration eintrifft, wird der Callback ausgeführt.
+          pendingCallbacks.set(`${currentVariant}:${currentIdx}`, () => {
+            if (history[currentIdx]) {
+              buildMesh(history[currentIdx]);
+            }
+          });
+          // Falls der Precompute-Chain pausiert (z.B. weil eine andere Variante
+          // bereits abgeschlossen ist), neu anstoßen.
+          precomputeNext();
+        }
+      }
+
+      // ---- Steuerung ----
+      function goNext() {
+        if (currentIdx >= MAX_ITER) return;
+        currentIdx++;
+        // Hull/Hybrid enden bei iter 12, Topo geht bis MAX_ITER. Wer in Hull/Hybrid-
+        // Modus über iter 12 hinaus klickt, hat sonst nichts zum Anzeigen —
+        // automatisch auf Topo umschalten.
+        if (
+          (currentVariant === "hull" || currentVariant === "hybrid") &&
+          currentIdx > HULL_MAX_ITER
+        ) {
+          currentVariant = "topo";
+          history = histories.topo;
+          pendingCompute = pendingComputes.topo;
+          document.getElementById("btn-variant").textContent =
+            variantLabel("topo");
+        }
+        showCurrent();
+      }
+
+      // Anzeige-Text für den Variante-Button
+      function variantLabel(v) {
+        if (v === "topo") return "Variante: Topologisch";
+        if (v === "hull") return "Variante: Convex Hull";
+        if (v === "hybrid") return "Variante: Hybrid";
+      }
+      function goPrev() {
+        if (currentIdx > 0) {
+          currentIdx--;
+          showCurrent();
+        }
+      }
+
+      // Button-Events: sowohl pointerdown als auch click für maximale Kompatibilität
+      // (pointerdown reagiert sofort, click als Fallback)
+      function btnEvent(id, fn) {
+        const el = document.getElementById(id);
+        let handled = false;
+        el.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          handled = true;
+          fn();
+        });
+        el.addEventListener("click", () => {
+          if (!handled) fn();
+          handled = false;
+        });
+      }
+      btnEvent("btn-next", () => {
+        goNext();
+      });
+      btnEvent("btn-prev", () => {
+        goPrev();
+      });
+
+      // Variante umschalten: zyklisch topo → hull → hybrid → topo (vorwärts)
+      // oder topo → hybrid → hull → topo (rückwärts, mit Shift+Klick).
+      function switchVariant(direction = "forward") {
+        const cycle =
+          direction === "backward"
+            ? { topo: "hybrid", hybrid: "hull", hull: "topo" }
+            : { topo: "hull", hull: "hybrid", hybrid: "topo" };
+        currentVariant = cycle[currentVariant];
+        history = histories[currentVariant];
+        pendingCompute = pendingComputes[currentVariant];
+        document.getElementById("btn-variant").textContent =
+          variantLabel(currentVariant);
+        // Vorberechnung der neuen Variante anstoßen falls noch nicht passiert
+        precomputeNext();
+        // Aktuelle Iteration in der neuen Variante anzeigen
+        showCurrent();
+      }
+      // Eigener Handler statt btnEvent, da wir den Shift-Modifier auswerten.
+      {
+        const el = document.getElementById("btn-variant");
+        let handled = false;
+        el.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          handled = true;
+          switchVariant(e.shiftKey ? "backward" : "forward");
+        });
+        el.addEventListener("click", (e) => {
+          if (!handled) switchVariant(e.shiftKey ? "backward" : "forward");
+          handled = false;
+        });
+      }
+
+      // Tastatursteuerung
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " ") {
+          e.preventDefault();
+          goNext();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          goPrev();
         }
       });
-    }
-  }
 
-  renderer.render(scene, camera);
-})();
-</script>
-</body>
+      // Canvas-Größe an Fenstergröße anpassen
+      window.addEventListener("resize", () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      });
+
+      showCurrent(); // Initiale Anzeige (wartet auf Worker-Ergebnis für Iter 0)
+
+      // ---- Kamera-Rotation (Trackball) ----
+      // Quaternion-basiert: Mausbewegung → Rotation um die Achse senkrecht
+      // zur Mausrichtung in Bildschirmkoordinaten. Kein Gimbal Lock,
+      // keine Richtungsumkehr, keine Pol-Probleme.
+      let radius = 4;
+      let minZoom = 1.8; // Dynamisch: knapp über maximalem Vertex-Radius
+      let dragging = false,
+        lastX = 0,
+        lastY = 0,
+        autoRotate = true;
+      let autoRotateTimer = null;
+      let rotationPaused = false;
+      const camQuat = new THREE.Quaternion();
+      let panX = 0,
+        panY = 0; // Laterale Verschiebung in Kamera-Koordinaten
+      // Initiale Orientierung: leicht gedreht um Y-Achse (Yaw) und X-Achse (Pitch),
+      // damit man beim Start eine 3D-Ansicht des Würfels mit drei sichtbaren
+      // Flächen sieht statt nur einer.
+      {
+        const qH = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          0.7,
+        );
+        const qV = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(1, 0, 0),
+          0.6,
+        );
+        camQuat.multiplyQuaternions(qV, qH);
+      }
+
+      // Pausiert die Auto-Rotation für 3 Sekunden nach manueller Interaktion.
+      // Wird per Doppelklick/-Tap dauerhaft pausiert (rotationPaused = true);
+      // in dem Fall macht diese Funktion nichts (keine Reset-Timer).
+      function pauseAutoRotate() {
+        if (rotationPaused) return;
+        autoRotate = false;
+        clearTimeout(autoRotateTimer);
+        autoRotateTimer = setTimeout(() => {
+          autoRotate = true;
+        }, 3000);
+      }
+
+      renderer.domElement.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        rotationPaused = !rotationPaused;
+        if (rotationPaused) {
+          autoRotate = false;
+          clearTimeout(autoRotateTimer);
+        } else {
+          autoRotate = true;
+        }
+      });
+
+      let panning = false; // Shift-Taste oder Rechtsklick → Pan statt Rotation
+      renderer.domElement.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        panning = e.shiftKey || e.button === 2;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        pauseAutoRotate();
+      });
+      // Rechtsklick-Kontextmenü unterdrücken
+      renderer.domElement.addEventListener("contextmenu", (e) =>
+        e.preventDefault(),
+      );
+      window.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const dx = (e.clientX - lastX) * 0.005;
+        const dy = (e.clientY - lastY) * 0.005;
+
+        if (panning || e.shiftKey) {
+          // PAN: laterale Verschiebung in Kamera-Koordinaten
+          const panSpeed = radius * 0.5;
+          panX -= dx * panSpeed;
+          panY += dy * panSpeed;
+        } else {
+          // ROTATION: Trackball
+          const angle = Math.sqrt(dx * dx + dy * dy);
+          if (angle > 0.0001) {
+            const axis = new THREE.Vector3(-dy / angle, -dx / angle, 0);
+            axis.applyQuaternion(camera.quaternion);
+            const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+            camQuat.premultiply(q);
+            camQuat.normalize();
+          }
+        }
+        lastX = e.clientX;
+        lastY = e.clientY;
+      });
+      window.addEventListener("pointerup", () => {
+        dragging = false;
+        panning = false;
+      });
+      renderer.domElement.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          radius = Math.max(minZoom, Math.min(5, radius + e.deltaY * 0.005));
+          pauseAutoRotate();
+        },
+        { passive: false },
+      );
+
+      // 2-Finger-Gesten: Pinch = Zoom, Drag = Pan
+      let lastPinchDist = 0;
+      let lastTouchMidX = 0,
+        lastTouchMidY = 0;
+      renderer.domElement.addEventListener(
+        "touchstart",
+        (e) => {
+          if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+            lastTouchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            lastTouchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          }
+        },
+        { passive: true },
+      );
+      renderer.domElement.addEventListener(
+        "touchmove",
+        (e) => {
+          if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            if (lastPinchDist > 0) {
+              // Pinch → Zoom
+              radius = Math.max(
+                minZoom,
+                Math.min(5, radius * (lastPinchDist / dist)),
+              );
+              // 2-Finger-Drag → Pan
+              const panDx = (midX - lastTouchMidX) * 0.005;
+              const panDy = (midY - lastTouchMidY) * 0.005;
+              const panSpeed = radius * 0.5;
+              panX -= panDx * panSpeed;
+              panY += panDy * panSpeed;
+              pauseAutoRotate();
+            }
+            lastPinchDist = dist;
+            lastTouchMidX = midX;
+            lastTouchMidY = midY;
+          }
+        },
+        { passive: true },
+      );
+
+      // Render-Loop. Pro Frame:
+      //   1. Auto-Rotation: Y-Achsen-Drehung um die Trackball-Quaternion komponieren
+      //   2. Morph-Animation: Cross-Fade zwischen altem und neuem Körper (Iter-Wechsel)
+      //   3. Kamera positionieren aus Quaternion + Zoom-Radius + Pan-Offset
+      //   4. Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
+      //   5. Three.js render
+      (function animate() {
+        requestAnimationFrame(animate);
+        if (autoRotate) {
+          const qAuto = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            0.003,
+          );
+          camQuat.premultiply(qAuto);
+        }
+
+        // Morph-Animation: Cross-Fade zwischen altem und neuem Körper
+        if (morphing && oldGroup) {
+          const t = Math.min(
+            1,
+            (performance.now() - morphStart) / MORPH_DURATION,
+          );
+          // Ease-in-out für smooth Übergang
+          const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+          // Alten Körper ausblenden
+          oldGroup.traverse((child) => {
+            if (child.material && child.userData.startOpacity != null) {
+              child.material.opacity = child.userData.startOpacity * (1 - ease);
+            }
+          });
+
+          // Neuen Körper einblenden
+          meshGroup.traverse((child) => {
+            if (child.material && child.userData.targetOpacity != null) {
+              child.material.opacity = child.userData.targetOpacity * ease;
+            }
+          });
+
+          // Morph fertig
+          if (t >= 1) {
+            scene.remove(oldGroup);
+            oldGroup.traverse((c) => {
+              c.geometry?.dispose();
+              c.material?.dispose();
+            });
+            oldGroup = null;
+            morphing = false;
+          }
+        }
+
+        // Kameraposition: Rotation um Ursprung (Körpermittelpunkt), Pan lateral
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
+        const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);
+        const panOffset = camRight
+          .clone()
+          .multiplyScalar(panX)
+          .add(camUp.clone().multiplyScalar(panY));
+        camera.position
+          .set(0, 0, radius)
+          .applyQuaternion(camQuat)
+          .add(panOffset);
+        camera.up.copy(camUp);
+        camera.lookAt(panOffset); // Blickziel = Ursprung + lateraler Offset
+
+        // Live-Opacity: Punkte und Kanten verblassen mit Entfernung zur Kamera
+        {
+          const camPos = camera.position;
+
+          // Punkte
+          if (dotMeshes.length > 0) {
+            let minD = Infinity,
+              maxD = 0;
+            for (const dot of dotMeshes) {
+              const d = camPos.distanceTo(dot.position);
+              if (d < minD) minD = d;
+              if (d > maxD) maxD = d;
+            }
+            const range = maxD - minD || 1;
+            for (const dot of dotMeshes) {
+              const d = camPos.distanceTo(dot.position);
+              const t = (d - minD) / range;
+              dot.material.opacity = 1.0 - 0.85 * t;
+            }
+
+            // Kanten: Vertex-Colors basierend auf Entfernung dimmen
+            meshGroup.traverse((child) => {
+              if (child.userData.isEdge && child.geometry.attributes.color) {
+                const pos = child.geometry.attributes.position;
+                const col = child.geometry.attributes.color;
+                const v = new THREE.Vector3();
+                for (let i = 0; i < pos.count; i++) {
+                  v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+                  const d = camPos.distanceTo(v);
+                  const t = (d - minD) / range;
+                  const brightness = 1.0 - 0.85 * t;
+                  col.setXYZ(i, brightness, brightness, brightness);
+                }
+                col.needsUpdate = true;
+              }
+            });
+          }
+        }
+
+        renderer.render(scene, camera);
+      })();
+    </script>
+  </body>
 </html>

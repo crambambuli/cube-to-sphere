@@ -533,15 +533,15 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 
 ## Bedienung
 
-| Aktion                                            | Desktop                                   | Mobil             |
-| ------------------------------------------------- | ----------------------------------------- | ----------------- |
-| Nächste Iteration                                 | Weiter-Button oder → oder Leertaste       | Weiter-Button     |
-| Vorherige Iteration                               | Zurück-Button oder ←                      | Zurück-Button     |
-| Variante umschalten (Topo → Hull → Hybrid → Topo) | „Variante“-Button (nur im Polyeder-Modus) | „Variante“-Button |
-| Körper drehen                                     | Maus ziehen                               | 1 Finger ziehen   |
-| Verschieben (Pan)                                 | Shift+Maus ziehen oder Rechtsklick ziehen | 2 Finger ziehen   |
-| Zoomen                                            | Scrollrad                                 | 2-Finger-Pinch    |
-| Rotation stoppen/starten                          | Doppelklick                               | Doppeltap         |
+| Aktion                                            | Desktop                                                           | Mobil             |
+| ------------------------------------------------- | ----------------------------------------------------------------- | ----------------- |
+| Nächste Iteration                                 | Weiter-Button oder → oder Leertaste                               | Weiter-Button     |
+| Vorherige Iteration                               | Zurück-Button oder ←                                              | Zurück-Button     |
+| Variante umschalten (Topo → Hull → Hybrid → Topo) | „Variante“-Button (Shift+Klick: rückwärts; nur im Polyeder-Modus) | „Variante“-Button |
+| Körper drehen                                     | Maus ziehen                                                       | 1 Finger ziehen   |
+| Verschieben (Pan)                                 | Shift+Maus ziehen oder Rechtsklick ziehen                         | 2 Finger ziehen   |
+| Zoomen                                            | Scrollrad                                                         | 2-Finger-Pinch    |
+| Rotation stoppen/starten                          | Doppelklick                                                       | Doppeltap         |
 
 Pinch und Pan funktionieren gleichzeitig: der Abstand der beiden Finger steuert den Zoom, die gemeinsame Bewegung den Pan.
 
