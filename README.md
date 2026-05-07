@@ -263,7 +263,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 > 3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
 > 4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
 >
-> **Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagons, Hexagons) entstehen durch Zusammenfassen koplanarer Nachbarn:
+> **Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagone, Hexagone) entstehen durch Zusammenfassen koplanarer Nachbarn:
 >
 > 1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
 > 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
@@ -294,7 +294,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 | 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48  | 1:29:28  | ~1,2 GB    |
 | 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck:940.184, 4-Eck:584.178, 5-Eck:13.008, 6-Eck:480, 7-Eck:48 | 16:47:31 | ~3 GB      |
 
-> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen.
+> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB).
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie _mathematisch exakt koplanar_ — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -306,14 +306,14 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 
 Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also genau eine generische O<sub>h</sub>-Bahn von Quads bricht zuerst die Planarität.
 
-**Erstmalige Pentagons und Hexagons.** Iter 9 bringt erstmals 48 Pentagons, Iter 10 erstmals 48 Hexagons — beides exakt eine O<sub>h</sub>-Bahn. Bei höheren Iterationen entstehen weitere 5- und 6-Ecke, wenn mehrere nicht-planare Quads im Hull zu einem größeren Polygon mergen.
+**Erstmalige Pentagone, Hexagone und Heptagone.** Iter 9 bringt erstmals 48 Pentagone, Iter 10 erstmals 48 Hexagone, Iter 14 erstmals 48 Heptagone — jeweils exakt eine O<sub>h</sub>-Bahn. Bei höheren Iterationen entstehen weitere 5-, 6- und 7-Ecke, wenn mehrere nicht-planare Quads im Hull zu einem größeren Polygon mergen.
 
 <details>
 <summary><b>Bemerkenswerte Muster bei höheren Iterationen</b></summary>
 
-> - **Hexagons konstant bei 48 — bis Iter 13.** Von ihrem ersten Auftreten bei Iter 10 bis Iter 13 unverändert 48 Stück (eine einzelne O<sub>h</sub>-Bahn, vermutlich an den 3-fachen Achsen durch die Würfelecken). Bei Iter 14 springt die Anzahl auf 144 (= 3 × 48), bei **Iter 15 dann auf 480 (= 10 × 48)** — der Orbit verzweigt sich rasant.
+> - **Hexagone konstant bei 48 — bis Iter 13.** Von ihrem ersten Auftreten bei Iter 10 bis Iter 13 unverändert 48 Stück (eine einzelne O<sub>h</sub>-Bahn, vermutlich an den 3-fachen Achsen durch die Würfelecken). Bei Iter 14 springt die Anzahl auf 144 (= 3 × 48), bei **Iter 15 dann auf 480 (= 10 × 48)** — der Orbit verzweigt sich rasant.
 > - **Erstes Heptagon (7-Eck) bei Iter 14**: genau 48 Stück, und diese Anzahl bleibt **bei Iter 15 konstant 48** — eine einzelne stabile O<sub>h</sub>-Bahn (analog zur frühen Hexagon-Phase).
-> - **Pentagons wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208 → 5.328 → 13.008. Wachstumsfaktoren: ×2, ×3,5, ×2,86, ×2,3, ×2,4, ×2,4. Tendenziell stabilisiert sich der Faktor um ×2,3–2,4.
+> - **Pentagone wachsen stark.** Anzahl der 5-Ecke: 48 → 96 → 336 → 960 → 2.208 → 5.328 → 13.008. Wachstumsfaktoren: ×2, ×3,5, ×2,86, ×2,3, ×2,4, ×2,4. Tendenziell stabilisiert sich der Faktor um ×2,3–2,4.
 > - **Dreiecke und Vierecke skalieren ungefähr proportional zur Vertex-Anzahl** und dominieren die Topologie. Ihr Verhältnis schwankt aber: bei Iter 10 sind ~57% der Flächen Dreiecke, bei Iter 12 schon ~60%, bei Iter 14 ~61%, bei Iter 15 ~61%.
 > - **Die 48 ist allgegenwärtig**, weil |O<sub>h</sub>| = 48: alle generischen Bahnen haben Größe 48, höhersymmetrische Positionen produzieren Teiler von 48 (24, 12, 8, 6), und Vielfache von 48 entstehen, wenn mehrere Bahnen denselben Polygon-Typ produzieren.
 
@@ -422,7 +422,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 >
 > **Beobachtung 1: schlankeres Mesh.** Der „explosive“ Vertex-Anstieg von Hull (durch Diagonal-Mittelpunkte als zusätzliche Vertices) entfällt. Iter 15: 197 k Vertices statt 1.075 k bei Hull (Faktor ~5,5× weniger).
 >
-> **Beobachtung 2: nur Dreiecke und Vierecke.** Im Gegensatz zu Hull entstehen bei Hybrid bis Iter 15 _keine_ Pentagons, Hexagons oder Heptagons — die Topologie bleibt strukturell einfacher.
+> **Beobachtung 2: nur Dreiecke und Vierecke.** Im Gegensatz zu Hull entstehen bei Hybrid bis Iter 15 _keine_ Pentagone, Hexagone oder Heptagone — die Topologie bleibt strukturell einfacher.
 >
 > **Beobachtung 3: Dreieck-Plateaus.** Anzahl der Dreiecke bleibt jeweils zwei Iterationen lang konstant, dann ein Sprung auf das ~4-fache: 8 → 104 (Iter 5–6) → 584 (Iter 7–8) → 2.696 (Iter 9–10) → 11.528 (Iter 11–12) → 47.624 (Iter 13–14) → 193.544 (Iter 15). Jede Stufe ein Vielfaches von 8.
 
@@ -435,7 +435,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 | Vertex-Anzahl      | × 2 pro Iter                           | überproportional ab Iter 5                                                                         | × 2 pro Iter (wie Topo)                          |
 | Kanten-Anzahl      | E' = 2E (immer)                        | ≥ 2E, divergiert ab Iter 5                                                                         | ≥ 2E (variabel)                                  |
 | Flächen            | Polygone (möglicherweise nicht-planar) | exakt planar                                                                                       | exakt planar                                     |
-| Topologie          | konstant: 8 Dreiecke + Rest Quads      | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons, ab Iter 10 Hexagons, ab Iter 14 Heptagons | wechselnd, aber bis Iter 15 nur Dreiecke + Quads |
+| Topologie          | konstant: 8 Dreiecke + Rest Quads      | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagone, ab Iter 10 Hexagone, ab Iter 14 Heptagone | wechselnd, aber bis Iter 15 nur Dreiecke + Quads |
 | Speicher (Iter 15) | < 50 MB                                | ~3 GB                                                                                              | ~544 MB                                          |
 | Konvergenz         | gleicher Grenzkörper im Limes          | gleicher Grenzkörper                                                                               | gleicher Grenzkörper                             |
 
