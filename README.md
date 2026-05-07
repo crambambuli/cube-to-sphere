@@ -508,7 +508,7 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Kanten       | Anzahl Kanten                                                                                                              |
 | Flächen      | Anzahl Polygon-Flächen                                                                                                     |
 | n-Ecke       | Aufschlüsselung der Flächen nach Eckenzahl (z. B. `3-Eck: 104, 4-Eck: 138`)                                                |
-| Radius       | Durchschnittsabstand der Vertices vom Ursprung (schrumpft pro Iteration)                                                   |
+| Radius       | Durchschnittsabstand der Vertices vom Ursprung (konvergiert gegen einen Grenzwert > 1)                                     |
 | Dauer        | Berechnungszeit der Iteration im Web Worker                                                                                |
 | Samples      | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen)                                                       |
 | Abweichung   | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent                                                                       |
