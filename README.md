@@ -518,7 +518,7 @@ Werte zeigen „-“ an, solange die Iteration noch berechnet wird.
 
 ### Vorberechnung
 
-Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo, Hull und Hybrid laufen auf drei separaten Web Workern echt parallel — bei Iter 11 ist Topo viel schneller (~50 ms) als Hybrid (~1,7 s) und Hull (~17 s). Beim Klick auf „Weiter“ wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der nächsten Variante ersetzt (sofern bereits vorberechnet).
+Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo, Hull und Hybrid laufen auf drei separaten Web Workern echt parallel — bei höheren Iterationen ist Topo deutlich schneller als Hybrid, Hull am langsamsten (z. B. Iter 12: Topo < 1 s, Hybrid 11 s, Hull 1 min 40 s). Beim Klick auf „Weiter“ wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der nächsten Variante ersetzt (sofern bereits vorberechnet).
 
 ### Mobilgeräte
 
