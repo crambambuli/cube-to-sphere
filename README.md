@@ -275,24 +275,24 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 
 </details>
 
-| Iter  | V         | E         | F         | n-Eck-Verteilung                                                | Dauer       | Speicher   |
-| ----- | --------- | --------- | --------- | --------------------------------------------------------------- | ----------- | ---------- |
-| 0     | 8         | 12        | 6         | 4-Eck:6                                                         | —           | < 1 MB     |
-| 1     | 12        | 24        | 14        | 3-Eck:8, 4-Eck:6                                                | < 1 ms      | < 1 MB     |
-| 2     | 24        | 48        | 26        | 3-Eck:8, 4-Eck:18                                               | < 1 ms      | < 1 MB     |
-| 3     | 48        | 96        | 50        | 3-Eck:8, 4-Eck:42                                               | 2 ms        | < 1 MB     |
-| 4     | 96        | 192       | 98        | 3-Eck:8, 4-Eck:90                                               | 2 ms        | < 1 MB     |
-| **5** | **192**   | **432**   | **242**   | **3-Eck:104, 4-Eck:138**                                        | **6 ms**    | **< 1 MB** |
-| 6     | 432       | 1.008     | 578       | 3-Eck:296, 4-Eck:282                                            | 13 ms       | 9 MB       |
-| 7     | 1.008     | 2.352     | 1.346     | 3-Eck:680, 4-Eck:666                                            | 21 ms       | 14 MB      |
-| 8     | 2.352     | 5.424     | 3.074     | 3-Eck:1.448, 4-Eck:1.626                                        | 80 ms       | 25 MB      |
-| 9     | 5.424     | 13.008    | 7.586     | 3-Eck:4.376, 4-Eck:3.162, 5-Eck:48                              | 270 ms      | 46 MB      |
-| 10    | 13.008    | 31.104    | 18.098    | 3-Eck:10.376, 4-Eck:7.578, 5-Eck:96, 6-Eck:48                   | 1,9 s       | 75 MB      |
-| 11    | 31.104    | 75.168    | 44.066    | 3-Eck:26.360, 4-Eck:17.322, 5-Eck:336, 6-Eck:48                 | 17 s        | 135 MB     |
-| 12    | 75.168    | 181.776   | 106.610   | 3-Eck:63.944, 4-Eck:41.658, 5-Eck:960, 6-Eck:48                 | 1 min 40 s  | 178 MB     |
-| 13    | 181.776   | 442.800   | 261.026   | 3-Eck:160.808, 4-Eck:97.962, 5-Eck:2.208, 6-Eck:48              | 13 min      | 411 MB     |
-| 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck:384.296, 4-Eck:242.250, 5-Eck:5.328, 6-Eck:144, 7-Eck:48  | 1 h 30 min  | ~1,2 GB    |
-| 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck:940.184, 4-Eck:584.178, 5-Eck:13.008, 6-Eck:480, 7-Eck:48 | 16 h 50 min | ~3 GB      |
+| Iter  | V         | E         | F         | n-Eck-Verteilung                                                     | Dauer       | Speicher   |
+| ----- | --------- | --------- | --------- | -------------------------------------------------------------------- | ----------- | ---------- |
+| 0     | 8         | 12        | 6         | 4-Eck: 6                                                             | —           | < 1 MB     |
+| 1     | 12        | 24        | 14        | 3-Eck: 8, 4-Eck: 6                                                   | < 1 ms      | < 1 MB     |
+| 2     | 24        | 48        | 26        | 3-Eck: 8, 4-Eck: 18                                                  | < 1 ms      | < 1 MB     |
+| 3     | 48        | 96        | 50        | 3-Eck: 8, 4-Eck: 42                                                  | 2 ms        | < 1 MB     |
+| 4     | 96        | 192       | 98        | 3-Eck: 8, 4-Eck: 90                                                  | 2 ms        | < 1 MB     |
+| **5** | **192**   | **432**   | **242**   | **3-Eck: 104, 4-Eck: 138**                                           | **6 ms**    | **< 1 MB** |
+| 6     | 432       | 1.008     | 578       | 3-Eck: 296, 4-Eck: 282                                               | 13 ms       | 9 MB       |
+| 7     | 1.008     | 2.352     | 1.346     | 3-Eck: 680, 4-Eck: 666                                               | 21 ms       | 14 MB      |
+| 8     | 2.352     | 5.424     | 3.074     | 3-Eck: 1.448, 4-Eck: 1.626                                           | 80 ms       | 25 MB      |
+| 9     | 5.424     | 13.008    | 7.586     | 3-Eck: 4.376, 4-Eck: 3.162, 5-Eck: 48                                | 270 ms      | 46 MB      |
+| 10    | 13.008    | 31.104    | 18.098    | 3-Eck: 10.376, 4-Eck: 7.578, 5-Eck: 96, 6-Eck: 48                    | 1,9 s       | 75 MB      |
+| 11    | 31.104    | 75.168    | 44.066    | 3-Eck: 26.360, 4-Eck: 17.322, 5-Eck: 336, 6-Eck: 48                  | 17 s        | 135 MB     |
+| 12    | 75.168    | 181.776   | 106.610   | 3-Eck: 63.944, 4-Eck: 41.658, 5-Eck: 960, 6-Eck: 48                  | 1 min 40 s  | 178 MB     |
+| 13    | 181.776   | 442.800   | 261.026   | 3-Eck: 160.808, 4-Eck: 97.962, 5-Eck: 2.208, 6-Eck: 48               | 13 min      | 411 MB     |
+| 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck: 384.296, 4-Eck: 242.250, 5-Eck: 5.328, 6-Eck: 144, 7-Eck: 48  | 1 h 30 min  | ~1,2 GB    |
+| 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck: 940.184, 4-Eck: 584.178, 5-Eck: 13.008, 6-Eck: 480, 7-Eck: 48 | 16 h 50 min | ~3 GB      |
 
 > **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB).
 
@@ -401,24 +401,24 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 <details>
 <summary><b>Hybrid-Verhalten an konkreten Iterationen</b></summary>
 
-> | Iter | V       | E       | F       | n-Eck-Verteilung            | Dauer      | Speicher |
-> | ---- | ------- | ------- | ------- | --------------------------- | ---------- | -------- |
-> | 0    | 8       | 12      | 6       | 4-Eck:6                     | —          | < 1 MB   |
-> | 1    | 12      | 24      | 14      | 3-Eck:8, 4-Eck:6            | < 1 ms     | < 1 MB   |
-> | 2    | 24      | 48      | 26      | 3-Eck:8, 4-Eck:18           | < 1 ms     | < 1 MB   |
-> | 3    | 48      | 96      | 50      | 3-Eck:8, 4-Eck:42           | < 1 ms     | < 1 MB   |
-> | 4    | 96      | 192     | 98      | 3-Eck:8, 4-Eck:90           | < 1 ms     | < 1 MB   |
-> | 5    | 192     | 432     | 242     | 3-Eck:104, 4-Eck:138        | < 1 ms     | < 1 MB   |
-> | 6    | 384     | 816     | 434     | 3-Eck:104, 4-Eck:330        | < 1 ms     | < 1 MB   |
-> | 7    | 768     | 1.824   | 1.058   | 3-Eck:584, 4-Eck:474        | < 1 ms     | 14 MB    |
-> | 8    | 1.536   | 3.360   | 1.826   | 3-Eck:584, 4-Eck:1.242      | < 1 ms     | 22 MB    |
-> | 9    | 3.072   | 7.488   | 4.418   | 3-Eck:2.696, 4-Eck:1.722    | 0,1 s      | 44 MB    |
-> | 10   | 6.144   | 13.632  | 7.490   | 3-Eck:2.696, 4-Eck:4.794    | 0,3 s      | 54 MB    |
-> | 11   | 12.288  | 30.336  | 18.050  | 3-Eck:11.528, 4-Eck:6.522   | 1,7 s      | 70 MB    |
-> | 12   | 24.576  | 54.912  | 30.338  | 3-Eck:11.528, 4-Eck:18.810  | 11 s       | 158 MB   |
-> | 13   | 49.152  | 122.112 | 72.962  | 3-Eck:47.624, 4-Eck:25.338  | 48 s       | 137 MB   |
-> | 14   | 98.304  | 220.416 | 122.114 | 3-Eck:47.624, 4-Eck:74.490  | 4 min 40 s | 410 MB   |
-> | 15   | 196.608 | 489.984 | 293.378 | 3-Eck:193.544, 4-Eck:99.834 | 21 min     | 544 MB   |
+> | Iter | V       | E       | F       | n-Eck-Verteilung              | Dauer      | Speicher |
+> | ---- | ------- | ------- | ------- | ----------------------------- | ---------- | -------- |
+> | 0    | 8       | 12      | 6       | 4-Eck: 6                      | —          | < 1 MB   |
+> | 1    | 12      | 24      | 14      | 3-Eck: 8, 4-Eck: 6            | < 1 ms     | < 1 MB   |
+> | 2    | 24      | 48      | 26      | 3-Eck: 8, 4-Eck: 18           | < 1 ms     | < 1 MB   |
+> | 3    | 48      | 96      | 50      | 3-Eck: 8, 4-Eck: 42           | < 1 ms     | < 1 MB   |
+> | 4    | 96      | 192     | 98      | 3-Eck: 8, 4-Eck: 90           | < 1 ms     | < 1 MB   |
+> | 5    | 192     | 432     | 242     | 3-Eck: 104, 4-Eck: 138        | < 1 ms     | < 1 MB   |
+> | 6    | 384     | 816     | 434     | 3-Eck: 104, 4-Eck: 330        | < 1 ms     | < 1 MB   |
+> | 7    | 768     | 1.824   | 1.058   | 3-Eck: 584, 4-Eck: 474        | < 1 ms     | 14 MB    |
+> | 8    | 1.536   | 3.360   | 1.826   | 3-Eck: 584, 4-Eck: 1.242      | < 1 ms     | 22 MB    |
+> | 9    | 3.072   | 7.488   | 4.418   | 3-Eck: 2.696, 4-Eck: 1.722    | 0,1 s      | 44 MB    |
+> | 10   | 6.144   | 13.632  | 7.490   | 3-Eck: 2.696, 4-Eck: 4.794    | 0,3 s      | 54 MB    |
+> | 11   | 12.288  | 30.336  | 18.050  | 3-Eck: 11.528, 4-Eck: 6.522   | 1,7 s      | 70 MB    |
+> | 12   | 24.576  | 54.912  | 30.338  | 3-Eck: 11.528, 4-Eck: 18.810  | 11 s       | 158 MB   |
+> | 13   | 49.152  | 122.112 | 72.962  | 3-Eck: 47.624, 4-Eck: 25.338  | 48 s       | 137 MB   |
+> | 14   | 98.304  | 220.416 | 122.114 | 3-Eck: 47.624, 4-Eck: 74.490  | 4 min 40 s | 410 MB   |
+> | 15   | 196.608 | 489.984 | 293.378 | 3-Eck: 193.544, 4-Eck: 99.834 | 21 min     | 544 MB   |
 >
 > **Beobachtung 1: schlankeres Mesh.** Der „explosive“ Vertex-Anstieg von Hull (durch Diagonal-Mittelpunkte als zusätzliche Vertices) entfällt. Iter 15: 197 k Vertices statt 1.075 k bei Hull (Faktor ~5,5× weniger).
 >
@@ -507,7 +507,7 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Ecken        | Anzahl Vertices (exakt aus Topologie, nicht Euler-Schätzung)                                                               |
 | Kanten       | Anzahl Kanten                                                                                                              |
 | Flächen      | Anzahl Polygon-Flächen                                                                                                     |
-| n-Ecke       | Aufschlüsselung der Flächen nach Eckenzahl (z. B. `3-Eck:104, 4-Eck:138`)                                                  |
+| n-Ecke       | Aufschlüsselung der Flächen nach Eckenzahl (z. B. `3-Eck: 104, 4-Eck: 138`)                                                |
 | Radius       | Durchschnittsabstand der Vertices vom Ursprung (schrumpft pro Iteration)                                                   |
 | Dauer        | Berechnungszeit der Iteration im Web Worker                                                                                |
 | Samples      | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen)                                                       |

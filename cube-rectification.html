@@ -118,7 +118,7 @@
     Samples: <span id="s-samples">-</span>
     Abweichung: <span id="s-dev">-</span>
     <span id="s-faces-wrap">Flächen: <span id="s-faces">6</span></span>
-    <span id="s-ngon-wrap">n-Ecke: <span id="s-ngon">4-Eck:6</span></span>
+    <span id="s-ngon-wrap">n-Ecke: <span id="s-ngon">4-Eck: 6</span></span>
     Vorberechnet: <span id="s-precomp">topo 0, hull 0</span>
     <span id="s-progress"></span>
   </div>
@@ -1661,7 +1661,7 @@ function updateStats(computing) {
   const ngonWrap = document.getElementById('s-ngon-wrap');
   if (currentIdx <= 12 && h?.ngonDist) {
     const parts = Object.entries(h.ngonDist).sort((a, b) => +a[0] - +b[0])
-      .map(([n, c]) => `${n}-Eck:${c.toLocaleString()}`);
+      .map(([n, c]) => `${n}-Eck: ${c.toLocaleString()}`);
     document.getElementById('s-ngon').textContent = parts.join(', ');
     ngonWrap.style.display = '';
   } else {
