@@ -107,7 +107,7 @@ Bei einem **konvexen** Eingabepolyeder mit **planaren** Vertex-Figuren (z. B. W�
 
 Mit dem Schrumpffolien-Bild wird auch klar, warum alle drei Varianten **bis Iter 4 identisch** sind: solange alle Vertex-Figur-Quads exakt planar sind, schmiegt sich die Folie an genau diese Quads an. **Ab Iter 5** sind manche Quads leicht gewölbt — die Folie muss sich um die gewölbte Form herum spannen und teilt sie in zwei plane Dreiecke auf. Genau das ist der Symmetriebruch in der Convex-Hull-Variante.
 
-Alle drei konvergieren bei endloser Iteration gegen **denselben Grenzkörper** — sie unterscheiden sich nur in der Wahl der Triangulierung der nicht-planaren Vertex-Figuren bei endlichen Iterationen.
+**Topo und Hybrid** haben in jeder Iteration identische Vertex-Mengen (Hybrid übernimmt die Topo-Vertex-Erzeugung) und konvergieren damit gegen denselben Grenzkörper. **Hull** divergiert ab Iter 6 in der Vertex-Menge: durch das Splitten nicht-planarer Quads entlang einer Diagonalen entstehen ab iter 6 zusätzliche Vertices an den Diagonal-Mittelpunkten — diese liegen auf der „Ridge-Linie“ zwischen zwei Beulen-Eckpunkten und sind im Topo-Vertex-Set nicht enthalten (auch nicht durch weitere Topo-Iterationen erreichbar). Der Hull-Grenzkörper ist daher eng verwandt mit dem Topo/Hybrid-Grenzkörper, aber vermutlich nicht identisch — er sollte an den Beulen geringfügig weiter draußen liegen.
 
 ### Was alle drei Varianten gemeinsam haben
 
@@ -367,12 +367,12 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 > - Der weighted-avg übersteigt rAvg(N)
 > - Die obere Schranke lässt rAvg(N+1) ≥ rAvg(N) zu
 >
-> **Konsequenz.** Beide Varianten konvergieren formal gegen denselben Grenzkörper, aber sie produzieren verschieden verteilte Stichproben auf seiner Oberfläche:
+> **Konsequenz.** Topo und Hull haben ab Iter 6 disjunkte Vertex-Mengen (Hull fügt Diagonal-Mittelpunkte ein, die in Topo nicht erreicht werden) und konvergieren daher vermutlich gegen leicht unterschiedliche Grenzkörper:
 >
 > - Topo: gleichmäßige Stichprobe (alle Vertices Grad 4) → rAvg konvergiert _von oben_ gegen einen Grenzwert
-> - Hull: Stichprobe mit Bias zu den Beulen → rAvg konvergiert nach kurzem Schrumpfen _von unten_ gegen einen leicht höheren Wert (Bias-getrieben in Richtung Maximalradius)
+> - Hull: zusätzliche Vertices an den Beulen-Ridges → rAvg konvergiert nach kurzem Schrumpfen _von unten_ gegen einen höheren Wert
 >
-> Beide Werte sind korrekte Mittelwerte ihrer jeweiligen Vertex-Mengen — sie messen lediglich unterschiedliche Sample-Verteilungen desselben Grenzkörpers.
+> Der Unterschied ist klein (rAvg-Differenz < 1 % bei iter 15), aber er ist nicht reine Stichproben-Verzerrung: die zusätzlichen Hull-Vertices erweitern die Vertex-Menge in Bereiche, die Topo nicht abdeckt. Hybrid hat dieselbe Vertex-Menge wie Topo und damit denselben Grenzkörper.
 
 </details>
 
@@ -396,7 +396,7 @@ Vorteil gegenüber Topo:
 
 - **Flächen exakt planar** (per Hull-Definition)
 
-Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nur mit weniger Vertex-Inflation. Alle drei Varianten konvergieren formal gegen denselben Grenzkörper.
+Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nur mit weniger Vertex-Inflation. Hybrid und Topo konvergieren gegen denselben Grenzkörper (identische Vertex-Mengen); Hull konvergiert gegen einen eng verwandten, aber vermutlich geringfügig größeren Grenzkörper (zusätzliche Diagonal-Mittelpunkte an den Beulen).
 
 <details>
 <summary><b>Hybrid-Verhalten an konkreten Iterationen</b></summary>
@@ -437,7 +437,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 | Flächen            | Polygone (möglicherweise nicht-planar) | exakt planar                                                                                       | exakt planar                                     |
 | Topologie          | konstant: 8 Dreiecke + Rest Quads      | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagone, ab Iter 10 Hexagone, ab Iter 14 Heptagone | wechselnd, aber bis Iter 15 nur Dreiecke + Quads |
 | Speicher (Iter 15) | < 50 MB                                | ~3 GB                                                                                              | ~544 MB                                          |
-| Konvergenz         | gleicher Grenzkörper im Limes          | gleicher Grenzkörper                                                                               | gleicher Grenzkörper                             |
+| Konvergenz         | Grenzkörper K (= Hybrid)               | eng verwandter, vermutlich größerer Grenzkörper                                                    | Grenzkörper K (= Topo)                           |
 
 Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull warten.
 
