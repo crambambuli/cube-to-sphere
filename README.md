@@ -636,6 +636,10 @@ python3 -m http.server 8766
 # → http://localhost:8766
 ```
 
+## Danksagung
+
+Dank an **Dr. rer. nat. Gregor Peltri** (HTWK Leipzig) für die ursprüngliche Problemstellung und sorgfältige fachliche Reviews der Mathematik.
+
 ## Lizenz
 
 MIT
