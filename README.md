@@ -579,7 +579,7 @@ Führt die **Flächen-Topologie** explizit mit, ohne Approximation:
 
 Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem koplanaren Polygon-Merge. Die volle Algorithmus-Beschreibung steht im Mathematik-Abschnitt unter [Variante 2: Convex-Hull-Rektifikation](#variante-2-convex-hull-rektifikation) (Klappblock „Algorithmus, Komplexität und numerische Sicherheit“).
 
-Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 14 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
+Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 15 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
 
 `HULL_MAX_ITER = 12`: höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
 
