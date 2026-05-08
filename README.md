@@ -96,12 +96,12 @@ Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der ne
 
 Bei einem **konvexen** Eingabepolyeder mit **planaren** Vertex-Figuren (z. B. Würfel, Kuboktaeder) liefern alle drei dasselbe Ergebnis. Die folgende Gegenüberstellung zeigt den fundamentalen Unterschied zwischen topologischer und Hull-Sicht; Hybrid übernimmt die Vertex-Erzeugung von Topo und die Flächen-Topologie vom Hull (siehe [Variante 3](#variante-3-hybrid-topo-vertices--hull-topologie)).
 
-|                                              | Topologisch                        | Konvexe Hülle       |
-| -------------------------------------------- | ---------------------------------- | ------------------- |
-| Behandelt 4 nicht-koplanare Mittelpunkte als | **ein** Quad (gewölbt)             | **zwei** Dreiecke   |
-| Macht aus 4 koplanaren benachbarten Quads    | 4 separate Quads                   | **ein** Hexagon     |
-| Topologie über alle Iterationen              | konstant (8 Dreiecke + Rest Quads) | wechselnd           |
-| Definition setzt voraus                      | Polyeder mit Inzidenzstruktur      | nur eine Punktmenge |
+|                                              | Topologisch                                     | Konvexe Hülle                                                                              |
+| -------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Behandelt 4 nicht-koplanare Mittelpunkte als | **ein** Quad (gewölbt)                          | **zwei** Dreiecke                                                                          |
+| Behandelt eine flache Region als             | ererbte Tessellierung (4 Quads bleiben 4 Quads) | **ein** einziges Polygon (egal wieviele Dreiecke der Hull-Algorithmus dort produziert hat) |
+| Topologie über alle Iterationen              | konstant (8 Dreiecke + Rest Quads)              | wechselnd                                                                                  |
+| Definition setzt voraus                      | Polyeder mit Inzidenzstruktur                   | nur eine Punktmenge                                                                        |
 
 **Anschaulich:** Die topologische Variante „vererbt“ das Schnittmuster aus der vorherigen Iteration. Die konvexe Hülle „vergisst“ die Geschichte und schaut nur, wie die Punkte tatsächlich im Raum liegen.
 
