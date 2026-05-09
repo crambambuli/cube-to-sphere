@@ -136,25 +136,25 @@ Iter  Beule (außen)    Delle (innen)
  ...
  15   ██████████████▏  ███████████▏         7,843%
  20   ██████████████▏  ███████████▏         7,845%
-         -7,845%          +6,604%
+         +7,845%          -6,604%
 ```
 
 Iterationen 0–2 haben exakt 0% Abweichung, weil alle Vertices gleich weit vom Zentrum entfernt sind (Würfel, Kuboktaeder und dessen Rektifikation haben jeweils gleich lange Kanten und äquidistante Vertices).
 
-| Iteration | Min (Beule) | Max (Delle) |
+| Iteration | Min (Delle) | Max (Beule) |
 | --------- | ----------- | ----------- |
 | 0         | 0,000%      | +0,000%     |
 | 1         | 0,000%      | +0,000%     |
 | 2         | 0,000%      | +0,000%     |
 | 3         | -2,548%     | +2,548%     |
-| 5         | -6,272%     | +5,407%     |
-| 7         | -7,438%     | +6,291%     |
-| 10        | -7,793%     | +6,564%     |
-| 13        | -7,838%     | +6,599%     |
-| 15        | -7,843%     | +6,602%     |
-| 20        | -7,845%     | +6,604%     |
+| 5         | -5,407%     | +6,272%     |
+| 7         | -6,291%     | +7,438%     |
+| 10        | -6,564%     | +7,793%     |
+| 13        | -6,599%     | +7,838%     |
+| 15        | -6,602%     | +7,843%     |
+| 20        | -6,604%     | +7,845%     |
 
-Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
+Die Abweichung stabilisiert sich bei **-6,604% / +7,845%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
 **Die Ursache** ist eine topologische Nicht-Uniformität: die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten und sind topologische Singularitäten in einem ansonsten Quad-dominierten Mesh[^mesh].
 

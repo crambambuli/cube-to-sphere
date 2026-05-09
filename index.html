@@ -649,7 +649,7 @@
           // Unter 0.001% Abweichung: alles grau (verhindert Farbverstärkung bei Fließkomma-Rauschen)
           const t =
             maxAbsDev > 1e-5 ? Math.min(1, Math.abs(dev) / maxAbsDev) : 0;
-          if (dev < 0) {
+          if (dev > 0) {
             // Außerhalb der Kugel: grau → rot
             return new THREE.Color(0.4 + 0.6 * t, 0.4 * (1 - t), 0.4 * (1 - t));
           } else {
