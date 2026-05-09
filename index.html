@@ -824,6 +824,11 @@
       function showCurrent() {
         updateStats(!history[currentIdx]);
 
+        // Bei jeder Navigation den Vorberechnungs-Lookahead anstoßen — sonst
+        // bleibt die Vorberechnung auf dem Lookahead-Stand der vorherigen
+        // Position stehen und holt iter (currentIdx + LOOKAHEAD) nicht nach.
+        precomputeNext();
+
         if (history[currentIdx]) {
           // Laufenden Morph abbrechen wenn nötig
           if (morphing && oldGroup) {
