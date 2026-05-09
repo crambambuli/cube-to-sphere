@@ -1812,10 +1812,17 @@ self.onmessage = async function (e) {
           (v) => v !== currentVariant,
         );
         const order = [currentVariant, ...others];
+        // Vorberechnung aggressiv deckeln: nur bis currentIdx + LOOKAHEAD,
+        // sonst wachsen die histories[] bei hohen Topo-Iterationen exponentiell
+        // (iter 18: ~1,5 M Vertices, iter 20: ~6 M) und crashen den Tab.
+        // Wenn der User weiterklickt, queued requestCompute() automatisch das
+        // benötigte iter on-demand.
+        const LOOKAHEAD = 3;
         for (const v of order) {
           const h = histories[v],
             p = pendingComputes[v];
-          const max = v === "topo" ? MAX_ITER : HULL_MAX_ITER;
+          const hardMax = v === "topo" ? MAX_ITER : HULL_MAX_ITER;
+          const max = Math.min(hardMax, currentIdx + LOOKAHEAD);
           // Pro Variante max. eine offene Anfrage in flight: precomputeNext
           // feuert nach jedem Result erneut und queued dann den nächsten Schritt.
           if (p.size > 0) continue;
@@ -2022,7 +2029,6 @@ self.onmessage = async function (e) {
               ? dotSizes[currentIdx]
               : 0.001
             : 0.003;
-        const dotGeom = new THREE.SphereGeometry(dotSize, 4, 4);
         // Nur originale Vertices (nicht Triangulierungs-Mittelpunkte) als Punkte anzeigen
         const numOrigVerts = deviations ? deviations.length : vertices.length;
         const candidates = Array.from({ length: numOrigVerts }, (_, i) => ({
@@ -2037,41 +2043,58 @@ self.onmessage = async function (e) {
           candidates.length = maxDots;
         }
 
-        // Jeden Punkt als kleine Kugel mit individueller Farbe rendern
-        // Opacity wird live in animate() basierend auf Kamera-Entfernung aktualisiert
-        // Bei Speicherfehler: mit weniger Punkten nochmal versuchen
-        dotMeshes = [];
-        try {
-          for (const { i } of candidates) {
-            const mat = new THREE.MeshBasicMaterial({
-              color: devColor(deviations ? deviations[i] : 1),
-              transparent: true,
-              opacity: morphing ? 0 : 1,
-              depthTest: false,
-            });
-            const dot = new THREE.Mesh(dotGeom, mat);
-            dot.userData.targetOpacity = 1;
-            dot.position.copy(vertices[i]);
-            dotMeshes.push(dot);
-            meshGroup.add(dot);
-          }
-        } catch (e) {
-          console.warn(
-            `Speicherfehler bei ${candidates.length} Punkten, reduziere auf ${Math.floor(maxDots / 2)}`,
-          );
-          // Aufräumen und mit halber Punktzahl nochmal versuchen
-          while (meshGroup.children.length) {
-            const c = meshGroup.children[0];
-            c.geometry?.dispose();
-            c.material?.dispose();
-            meshGroup.remove(c);
-          }
-          if (maxDots > 1000) {
-            return buildMesh(data, Math.floor(maxDots / 2));
-          }
+        // Alle Punkte als ein einziges THREE.Points-Mesh rendern (statt
+        // pro-Punkt-Mesh). Bei 50k Vertices spart das ~50k Material-Instanzen
+        // und ~50k Mesh-Objekte → drastisch weniger Speicher und kein
+        // Out-of-Memory-Crash mehr beim Cross-Fade.
+        // - Position pro Punkt: BufferAttribute (3 Floats × N)
+        // - Farbe pro Punkt: BufferAttribute (3 Floats × N), wird live
+        //   basierend auf Kamera-Entfernung gedimmt
+        // - Globale Opacity: ein Uniform für Morph-Fade
+        const N = candidates.length;
+        const posAttr = new Float32Array(N * 3);
+        const colAttr = new Float32Array(N * 3);
+        const baseCols = new Float32Array(N * 3); // ungedimmte Originalfarben
+        for (let k = 0; k < N; k++) {
+          const i = candidates[k].i;
+          const v = vertices[i];
+          posAttr[3 * k] = v.x;
+          posAttr[3 * k + 1] = v.y;
+          posAttr[3 * k + 2] = v.z;
+          const c = devColor(deviations ? deviations[i] : 1);
+          baseCols[3 * k] = c.r;
+          baseCols[3 * k + 1] = c.g;
+          baseCols[3 * k + 2] = c.b;
+          colAttr[3 * k] = c.r;
+          colAttr[3 * k + 1] = c.g;
+          colAttr[3 * k + 2] = c.b;
         }
-        document.getElementById("s-samples").textContent =
-          candidates.length.toLocaleString();
+        const dotGeom = new THREE.BufferGeometry();
+        dotGeom.setAttribute("position", new THREE.BufferAttribute(posAttr, 3));
+        dotGeom.setAttribute("color", new THREE.BufferAttribute(colAttr, 3));
+        const dotMat = new THREE.PointsMaterial({
+          size: dotSize,
+          sizeAttenuation: true,
+          vertexColors: true,
+          transparent: true,
+          opacity: morphing ? 0 : 1,
+          depthTest: false,
+        });
+        const dotPoints = new THREE.Points(dotGeom, dotMat);
+        dotPoints.userData.isDots = true;
+        dotPoints.userData.targetOpacity = 1;
+        dotPoints.userData.baseColors = baseCols;
+        dotPoints.userData.candidatePositions = posAttr; // für Distance-Dim
+        // Dots sollen im Kugel-Modus IMMER vor (innerhalb wie außerhalb) der
+        // halbtransparenten Kugel gerendert werden. Da sowohl Sphere als auch
+        // dotPoints am Ursprung sitzen, ist die Sortierreihenfolge sonst
+        // undefiniert und die Sphere kann die Dots übermalen — auch mit
+        // depthTest:false auf Dots, da das nur den Tiefentest, nicht aber die
+        // Render-Reihenfolge beeinflusst.
+        dotPoints.renderOrder = 10;
+        meshGroup.add(dotPoints);
+        dotMeshes = [dotPoints];
+        document.getElementById("s-samples").textContent = N.toLocaleString();
 
         // ---- Abweichungs-Statistik ----
         // Min/Max Abweichung als Prozent des Kugelradius
@@ -2193,9 +2216,19 @@ self.onmessage = async function (e) {
           // Out-of-order-Berechnung und das Ergebnis wird falsch zugeordnet.
           // precomputeNext() füllt die History strikt sequenziell; sobald die
           // gewünschte Iteration eintrifft, wird der Callback ausgeführt.
-          pendingCallbacks.set(`${currentVariant}:${currentIdx}`, () => {
-            if (history[currentIdx]) {
-              buildMesh(history[currentIdx]);
+          // Iter und Variante werden beim Registrieren festgehalten — wenn der
+          // User in der Zwischenzeit weiter-/zurück-klickt oder die Variante
+          // wechselt, darf der verspätete Callback NICHT mehr feuern (sonst
+          // baut buildMesh oben drauf und verdoppelt das Mesh → Crash).
+          const reqIter = currentIdx;
+          const reqVariant = currentVariant;
+          pendingCallbacks.set(`${reqVariant}:${reqIter}`, () => {
+            if (
+              currentIdx === reqIter &&
+              currentVariant === reqVariant &&
+              histories[reqVariant][reqIter]
+            ) {
+              buildMesh(histories[reqVariant][reqIter]);
             }
           });
           // Falls der Precompute-Chain pausiert (z.B. weil eine andere Variante
@@ -2531,21 +2564,43 @@ self.onmessage = async function (e) {
         {
           const camPos = camera.position;
 
-          // Punkte
+          // Punkte: Live-Dim per-Vertex über Color-Attribut. Da alle Punkte in
+          // einem THREE.Points-Mesh liegen, kann Opacity nicht pro Punkt gesetzt
+          // werden — stattdessen RGB-Werte mit dem Dim-Faktor multiplizieren.
+          // (Visuell äquivalent gegen schwarzen Hintergrund.)
           if (dotMeshes.length > 0) {
+            const dotPoints = dotMeshes[0];
+            const positions = dotPoints.userData.candidatePositions;
+            const baseCols = dotPoints.userData.baseColors;
+            const colorAttr = dotPoints.geometry.attributes.color;
+            const N = baseCols.length / 3;
+            // Erstdurchgang: Min/Max-Entfernung bestimmen
             let minD = Infinity,
               maxD = 0;
-            for (const dot of dotMeshes) {
-              const d = camPos.distanceTo(dot.position);
+            const dx = camPos.x,
+              dy = camPos.y,
+              dz = camPos.z;
+            const dists = new Float32Array(N);
+            for (let k = 0; k < N; k++) {
+              const px = positions[3 * k] - dx;
+              const py = positions[3 * k + 1] - dy;
+              const pz = positions[3 * k + 2] - dz;
+              const d = Math.sqrt(px * px + py * py + pz * pz);
+              dists[k] = d;
               if (d < minD) minD = d;
               if (d > maxD) maxD = d;
             }
             const range = maxD - minD || 1;
-            for (const dot of dotMeshes) {
-              const d = camPos.distanceTo(dot.position);
-              const t = (d - minD) / range;
-              dot.material.opacity = 1.0 - 0.85 * t;
+            // Zweiter Durchgang: Color-Attribut mit gedimmten Werten überschreiben
+            const colArr = colorAttr.array;
+            for (let k = 0; k < N; k++) {
+              const t = (dists[k] - minD) / range;
+              const dim = 1.0 - 0.85 * t;
+              colArr[3 * k] = baseCols[3 * k] * dim;
+              colArr[3 * k + 1] = baseCols[3 * k + 1] * dim;
+              colArr[3 * k + 2] = baseCols[3 * k + 2] * dim;
             }
+            colorAttr.needsUpdate = true;
 
             // Kanten: Vertex-Colors basierend auf Entfernung dimmen
             meshGroup.traverse((child) => {
