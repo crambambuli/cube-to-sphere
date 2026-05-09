@@ -18,7 +18,7 @@ Gegeben ein Würfel. Man halbiere alle Kanten und schneide an den Mittelpunkten 
 
 ## Mathematischer Hintergrund
 
-Die Operation heißt [**Rektifikation**](<https://en.wikipedia.org/wiki/Rectification_(geometry)>) (oder anschaulich **Mittenkappung**) — man halbiere die Kanten und kappe die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
+Die Operation heißt [**Rektifikation**](<https://en.wikipedia.org/wiki/Rectification_(geometry)>) (oder anschaulich **Mittenkappung**) — man halbiere die Kanten und kappe die Ecken bis zu den entstandenen Mittelpunkten. Anders formuliert: jeder Vertex[^vertex] wird durch eine neue Fläche ersetzt, jede Fläche durch eine kleinere Version ihrer selbst, die neuen Vertices sind genau die Mittelpunkte der alten Kanten.
 
 Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Vertices zu Flächen? Die App implementiert **drei Varianten**:
 
@@ -41,7 +41,7 @@ Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Verti
 > - Die Rektifikation des Würfels (= Iter 1 in dieser App) ist das [**Kuboktaeder**](https://de.wikipedia.org/wiki/Kuboktaeder).
 > - Sie ist gleichzeitig auch die Rektifikation des Oktaeders — der Mittelweg trifft beide Duale am gleichen Punkt.
 >
-> Der Körper wird „ins Lot gebracht“ im Sinne der Symmetrie: das Kuboktaeder ist [**quasiregulär**](https://en.wikipedia.org/wiki/Quasiregular_polyhedron) — alle Vertices sehen gleich aus _und_ alle Kanten sehen gleich aus. Beim Würfel gilt nur „Vertices gleich“ (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur „Kanten gleich“. Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn „rektifiziert“, also _richtig_ symmetrisch.
+> Der Körper wird „ins Lot gebracht“ im Sinne der Symmetrie: das Kuboktaeder ist [**quasiregulär**](https://en.wikipedia.org/wiki/Quasiregular_polyhedron)[^quasi] — alle Vertices sehen gleich aus _und_ alle Kanten sehen gleich aus. Beim Würfel gilt nur „Vertices gleich“ (jede Kante grenzt an zwei Quadrate, also gleich, aber jede Ecke berührt drei Quadrate), beim Oktaeder umgekehrt nur „Kanten gleich“. Erst die Rektifikation kombiniert beide Eigenschaften — der Körper ist in diesem präzisen Sinn „rektifiziert“, also _richtig_ symmetrisch.
 >
 > In der App sieht man diesen Effekt am Übergang Iter 0 → Iter 1 — und auch, dass die Quasiregularität ab Iter 2 wieder verloren geht: das [Rhombenkuboktaeder](https://de.wikipedia.org/wiki/Rhombenkuboktaeder) hat zwei Kantentypen (Dreieck-Quadrat und Quadrat-Quadrat). **Nur Iter 1 erreicht die maximale Symmetrie.** Die weiteren Iterationen glätten den Körper kugelähnlicher, bringen aber keine zusätzliche „Rektifikation“ im Coxeter-Sinn.
 
@@ -51,13 +51,13 @@ Bei der konkreten Umsetzung gibt es eine Wahl: Wie verbindet man die neuen Verti
 
 Topologische Rektifikation und konvexe Hülle bilden den fundamentalen Begriffsgegensatz; die Hybrid-Variante ist eine Synthese aus beiden (siehe [Variante 3](#variante-3-hybrid-topo-vertices--hull-topologie)). Beide wirken auf dieselben Eingabepunkte (die Kantenmittelpunkte), unterscheiden sich aber in der Eingabe-Information und der Konstruktionsregel:
 
-**Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
+**Topologische Rektifikation.** Eingabe: ein Polyeder mit kombinatorischer Struktur — Vertices, Kanten, Flächen und deren Inzidenzbeziehungen[^inzidenz]. Definition: eine **kombinatorische Vorschrift**, wie aus der alten Topologie eine neue konstruiert wird:
 
 - Jede alte Kante → ein neuer Vertex (in der Mitte)
 - Jede alte Fläche mit n Ecken → eine neue n-eckige Fläche aus den Mittelpunkten ihrer Kanten („geschrumpfte Fläche“)
-- Jede alte Ecke mit Grad d → eine neue d-eckige Fläche aus den Mittelpunkten der dort einlaufenden Kanten („Vertex-Figur“)
+- Jede alte Ecke mit Grad d → eine neue d-eckige Fläche aus den Mittelpunkten der dort einlaufenden Kanten („Vertex-Figur“[^vfig])
 
-Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
+Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der neuen Vertices liegen fest (Kantenmittelpunkte), aber **ob die Flächen plan sind, steht nicht im Voraus fest** — die 4 Mittelpunkte einer Vertex-Figur müssen nicht koplanar[^koplanar] sein. Verschiebt man die Eingabevertices, ändert sich nur die Geometrie, nicht die Anzahl/Topologie der Flächen.
 
 [**Konvexe Hülle**](https://de.wikipedia.org/wiki/Konvexe_Hülle)**.** Eingabe: eine Menge von Punkten im Raum (ohne weitere Struktur). Definition: der kleinste konvexe Körper, der alle Punkte enthält. Vertices der Hülle sind genau die _extremen_ Eingabepunkte; Flächen sind strikt planare Polygone; die Topologie wird rein geometrisch durch die Punktkoordinaten bestimmt.
 
@@ -70,7 +70,7 @@ Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der ne
 > - Flächen = strikt **planare** Polygone (per Definition liegt jede Fläche in einer Ebene)
 > - Topologie wird **rein geometrisch** durch die Punktkoordinaten bestimmt
 >
-> Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
+> Ein Punkt ist genau dann ein Hull-Vertex, wenn er nicht im Inneren der Hülle der übrigen Punkte liegt. Eine Fläche entsteht aus drei oder mehr Punkten, die auf einer Ebene liegen, sofern alle anderen Punkte auf derselben Seite dieser Ebene sind. Verschiebt man die Punkte etwas, kann sich die Topologie sprunghaft ändern (z. B. spaltet ein Quad[^quad] in zwei Dreiecke, sobald die 4 Punkte nicht mehr koplanar sind).
 >
 > **Schrumpffolie / Vakuumverpackung:** Man stelle sich die Punkte als kleine Nägel oder Murmeln vor, die im 3D-Raum schweben. Eine elastische Plastikfolie wird locker um alle Punkte gelegt und vakuumiert. Die Folie zieht sich zusammen und schmiegt sich an die äußersten Punkte an:
 >
@@ -156,7 +156,7 @@ Iterationen 0–2 haben exakt 0% Abweichung, weil alle Vertices gleich weit vom 
 
 Die Abweichung stabilisiert sich bei **-7,845% / +6,604%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
-**Die Ursache** ist eine topologische Nicht-Uniformität: die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten und sind topologische Singularitäten in einem ansonsten Quad-dominierten Mesh.
+**Die Ursache** ist eine topologische Nicht-Uniformität: die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten und sind topologische Singularitäten in einem ansonsten Quad-dominierten Mesh[^mesh].
 
 <details>
 <summary><b>Wie sich die topologische Nicht-Uniformität konkret auswirkt</b></summary>
@@ -217,7 +217,7 @@ Konkret:
 > Vertex-Figuren (Vierecke) sind genau dann plan, wenn die 4 Nachbarn des alten Vertex koplanar sind. Das ist **nicht immer** der Fall:
 >
 > - **Dreiecke** (die 8 von den Würfelecken): immer exakt plan — 3 Punkte definieren eine Ebene. ✓
-> - **Iter 1→2**: Das Kuboktaeder ist kantentransitiv (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
+> - **Iter 1→2**: Das Kuboktaeder ist kantentransitiv[^ktrans] (alle Kanten unter O<sub>h</sub> äquivalent). Die O<sub>h</sub>-Symmetrie erzwingt Koplanarität → alle Quads exakt plan. ✓
 > - **Iter 2→3**: Nicht mehr kantentransitiv. Quads an hochsymmetrischen Positionen (z. B. mit 4-facher Rotationsachse) sind noch exakt plan. Quads an weniger symmetrischen Positionen können leicht nicht-planar sein.
 > - **Ab Iter ~4-5**: Die meisten Quads sind fast plan, aber mathematisch nicht exakt — die lokale Symmetrie reicht nicht mehr aus.
 > - **Größenordnung der Abweichung**: proportional zum Quadrat der Kantenlänge — bei Iter 3 in der Größenordnung 10⁻², bei Iter 10+ unter 10⁻⁸.
@@ -236,7 +236,7 @@ Konkret:
 
 Statt die Vertex-Figuren als (möglicherweise nicht-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber nicht-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten. Die resultierenden Flächen sind per Definition immer exakt plan.
 
-Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Iter 0–10 wurden gegen die wissenschaftliche Referenzimplementierung [`scipy.spatial.ConvexHull`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.ConvexHull.html) (basierend auf der [QHull-Bibliothek](http://www.qhull.org/)) abgeglichen und stimmen dort exakt überein. Iter 11–15 sind nur intern berechnet, dank der exakten Arithmetik aber durch Konstruktion korrekt.
+Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Iter 0–10 wurden gegen die wissenschaftliche Referenzimplementierung [`scipy.spatial.ConvexHull`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.ConvexHull.html) (basierend auf der [QHull-Bibliothek](http://www.qhull.org/)) abgeglichen und stimmen dort exakt überein. Iter 11–15 sind nur intern berechnet, dank der exakten Arithmetik aber durch Konstruktion korrekt.
 
 <details>
 <summary><b>Algorithmus, Komplexität und numerische Sicherheit</b></summary>
@@ -258,20 +258,20 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 >
 > **Schritt 4 — Inkrementelle Erweiterung.** Für jeden weiteren Punkt p:
 >
-> 1. **Sichtbarkeitstest:** Eine Fläche f mit Normale n und Stützwert d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren.
+> 1. **Sichtbarkeitstest:** Eine Fläche f mit Normale n und Stützwert d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt[^skal] + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren.
 > 2. **Sichtbare Region entfernen:** Alle sichtbaren Flächen werden gelöscht.
 > 3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
 > 4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
 >
 > **Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagone, Hexagone) entstehen durch Zusammenfassen koplanarer Nachbarn:
 >
-> 1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
+> 1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante[^det] det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
 > 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
 > 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
 >
 > **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1 min 40 s, Iter 13 (~182.000) ≈ 13 min, Iter 14 (~443.000) ≈ 1 h 30 min, Iter 15 (~1.075.000) ≈ 16 h 50 min. [Quickhull](https://en.wikipedia.org/wiki/Quickhull) (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
 >
-> **Numerische Sicherheit.** Bei iter ≤ 15 bleiben alle Zwischenwerte (Cross-Products, Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Bei iter 16+ würde BigInt nötig.
+> **Numerische Sicherheit.** Bei iter ≤ 15 bleiben alle Zwischenwerte (Cross-Products[^cross], Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs[^safe] (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Bei iter 16+ würde BigInt nötig.
 
 </details>
 
@@ -296,7 +296,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 
 > **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB).
 
-**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie _mathematisch exakt koplanar_ — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
+**Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie[^ressym] _mathematisch exakt koplanar_ — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
 **Iter 4 → 5: Symmetriebruch.** 48 Vertex-Figur-Quads verlieren ihre exakte Koplanarität (der Determinanten-Test liefert erstmals einen von Null verschiedenen Wert) — der Hull-Algorithmus spaltet sie daher in je 2 Dreiecke:
 
@@ -304,7 +304,7 @@ Da alle Vertex-Koordinaten dyadisch rational sind (Nenner 2<sup>iter</sup>), kan
 - +48 Flächen (-1 Quad +2 Dreiecke = +1 Fläche)
 - 0 zusätzliche Vertices
 
-Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also genau eine generische O<sub>h</sub>-Bahn von Quads bricht zuerst die Planarität.
+Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also genau eine generische O<sub>h</sub>-Bahn[^bahn] von Quads bricht zuerst die Planarität.
 
 **Erstmalige Pentagone, Hexagone und Heptagone.** Iter 9 bringt erstmals 48 Pentagone, Iter 10 erstmals 48 Hexagone, Iter 14 erstmals 48 Heptagone — jeweils exakt eine O<sub>h</sub>-Bahn. Bei höheren Iterationen entstehen weitere 5-, 6- und 7-Ecke, wenn mehrere nicht-planare Quads im Hull zu einem größeren Polygon mergen.
 
@@ -645,3 +645,33 @@ Dank an **Dr. rer. nat. Gregor Peltri** (HTWK Leipzig) für die ursprüngliche P
 MIT
 
 [^tess]: **Tessellierung** (auch Pflasterung, Parkettierung) — lückenlose und überlappungsfreie Zerlegung einer Fläche in Polygone. Beispiele: das Schachbrett (Quadrat-Tessellierung der Ebene), die Bienenwabe (Hexagon-Tessellierung), die Triangulierung eines Polygons. Im Kontext hier: die konkrete Aufteilung einer flachen Region in mehrere Polygone, im Gegensatz zur Sichtweise „eine ungeteilte Region".
+
+[^quad]: **Quad** = Viereck (englisch _quadrilateral_, Kurzform _quad_). Im 3D-Grafik- und Polyeder-Jargon kurz und gebräuchlich; schließt schiefe, gewölbte (nicht-planare) und unregelmäßige Vierecke mit ein, im Unterschied zum „Quadrat" (= Viereck mit gleichen Seiten und 90°-Winkeln).
+
+[^quasi]: **quasiregulär** — Polyeder, bei dem sowohl alle Vertices als auch alle Kanten unter der Symmetriegruppe äquivalent sind (vertex-transitiv _und_ kantentransitiv), aber nicht notwendig alle Flächen. Beispiel: das Kuboktaeder. Strenger als „regulär" ist nur der Begriff der platonischen Körper (zusätzlich auch flächentransitiv).
+
+[^vertex]: **Vertex** (Plural _Vertices_) — Eckpunkt eines Polygons oder Polyeders. In der 3D-Grafik gebräuchlicher als „Ecke".
+
+[^inzidenz]: **Inzidenz / Inzidenzstruktur** — die kombinatorische Information „welcher Vertex liegt auf welcher Kante, welche Kante grenzt an welche Fläche". Im Gegensatz zu den geometrischen Koordinaten.
+
+[^vfig]: **Vertex-Figur** — das Polygon, das beim „Abschneiden" einer Polyederecke entsteht. Bei einer Ecke vom Grad _d_ (= _d_ einlaufende Kanten) ist die Vertex-Figur ein _d_-Eck aus den Mittelpunkten dieser Kanten.
+
+[^koplanar]: **koplanar** — in einer gemeinsamen Ebene liegend. Drei Punkte sind immer koplanar (definieren eine Ebene); 4+ Punkte nur, wenn der vierte (und alle weiteren) zufällig in derselben Ebene liegt.
+
+[^mesh]: **Mesh** — Polygonnetz; in der 3D-Grafik die Sammlung aller Flächen, Kanten und Vertices, die ein Objekt definieren. Hier synonym mit „Polyeder-Topologie".
+
+[^ktrans]: **kantentransitiv** — Eigenschaft einer Symmetriegruppe, jede Kante auf jede andere abbilden zu können. D. h. alle Kanten sind „gleich" im symmetrischen Sinn.
+
+[^ressym]: **residuelle Symmetrie** — die nach mehreren Iterationen lokal noch erhaltene Untergruppe der ursprünglichen Würfel-Symmetrie O<sub>h</sub>. Erzwingt geometrische Eigenschaften wie Koplanarität bei hochsymmetrischen Konfigurationen.
+
+[^bahn]: **Bahn** (Orbit) — Menge aller Punkte, die durch Anwendung der Symmetriegruppe aufeinander abgebildet werden. Generische O<sub>h</sub>-Bahnen haben die volle Gruppenordnung 48; höhersymmetrische Positionen liefern Teiler (24, 12, 8, 6).
+
+[^dyad]: **dyadisch rational** — Bruch mit Zweierpotenz im Nenner (Form _a / 2<sup>n</sup>_). Beispiele: ½, 3/8, 5/16. Solche Zahlen lassen sich nach Multiplikation mit 2<sup>n</sup> als ganze Zahlen exakt darstellen.
+
+[^skal]: **Skalarprodukt** — _a·b = a₁b₁ + a₂b₂ + a₃b₃_; ergibt eine Zahl (Skalar), die u. a. messen kann, ob zwei Vektoren in dieselbe Richtung zeigen.
+
+[^cross]: **Cross-Product** (Kreuzprodukt) — _a × b_; ergibt einen Vektor, der senkrecht auf _a_ und _b_ steht. Hier verwendet, um Flächennormalen aus zwei Kantenvektoren zu berechnen.
+
+[^det]: **Determinante** — eine Zahl, die einer quadratischen Matrix zugeordnet ist. Hier: die 3×3-Determinante det(_v₁_, _v₂_, _v₃_) ist das (vorzeichenbehaftete) Volumen des von den drei Vektoren aufgespannten Parallelepipeds; = 0 ⇔ Vektoren liegen in einer Ebene.
+
+[^safe]: **Safe-Integer** — JavaScript repräsentiert alle Zahlen als 64-Bit-Floats. Ganzzahlen unterhalb 2<sup>53</sup> sind exakt darstellbar; darüber gibt es Lücken (z. B. 2<sup>53</sup> + 1 wird auf 2<sup>53</sup> gerundet). `Number.isSafeInteger()` testet darauf.
