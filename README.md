@@ -158,20 +158,25 @@ Werte relativ zum eigenen rAvg (was die App anzeigt):
 
 Da Hull einen anderen rAvg hat als Topo (siehe rAvg-Klappblock weiter unten), sind die relativen Prozente nicht direkt zwischen den Varianten vergleichbar. **Absolut**, in Distanzen vom Ursprung (zur Orientierung: die Würfel-Vertices liegen bei r = √3 ≈ 1,732, die Kantenmittelpunkte bei r = √2 ≈ 1,414, die Flächenzentren bei r = 1):
 
-| Iter | min_r (Delle) | max_r (Beule) | Topo rAvg | Hull rAvg |
-| ---- | ------------- | ------------- | --------- | --------- |
-| 3    | 1,11803       | 1,17260       | 1,14532   | 1,14532   |
-| 5    | 1,03078       | 1,15583       | 1,08867   | 1,08867   |
-| 7    | 1,00778       | 1,15477       | 1,07514   | 1,07560   |
-| 10   | 1,00098       | 1,15470       | 1,07126   | 1,07511   |
-| 13   | 1,00012       | 1,15470       | 1,07077   | 1,07584   |
-| 15   | 1,00003       | 1,15470       | 1,07072   | 1,07609   |
+| Iter | min_r (Delle) | max_r (Beule) | Topo rAvg  | Hull rAvg  |
+| ---- | ------------- | ------------- | ---------- | ---------- |
+| 3    | 1,11803399    | 1,17260394    | 1,14531896 | 1,14531896 |
+| 5    | 1,03077641    | 1,15582763    | 1,08867025 | 1,08867025 |
+| 7    | 1,00778222    | 1,15477101    | 1,07513667 | 1,07560089 |
+| 10   | 1,00097609    | 1,15470164    | 1,07125700 | 1,07511237 |
+| 13   | 1,00012206    | 1,15470056    | 1,07077461 | 1,07584169 |
+| 15   | 1,00003052    | 1,15470054    | 1,07072295 | 1,07608527 |
+| 16   | 1,00001526    | 1,15470054    | 1,07071434 | —          |
+| 17   | 1,00000763    | 1,15470054    | 1,07071004 | —          |
+| 18   | 1,00000381    | 1,15470054    | 1,07070789 | —          |
+| 19   | 1,00000191    | 1,15470054    | 1,07070681 | —          |
+| 20   | 1,00000095    | 1,15470054    | 1,07070627 | —          |
 
 **Beobachtungen:**
 
 - **min_r und max_r sind in jeder Iteration identisch für Topo und Hull** → identischer Außenrand, gleiche Tiefe der Dellen. Topo und Hull beschreiben geometrisch denselben Körper.
-- **max_r konvergiert numerisch gegen ≈ 1,15470** (ab Iter 10 auf 5 Nachkommastellen stabil). Bemerkenswert: dieser Wert liegt sehr nahe an 2/√3 ≈ 1,15470054 — algebraisch nicht bewiesen, aber plausibel.
-- **min_r konvergiert gegen 1,00000** — die Delle an den Flächenzentren erreicht exponentiell die Einheitsdistanz (Differenz halbiert sich pro Iter).
+- **max_r konvergiert gegen 2/√3 ≈ 1,15470054** — die Beule an den Würfelecken erreicht im Limit exakt diesen algebraischen Wert (ab Iter 15 numerisch auf 8 Nachkommastellen exakt bestätigt).
+- **min_r konvergiert gegen 1,00000000** — die Delle an den Flächenzentren erreicht exponentiell die Einheitsdistanz: die Differenz halbiert sich pro Iteration (Faktor genau ½ bis auf Float-Rundung im letzten Bit; ab Iter 15 bis 20 in Einheiten von 10<sup>−8</sup>: 3052 → 1526 → 763 → 381 → 191 → 95).
 - **Topo- und Hull-rAvg divergieren ab Iter 6 leicht** (siehe rAvg-Klappblock unten: 1,079595 vs. 1,078814 bei iter 6; bei iter 15: 1,07072 vs. 1,07609). Hull hat zusätzliche Vertices an den Diagonal-Mittelpunkten in Beulen-Nähe → Sample-Bias zugunsten höherer Radien. Die Vertex-Mengen sind verschieden, das Hüll-Volumen aber identisch.
 
 Die Abweichung stabilisiert sich (relativ zum Topo-rAvg) bei **-6,604% / +7,845%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
