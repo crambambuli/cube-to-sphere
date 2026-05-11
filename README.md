@@ -494,7 +494,7 @@ Jeder Vertex-Punkt ist nach seiner Abweichung von der Best-Fit-Kugel eingefärbt
 - **Grün** — innerhalb der Kugel (Delle, an den Flächenzentren)
 - **Grau** — auf der Kugeloberfläche (Abweichung < 0,001%, z. B. bei Iter 0–2, wo alle Vertices exakt äquidistant sind)
 
-Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich verblassen Punkte und Kanten mit zunehmender Entfernung zur Kamera (Live-Update bei Rotation, auch während der Animation): vordere Elemente sind kräftig, hintere blass.
+Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradius, desto kräftiger die Farbe. Zusätzlich werden Punkte und Kanten mit zunehmender Kamera-Entfernung in eine neutrale Dunst-Farbe (dunkler Hintergrund-Ton) interpoliert (Live-Update bei Rotation, auch während der Animation): vordere Elemente sind kräftig, hintere verschmelzen mit der unbeleuchteten Sphere-Rückseite. Die Mix-Kurve ist quadratisch (`t²`) — die vorderen ~70 % bleiben nahe der vollen Farbe, das hinterste Drittel verblasst schneller. Damit „leuchten" hintere Beulen nicht durch das transparente Mesh nach vorn und erscheinen auch nicht als dunkle Löcher.
 
 ### Sampling
 
@@ -609,7 +609,7 @@ Worker-State speichert beides: `vertices` und `topoFaces`. Bei der nächsten Ite
 - [**BufferGeometry**](https://threejs.org/docs/#api/en/core/BufferGeometry) statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
 - **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
 - **Morph-Animation** (im Polyeder-Modus, also bis `POLY_MAX_ITER` — Desktop: Iter ≤ 14, Mobil: Iter ≤ 12): Cross-Fade zwischen altem und neuem Körper (1 s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
-- **Farbcodierte Vertex-Punkte** als einzelnes [`THREE.Points`](https://threejs.org/docs/#api/en/objects/Points)-Mesh mit per-Punkt-Farbe (Color-Attribut der BufferGeometry) und globalem `PointsMaterial` (`depthTest: false`, `renderOrder = 10` — Punkte immer vor der halbtransparenten Kugel). Die kamera-distanz-abhängige Verblassen-Modulation wird in die RGB-Werte multipliziert (visuell äquivalent zu Per-Punkt-Opacity gegen schwarzen Hintergrund).
+- **Farbcodierte Vertex-Punkte** als einzelnes [`THREE.Points`](https://threejs.org/docs/#api/en/objects/Points)-Mesh mit per-Punkt-Farbe (Color-Attribut der BufferGeometry) und globalem `PointsMaterial` (`depthTest: false`, `renderOrder = 10` — Punkte immer vor der halbtransparenten Kugel). Die kamera-distanz-abhängige Tiefenwahrnehmung wird durch lineare Interpolation der RGB-Werte zwischen Basisfarbe (vorne) und einer dunklen Dunst-Zielfarbe `(0,12 / 0,14 / 0,22)` (hinten) realisiert. Quadratische Mix-Kurve `t²`. Dadurch verschmelzen hintere Punkte unauffällig mit der unbeleuchteten Sphere-Rückseite, ohne dass sie nach vorn durchscheinen oder als dunkle Löcher wirken.
 - [**Quaternion[^quat]-Trackball-Rotation[^trackball]**](https://raw.org/code/trackball-rotation-using-quaternions/) ohne Gimbal Lock[^gimbal], ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
 - **Pan** (Shift+Drag / Rechtsklick / 2-Finger-Drag): laterale Verschiebung in Kamera-Koordinaten.
 - **Auto-Rotation** mit 3 s Pause nach manueller Interaktion.

@@ -2748,14 +2748,23 @@ self.onmessage = async function (e) {
               if (d > maxD) maxD = d;
             }
             const range = maxD - minD || 1;
-            // Zweiter Durchgang: Color-Attribut mit gedimmten Werten überschreiben
+            // Zweiter Durchgang: Color-Attribut mit gedimmten Werten überschreiben.
+            // Statt Richtung Schwarz zu dimmen, in die Hintergrund-/unlit-
+            // Sphere-Farbe interpolieren. Hintere Punkte verschmelzen unauf-
+            // fällig — keine roten Akzente, keine dunklen „Löcher“. Die
+            // Zielfarbe entspricht ungefähr der apparenten Farbe der ambient-
+            // beleuchteten Sphere-Rückseite (Background 0x1a1a2e mit minimaler
+            // Sphere-Tönung darüber). Kurve: t² (vorne sanft, hinten schneller).
+            const fogR = 0.12,
+              fogG = 0.14,
+              fogB = 0.22;
             const colArr = colorAttr.array;
             for (let k = 0; k < N; k++) {
               const t = (dists[k] - minD) / range;
-              const dim = 1.0 - 0.85 * t;
-              colArr[3 * k] = baseCols[3 * k] * dim;
-              colArr[3 * k + 1] = baseCols[3 * k + 1] * dim;
-              colArr[3 * k + 2] = baseCols[3 * k + 2] * dim;
+              const m = t * t; // Mix-Faktor
+              colArr[3 * k] = baseCols[3 * k] * (1 - m) + fogR * m;
+              colArr[3 * k + 1] = baseCols[3 * k + 1] * (1 - m) + fogG * m;
+              colArr[3 * k + 2] = baseCols[3 * k + 2] * (1 - m) + fogB * m;
             }
             colorAttr.needsUpdate = true;
 
@@ -2769,8 +2778,14 @@ self.onmessage = async function (e) {
                   v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
                   const d = camPos.distanceTo(v);
                   const t = (d - minD) / range;
-                  const brightness = 1.0 - 0.85 * t;
-                  col.setXYZ(i, brightness, brightness, brightness);
+                  const m = t * t;
+                  // Kanten: weiß → Dunst-Farbe wie bei den Punkten
+                  col.setXYZ(
+                    i,
+                    1 - m + 0.12 * m,
+                    1 - m + 0.14 * m,
+                    1 - m + 0.22 * m,
+                  );
                 }
                 col.needsUpdate = true;
               }
