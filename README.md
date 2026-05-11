@@ -580,7 +580,7 @@ Führt die **Flächen-Topologie** explizit mit, ohne Approximation:
 
 ### Convex-Hull-Rektifikation (`rectifyHull`)
 
-Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem koplanaren Polygon-Merge. Die volle Algorithmus-Beschreibung steht im Mathematik-Abschnitt unter [Variante 2: Convex-Hull-Rektifikation](#variante-2-convex-hull-rektifikation) (Klappblock „Algorithmus, Komplexität und numerische Sicherheit“).
+Inkrementeller 3D-Convex-Hull mit Konflikt-Listen (Clarkson-Shor-Stil), exakter Integer-Arithmetik und anschließendem koplanaren Polygon-Merge. Die volle Algorithmus-Beschreibung steht im Mathematik-Abschnitt unter [Variante 2: Convex-Hull-Rektifikation](#variante-2-convex-hull-rektifikation) (Klappblock „Algorithmus, Komplexität und numerische Sicherheit“).
 
 Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 15 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
 

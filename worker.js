@@ -15,15 +15,15 @@
 //     - Vertex-Figuren: Mittelpunkte der Kanten an einem alten Vertex bilden
 //       eine neue Fläche (Seitenzahl = Vertex-Grad).
 //   Euler-Formel: V' = E, E' = 2E, F' = V + F (exakt, keine Approximation).
-//   Möglicher Nachteil: Vertex-Figur-Quads können non-planar sein.
+//   Möglicher Nachteil: Vertex-Figur-Quads können nicht-planar sein.
 //
 // VARIANTE 2: rectifyHull()
 //   Bildet pro Iteration die konvexe Hülle der Kantenmittelpunkte und merged
 //   anschließend koplanare Dreiecke zu Polygonen. Da alle Vertex-Koordinaten
 //   dyadisch rational sind, läuft der Hull-Algorithmus mit exakter
 //   Integer-Arithmetik (keine Toleranzschwellen, keine Rundungsfehler).
-//   Topologie wechselt: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons,
-//   ab Iter 10 Hexagons, ab Iter 14 Heptagons.
+//   Topologie wechselt: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagone,
+//   ab Iter 10 Hexagone, ab Iter 14 Heptagone.
 //
 // VARIANTE 3: rectifyHybrid()
 //   Vertex-Erzeugung wie Topo (langsames V-Wachstum, ×2 pro Iteration),
@@ -31,7 +31,7 @@
 //   (für neue Vertices + topoFaces als Eingabe für die nächste Iteration),
 //   dann Convex Hull dieser Vertices für die Display-Polygone. Ergebnis:
 //   schlankes Mesh mit planaren Flächen — bleibt aber bei Dreiecken und
-//   Vierecken (keine Pentagons bis Iter 14).
+//   Vierecken (keine Pentagone bis mindestens Iter 15).
 //
 // KEINE NORMALISIERUNG: Alle drei Varianten erhalten den natürlichen Radius;
 //   der Körper schrumpft mit jeder Iteration (Kantenmittelpunkte liegen
@@ -40,9 +40,10 @@
 //   berechnung, nicht zum Skalieren.
 //
 // TRIANGULIERUNG: Für das Three.js-Rendering werden Polygone in Dreiecke
-//   zerlegt — Topo nutzt Mittelpunkt-Triangulierung für non-planare Quads,
+//   zerlegt — Topo nutzt Mittelpunkt-Triangulierung für nicht-planare Quads,
 //   Hull und Hybrid nutzen Fan-Triangulierung (deren Polygone sind immer plan).
-//   Ab Iter 13 (Kugel-Modus) wird die Triangulierung übersprungen.
+//   Im Kugel-Modus (iter > polyMaxIter, vom Main Thread übermittelt) wird
+//   die Triangulierung übersprungen.
 // ============================================================================
 
 // Yield zum Event-Loop: queueMicrotask hat keine Mindestverzögerung
@@ -80,14 +81,17 @@ const CUBE_FACES = [
 ];
 
 // Numerischer Schlüssel für eine ungerichtete Kante zwischen Vertex a und b.
-// Schneller und speichereffizienter als String-Keys; bei < 1.000.000 Vertices
-// pro Iteration kollisionsfrei (max. ~75k Vertices bei iter 12).
+// Schneller und speichereffizienter als String-Keys; bei < 10.000.000 Vertices
+// pro Iteration kollisionsfrei (Topo iter 20: ~6,3 M Vertices, also abgedeckt).
+// Maximaler Schlüsselwert: (10⁷)² ≈ 10¹⁴ → innerhalb des JavaScript-Safe-
+// Integer-Bereichs (< 2⁵³ ≈ 9·10¹⁵).
+const EDGE_KEY_MULT = 10000000;
 function edgeKey(a, b) {
-  return a < b ? a * 1000000 + b : b * 1000000 + a;
+  return a < b ? a * EDGE_KEY_MULT + b : b * EDGE_KEY_MULT + a;
 }
 function edgeKeyToVerts(key) {
-  const b = key % 1000000;
-  return [Math.floor(key / 1000000), b];
+  const b = key % EDGE_KEY_MULT;
+  return [Math.floor(key / EDGE_KEY_MULT), b];
 }
 
 // ============================================================================
@@ -682,19 +686,19 @@ function convexHull3D(points, exact = false) {
 //   3. Adjazente koplanare Dreiecke zu Polygonen mergen
 //
 // Im Unterschied zur topologischen Variante wechselt die Topologie
-// (Anzahl Dreiecke, Quads, Pentagons, Hexagons je nach Iteration).
+// (Anzahl Dreiecke, Quads, Pentagone, Hexagone je nach Iteration).
 //
 // EXAKTE ARITHMETIK: Alle Vertex-Koordinaten sind dyadisch rational mit
 // Nenner 2^iter. Speichern wir sie als ganze Zahlen im 2^iter-Gitter,
 // werden alle Hull-Predikate (Sichtbarkeit, Koplanarität) durch
 // ganzzahlige Determinanten exakt entscheidbar — keine Toleranzschwellen,
-// keine Rundungsfehler. Bei iter ≤ 12 bleiben alle Zwischenwerte innerhalb
+// keine Rundungsfehler. Bei iter ≤ 15 bleiben alle Zwischenwerte innerhalb
 // des Safe-Integer-Bereichs (< 2^53).
 //
 // Parameter:
 //   vertices, faces:    Eingabe-Polyeder (Floats; aus voriger Iteration)
 //   onProgress:         optional, callback(phase, done, total) für UI-Updates
-//   skipTriangulation:  true ab Iter 13 (Kugel-Modus), spart Speicher + Zeit
+//   skipTriangulation:  true im Kugel-Modus (iter > polyMaxIter), spart Speicher + Zeit
 //   iter:               Iter-Index, der berechnet wird (≥ 1). Bestimmt die
 //                       Skalierung 2^iter für die ganzzahlige Repräsentation.
 async function rectifyHull(
@@ -973,7 +977,7 @@ async function rectifyHull(
 // Hybrid-Rektifikation (Variante 3, prototypisch)
 // ============================================================================
 // Vertex-Erzeugung wie bei Topo (langsam wachsendes V), aber Flächen-Topologie
-// wie beim Hull (planar, splittet non-planare Quads in Dreiecke).
+// wie beim Hull (planar, splittet nicht-planare Quads in Dreiecke).
 //
 // Workflow pro Iteration:
 //   1. Topo-Schritt → neue Vertices + neue topoFaces (kombinatorisch)
@@ -1227,7 +1231,7 @@ function flatCoords(verts) {
 // Die App instanziiert diesen Worker dreimal — einmal pro Variante. Jede
 // Instanz hat ihren eigenen JS-Kontext mit eigener `state`-Variable; in der
 // Praxis nutzt jede Instanz nur den Slot ihrer Variante.
-//   'topo':   Topologische Rektifikation (Polygone, möglicherweise non-planar)
+//   'topo':   Topologische Rektifikation (Polygone, möglicherweise nicht-planar)
 //   'hull':   Convex-Hull-Rektifikation (immer plane Polygone)
 //   'hybrid': Topo-Vertex-Evolution + Hull-Flächen-Topologie. Im 'faces'-Slot
 //             des States werden die topoFaces gespeichert (für die nächste

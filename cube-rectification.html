@@ -228,15 +228,15 @@
 //     - Vertex-Figuren: Mittelpunkte der Kanten an einem alten Vertex bilden
 //       eine neue Fläche (Seitenzahl = Vertex-Grad).
 //   Euler-Formel: V' = E, E' = 2E, F' = V + F (exakt, keine Approximation).
-//   Möglicher Nachteil: Vertex-Figur-Quads können non-planar sein.
+//   Möglicher Nachteil: Vertex-Figur-Quads können nicht-planar sein.
 //
 // VARIANTE 2: rectifyHull()
 //   Bildet pro Iteration die konvexe Hülle der Kantenmittelpunkte und merged
 //   anschließend koplanare Dreiecke zu Polygonen. Da alle Vertex-Koordinaten
 //   dyadisch rational sind, läuft der Hull-Algorithmus mit exakter
 //   Integer-Arithmetik (keine Toleranzschwellen, keine Rundungsfehler).
-//   Topologie wechselt: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagons,
-//   ab Iter 10 Hexagons, ab Iter 14 Heptagons.
+//   Topologie wechselt: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagone,
+//   ab Iter 10 Hexagone, ab Iter 14 Heptagone.
 //
 // VARIANTE 3: rectifyHybrid()
 //   Vertex-Erzeugung wie Topo (langsames V-Wachstum, ×2 pro Iteration),
@@ -244,7 +244,7 @@
 //   (für neue Vertices + topoFaces als Eingabe für die nächste Iteration),
 //   dann Convex Hull dieser Vertices für die Display-Polygone. Ergebnis:
 //   schlankes Mesh mit planaren Flächen — bleibt aber bei Dreiecken und
-//   Vierecken (keine Pentagons bis Iter 14).
+//   Vierecken (keine Pentagone bis mindestens Iter 15).
 //
 // KEINE NORMALISIERUNG: Alle drei Varianten erhalten den natürlichen Radius;
 //   der Körper schrumpft mit jeder Iteration (Kantenmittelpunkte liegen
@@ -253,9 +253,10 @@
 //   berechnung, nicht zum Skalieren.
 //
 // TRIANGULIERUNG: Für das Three.js-Rendering werden Polygone in Dreiecke
-//   zerlegt — Topo nutzt Mittelpunkt-Triangulierung für non-planare Quads,
+//   zerlegt — Topo nutzt Mittelpunkt-Triangulierung für nicht-planare Quads,
 //   Hull und Hybrid nutzen Fan-Triangulierung (deren Polygone sind immer plan).
-//   Ab Iter 13 (Kugel-Modus) wird die Triangulierung übersprungen.
+//   Im Kugel-Modus (iter > polyMaxIter, vom Main Thread übermittelt) wird
+//   die Triangulierung übersprungen.
 // ============================================================================
 
 // Yield zum Event-Loop: queueMicrotask hat keine Mindestverzögerung
@@ -293,14 +294,17 @@ const CUBE_FACES = [
 ];
 
 // Numerischer Schlüssel für eine ungerichtete Kante zwischen Vertex a und b.
-// Schneller und speichereffizienter als String-Keys; bei < 1.000.000 Vertices
-// pro Iteration kollisionsfrei (max. ~75k Vertices bei iter 12).
+// Schneller und speichereffizienter als String-Keys; bei < 10.000.000 Vertices
+// pro Iteration kollisionsfrei (Topo iter 20: ~6,3 M Vertices, also abgedeckt).
+// Maximaler Schlüsselwert: (10⁷)² ≈ 10¹⁴ → innerhalb des JavaScript-Safe-
+// Integer-Bereichs (< 2⁵³ ≈ 9·10¹⁵).
+const EDGE_KEY_MULT = 10000000;
 function edgeKey(a, b) {
-  return a < b ? a * 1000000 + b : b * 1000000 + a;
+  return a < b ? a * EDGE_KEY_MULT + b : b * EDGE_KEY_MULT + a;
 }
 function edgeKeyToVerts(key) {
-  const b = key % 1000000;
-  return [Math.floor(key / 1000000), b];
+  const b = key % EDGE_KEY_MULT;
+  return [Math.floor(key / EDGE_KEY_MULT), b];
 }
 
 // ============================================================================
@@ -895,19 +899,19 @@ function convexHull3D(points, exact = false) {
 //   3. Adjazente koplanare Dreiecke zu Polygonen mergen
 //
 // Im Unterschied zur topologischen Variante wechselt die Topologie
-// (Anzahl Dreiecke, Quads, Pentagons, Hexagons je nach Iteration).
+// (Anzahl Dreiecke, Quads, Pentagone, Hexagone je nach Iteration).
 //
 // EXAKTE ARITHMETIK: Alle Vertex-Koordinaten sind dyadisch rational mit
 // Nenner 2^iter. Speichern wir sie als ganze Zahlen im 2^iter-Gitter,
 // werden alle Hull-Predikate (Sichtbarkeit, Koplanarität) durch
 // ganzzahlige Determinanten exakt entscheidbar — keine Toleranzschwellen,
-// keine Rundungsfehler. Bei iter ≤ 12 bleiben alle Zwischenwerte innerhalb
+// keine Rundungsfehler. Bei iter ≤ 15 bleiben alle Zwischenwerte innerhalb
 // des Safe-Integer-Bereichs (< 2^53).
 //
 // Parameter:
 //   vertices, faces:    Eingabe-Polyeder (Floats; aus voriger Iteration)
 //   onProgress:         optional, callback(phase, done, total) für UI-Updates
-//   skipTriangulation:  true ab Iter 13 (Kugel-Modus), spart Speicher + Zeit
+//   skipTriangulation:  true im Kugel-Modus (iter > polyMaxIter), spart Speicher + Zeit
 //   iter:               Iter-Index, der berechnet wird (≥ 1). Bestimmt die
 //                       Skalierung 2^iter für die ganzzahlige Repräsentation.
 async function rectifyHull(
@@ -1186,7 +1190,7 @@ async function rectifyHull(
 // Hybrid-Rektifikation (Variante 3, prototypisch)
 // ============================================================================
 // Vertex-Erzeugung wie bei Topo (langsam wachsendes V), aber Flächen-Topologie
-// wie beim Hull (planar, splittet non-planare Quads in Dreiecke).
+// wie beim Hull (planar, splittet nicht-planare Quads in Dreiecke).
 //
 // Workflow pro Iteration:
 //   1. Topo-Schritt → neue Vertices + neue topoFaces (kombinatorisch)
@@ -1440,7 +1444,7 @@ function flatCoords(verts) {
 // Die App instanziiert diesen Worker dreimal — einmal pro Variante. Jede
 // Instanz hat ihren eigenen JS-Kontext mit eigener `state`-Variable; in der
 // Praxis nutzt jede Instanz nur den Slot ihrer Variante.
-//   'topo':   Topologische Rektifikation (Polygone, möglicherweise non-planar)
+//   'topo':   Topologische Rektifikation (Polygone, möglicherweise nicht-planar)
 //   'hull':   Convex-Hull-Rektifikation (immer plane Polygone)
 //   'hybrid': Topo-Vertex-Evolution + Hull-Flächen-Topologie. Im 'faces'-Slot
 //             des States werden die topoFaces gespeichert (für die nächste
@@ -1739,7 +1743,7 @@ self.onmessage = async function (e) {
       const pendingCallbacks = new Map(); // iter → callback wenn Ergebnis da
       const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
 
-      // Gemeinsamer onmessage-Handler für beide Worker — die `variant` kommt
+      // Gemeinsamer onmessage-Handler für alle drei Worker — die `variant` kommt
       // in der Message mit, also brauchen wir keinen worker-spezifischen Handler.
       function onWorkerMessage(e) {
         // Fortschrittsmeldungen aktualisieren die Anzeige ohne Rendering
@@ -1810,7 +1814,7 @@ self.onmessage = async function (e) {
           cb();
         }
 
-        // Nächste Iteration in beiden Varianten vorberechnen (parallel)
+        // Nächste Iteration in allen drei Varianten vorberechnen (parallel)
         precomputeNext();
       }
       workers.topo.onmessage = onWorkerMessage;
@@ -1892,7 +1896,7 @@ self.onmessage = async function (e) {
         0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22,
         0x3498db,
       ];
-      let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
+      let dotMeshes = []; // Enthält genau ein THREE.Points-Mesh (für Live-Color-Update der Punkte je nach Kamera-Entfernung)
 
       // ---- Morph-Animation ----
       // Beim Wechsel zur nächsten Iteration werden alter und neuer Körper
@@ -1934,11 +1938,12 @@ self.onmessage = async function (e) {
         return `${min}:${String(remSec).padStart(2, "0")}`;
       }
 
-      // Hull- und Hybrid-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-
-      // Modus). Die Berechnungszeit wächst stark (Hull Iter 11 ~17s, Iter 12 mehrere
-      // Minuten), läuft aber im Hintergrund auf eigenen Worker-Threads weiter.
-      // Hull und Hybrid bis POLY_MAX_ITER (Desktop: 14, Mobil: 12).
-      // Mit Konflikt-Listen-Hull: iter 14 ~30 s (Hull) bzw. ~2 s (Hybrid).
+      // Hull und Hybrid berechnen bis POLY_MAX_ITER (Desktop: 14, Mobil: 12);
+      // höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus.
+      // Mit dem Konflikt-Listen-Hull-Algorithmus sind die Browser-Iterationen
+      // schnell: Iter 12 ~2,5 s, Iter 13 ~6 s, Iter 14 ~30 s (Hull) bzw.
+      // ~0,5 s / ~1 s / ~2 s für Hybrid. Läuft im Hintergrund auf eigenem
+      // Worker-Thread weiter, blockiert nicht die UI.
       const HULL_MAX_ITER = POLY_MAX_ITER;
       // Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
       // Wird nach jedem Worker-Ergebnis aufgerufen. Drei Worker (workers.topo,
@@ -1979,8 +1984,8 @@ self.onmessage = async function (e) {
       // Rendering
       // ============================================================================
       // Baut die 3D-Szene für die aktuelle Iteration:
-      //   - Iter 0-12: Polyeder mit Flächen, Kanten und Vertex-Punkten
-      //   - Ab Iter 13: Best-Fit-Kugel als Referenz + Vertex-Punkte
+      //   - iter ≤ POLY_MAX_ITER (Polyeder-Modus): Flächen, Kanten und Vertex-Punkte
+      //   - iter > POLY_MAX_ITER (Kugel-Modus): Best-Fit-Kugel als Referenz + Vertex-Punkte
       // Vertex-Punkte sind farbcodiert nach Abweichung von der Best-Fit-Kugel:
       //   - Rot = außerhalb der Kugel (Beule)
       //   - Grün = innerhalb der Kugel (Delle)
@@ -2016,7 +2021,7 @@ self.onmessage = async function (e) {
           triIndices &&
           triIndices.length > 0
         ) {
-          // POLYEDER-MODUS (Iter 0-12):
+          // POLYEDER-MODUS (iter ≤ POLY_MAX_ITER):
           // Flächen aus triangulierten Polygonen (vom Worker), Kanten aus Polygon-Flächen
 
           // Vertex-Positionen als Float32Array (Three.js-Format)
@@ -2101,7 +2106,7 @@ self.onmessage = async function (e) {
             meshGroup.add(edgeMesh);
           }
         } else {
-          // KUGEL-MODUS (ab Iter 13):
+          // KUGEL-MODUS (iter > POLY_MAX_ITER):
           // Best-Fit-Kugel als Referenzkörper — zeigt wie weit die Vertices
           // von der idealen Kugel abweichen
           const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
@@ -2166,8 +2171,8 @@ self.onmessage = async function (e) {
         const inSphereMode = currentIdx > POLY_MAX_ITER;
         const defaultDots = inSphereMode ? (isMobile ? 100000 : 200000) : Infinity;
         let maxDots = retryWithFewerDots || defaultDots;
-        // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
-        // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
+        // Polyeder-Modus (iter ≤ POLY_MAX_ITER): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
+        // Kugel-Modus (iter > POLY_MAX_ITER): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
         const dotSizes = [
           0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001,
         ];
@@ -2196,13 +2201,13 @@ self.onmessage = async function (e) {
         // und ~50k Mesh-Objekte → drastisch weniger Speicher und kein
         // Out-of-Memory-Crash mehr beim Cross-Fade.
         // - Position pro Punkt: BufferAttribute (3 Floats × N)
-        // - Farbe pro Punkt: BufferAttribute (3 Floats × N), wird live
-        //   basierend auf Kamera-Entfernung gedimmt
+        // - Farbe pro Punkt: BufferAttribute (3 Floats × N), wird live je
+        //   Kamera-Entfernung in eine dunkle Dunst-Zielfarbe interpoliert
         // - Globale Opacity: ein Uniform für Morph-Fade
         const N = candidates.length;
         const posAttr = new Float32Array(N * 3);
         const colAttr = new Float32Array(N * 3);
-        const baseCols = new Float32Array(N * 3); // ungedimmte Originalfarben
+        const baseCols = new Float32Array(N * 3); // Originalfarben (vor Dunst-Mix)
         for (let k = 0; k < N; k++) {
           const i = candidates[k].i;
           const v = vertices[i];
@@ -2232,7 +2237,7 @@ self.onmessage = async function (e) {
         dotPoints.userData.isDots = true;
         dotPoints.userData.targetOpacity = 1;
         dotPoints.userData.baseColors = baseCols;
-        dotPoints.userData.candidatePositions = posAttr; // für Distance-Dim
+        dotPoints.userData.candidatePositions = posAttr; // für distanzabhängige Farbinterpolation
         // Dots sollen im Kugel-Modus IMMER vor (innerhalb wie außerhalb) der
         // halbtransparenten Kugel gerendert werden. Da sowohl Sphere als auch
         // dotPoints am Ursprung sitzen, ist die Sortierreihenfolge sonst
@@ -2388,7 +2393,7 @@ self.onmessage = async function (e) {
               buildMesh(histories[reqVariant][reqIter]);
             }
           });
-          // Falls der Precompute-Chain pausiert (z.B. weil eine andere Variante
+          // Falls der Precompute-Chain pausiert (z. B. weil eine andere Variante
           // bereits abgeschlossen ist), neu anstoßen.
           precomputeNext();
         }
@@ -2748,7 +2753,7 @@ self.onmessage = async function (e) {
               if (d > maxD) maxD = d;
             }
             const range = maxD - minD || 1;
-            // Zweiter Durchgang: Color-Attribut mit gedimmten Werten überschreiben.
+            // Zweiter Durchgang: Color-Attribut mit interpolierten Werten überschreiben.
             // Statt Richtung Schwarz zu dimmen, in die Hintergrund-/unlit-
             // Sphere-Farbe interpolieren. Hintere Punkte verschmelzen unauf-
             // fällig — keine roten Akzente, keine dunklen „Löcher“. Die
@@ -2768,7 +2773,7 @@ self.onmessage = async function (e) {
             }
             colorAttr.needsUpdate = true;
 
-            // Kanten: Vertex-Colors basierend auf Entfernung dimmen
+            // Kanten: Vertex-Colors basierend auf Entfernung in Dunst-Farbe interpolieren
             meshGroup.traverse((child) => {
               if (child.userData.isEdge && child.geometry.attributes.color) {
                 const pos = child.geometry.attributes.position;

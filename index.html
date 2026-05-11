@@ -278,7 +278,7 @@
       const pendingCallbacks = new Map(); // iter → callback wenn Ergebnis da
       const computeStartTimes = new Map(); // iter → performance.now() Startzeitpunkt
 
-      // Gemeinsamer onmessage-Handler für beide Worker — die `variant` kommt
+      // Gemeinsamer onmessage-Handler für alle drei Worker — die `variant` kommt
       // in der Message mit, also brauchen wir keinen worker-spezifischen Handler.
       function onWorkerMessage(e) {
         // Fortschrittsmeldungen aktualisieren die Anzeige ohne Rendering
@@ -349,7 +349,7 @@
           cb();
         }
 
-        // Nächste Iteration in beiden Varianten vorberechnen (parallel)
+        // Nächste Iteration in allen drei Varianten vorberechnen (parallel)
         precomputeNext();
       }
       workers.topo.onmessage = onWorkerMessage;
@@ -431,7 +431,7 @@
         0x4a90d9, 0x50c878, 0xe8a838, 0xd94a6b, 0x9b59b6, 0x1abc9c, 0xe67e22,
         0x3498db,
       ];
-      let dotMeshes = []; // Referenzen auf Punkt-Meshes für Live-Opacity-Update
+      let dotMeshes = []; // Enthält genau ein THREE.Points-Mesh (für Live-Color-Update der Punkte je nach Kamera-Entfernung)
 
       // ---- Morph-Animation ----
       // Beim Wechsel zur nächsten Iteration werden alter und neuer Körper
@@ -473,11 +473,12 @@
         return `${min}:${String(remSec).padStart(2, "0")}`;
       }
 
-      // Hull- und Hybrid-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-
-      // Modus). Die Berechnungszeit wächst stark (Hull Iter 11 ~17s, Iter 12 mehrere
-      // Minuten), läuft aber im Hintergrund auf eigenen Worker-Threads weiter.
-      // Hull und Hybrid bis POLY_MAX_ITER (Desktop: 14, Mobil: 12).
-      // Mit Konflikt-Listen-Hull: iter 14 ~30 s (Hull) bzw. ~2 s (Hybrid).
+      // Hull und Hybrid berechnen bis POLY_MAX_ITER (Desktop: 14, Mobil: 12);
+      // höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus.
+      // Mit dem Konflikt-Listen-Hull-Algorithmus sind die Browser-Iterationen
+      // schnell: Iter 12 ~2,5 s, Iter 13 ~6 s, Iter 14 ~30 s (Hull) bzw.
+      // ~0,5 s / ~1 s / ~2 s für Hybrid. Läuft im Hintergrund auf eigenem
+      // Worker-Thread weiter, blockiert nicht die UI.
       const HULL_MAX_ITER = POLY_MAX_ITER;
       // Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
       // Wird nach jedem Worker-Ergebnis aufgerufen. Drei Worker (workers.topo,
@@ -518,8 +519,8 @@
       // Rendering
       // ============================================================================
       // Baut die 3D-Szene für die aktuelle Iteration:
-      //   - Iter 0-12: Polyeder mit Flächen, Kanten und Vertex-Punkten
-      //   - Ab Iter 13: Best-Fit-Kugel als Referenz + Vertex-Punkte
+      //   - iter ≤ POLY_MAX_ITER (Polyeder-Modus): Flächen, Kanten und Vertex-Punkte
+      //   - iter > POLY_MAX_ITER (Kugel-Modus): Best-Fit-Kugel als Referenz + Vertex-Punkte
       // Vertex-Punkte sind farbcodiert nach Abweichung von der Best-Fit-Kugel:
       //   - Rot = außerhalb der Kugel (Beule)
       //   - Grün = innerhalb der Kugel (Delle)
@@ -555,7 +556,7 @@
           triIndices &&
           triIndices.length > 0
         ) {
-          // POLYEDER-MODUS (Iter 0-12):
+          // POLYEDER-MODUS (iter ≤ POLY_MAX_ITER):
           // Flächen aus triangulierten Polygonen (vom Worker), Kanten aus Polygon-Flächen
 
           // Vertex-Positionen als Float32Array (Three.js-Format)
@@ -640,7 +641,7 @@
             meshGroup.add(edgeMesh);
           }
         } else {
-          // KUGEL-MODUS (ab Iter 13):
+          // KUGEL-MODUS (iter > POLY_MAX_ITER):
           // Best-Fit-Kugel als Referenzkörper — zeigt wie weit die Vertices
           // von der idealen Kugel abweichen
           const sphereGeom = new THREE.SphereGeometry(sphereRadius, 64, 48);
@@ -705,8 +706,8 @@
         const inSphereMode = currentIdx > POLY_MAX_ITER;
         const defaultDots = inSphereMode ? (isMobile ? 100000 : 200000) : Infinity;
         let maxDots = retryWithFewerDots || defaultDots;
-        // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
-        // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
+        // Polyeder-Modus (iter ≤ POLY_MAX_ITER): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
+        // Kugel-Modus (iter > POLY_MAX_ITER): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
         const dotSizes = [
           0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.002, 0.001,
         ];
@@ -735,13 +736,13 @@
         // und ~50k Mesh-Objekte → drastisch weniger Speicher und kein
         // Out-of-Memory-Crash mehr beim Cross-Fade.
         // - Position pro Punkt: BufferAttribute (3 Floats × N)
-        // - Farbe pro Punkt: BufferAttribute (3 Floats × N), wird live
-        //   basierend auf Kamera-Entfernung gedimmt
+        // - Farbe pro Punkt: BufferAttribute (3 Floats × N), wird live je
+        //   Kamera-Entfernung in eine dunkle Dunst-Zielfarbe interpoliert
         // - Globale Opacity: ein Uniform für Morph-Fade
         const N = candidates.length;
         const posAttr = new Float32Array(N * 3);
         const colAttr = new Float32Array(N * 3);
-        const baseCols = new Float32Array(N * 3); // ungedimmte Originalfarben
+        const baseCols = new Float32Array(N * 3); // Originalfarben (vor Dunst-Mix)
         for (let k = 0; k < N; k++) {
           const i = candidates[k].i;
           const v = vertices[i];
@@ -771,7 +772,7 @@
         dotPoints.userData.isDots = true;
         dotPoints.userData.targetOpacity = 1;
         dotPoints.userData.baseColors = baseCols;
-        dotPoints.userData.candidatePositions = posAttr; // für Distance-Dim
+        dotPoints.userData.candidatePositions = posAttr; // für distanzabhängige Farbinterpolation
         // Dots sollen im Kugel-Modus IMMER vor (innerhalb wie außerhalb) der
         // halbtransparenten Kugel gerendert werden. Da sowohl Sphere als auch
         // dotPoints am Ursprung sitzen, ist die Sortierreihenfolge sonst
@@ -927,7 +928,7 @@
               buildMesh(histories[reqVariant][reqIter]);
             }
           });
-          // Falls der Precompute-Chain pausiert (z.B. weil eine andere Variante
+          // Falls der Precompute-Chain pausiert (z. B. weil eine andere Variante
           // bereits abgeschlossen ist), neu anstoßen.
           precomputeNext();
         }
@@ -1287,7 +1288,7 @@
               if (d > maxD) maxD = d;
             }
             const range = maxD - minD || 1;
-            // Zweiter Durchgang: Color-Attribut mit gedimmten Werten überschreiben.
+            // Zweiter Durchgang: Color-Attribut mit interpolierten Werten überschreiben.
             // Statt Richtung Schwarz zu dimmen, in die Hintergrund-/unlit-
             // Sphere-Farbe interpolieren. Hintere Punkte verschmelzen unauf-
             // fällig — keine roten Akzente, keine dunklen „Löcher“. Die
@@ -1307,7 +1308,7 @@
             }
             colorAttr.needsUpdate = true;
 
-            // Kanten: Vertex-Colors basierend auf Entfernung dimmen
+            // Kanten: Vertex-Colors basierend auf Entfernung in Dunst-Farbe interpolieren
             meshGroup.traverse((child) => {
               if (child.userData.isEdge && child.geometry.attributes.color) {
                 const pos = child.geometry.attributes.position;
