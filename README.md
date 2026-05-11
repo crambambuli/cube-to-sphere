@@ -107,7 +107,7 @@ Bei einem **konvexen** Eingabepolyeder mit **planaren** Vertex-Figuren (z. B. W�
 
 Mit dem Schrumpffolien-Bild wird auch klar, warum alle drei Varianten **bis Iter 4 identisch** sind: solange alle Vertex-Figur-Quads exakt planar sind, schmiegt sich die Folie an genau diese Quads an. **Ab Iter 5** sind manche Quads leicht gewölbt — die Folie muss sich um die gewölbte Form herum spannen und teilt sie in zwei plane Dreiecke auf. Genau das ist der Symmetriebruch in der Convex-Hull-Variante.
 
-**Topo und Hybrid** haben in jeder Iteration identische Vertex-Mengen (Hybrid übernimmt die Topo-Vertex-Erzeugung) und konvergieren damit gegen denselben Grenzkörper. **Hull** divergiert ab Iter 6 in der Vertex-Menge: durch das Splitten nicht-planarer Quads entlang einer Diagonalen entstehen ab iter 6 zusätzliche Vertices an den Diagonal-Mittelpunkten — diese liegen auf der „Ridge-Linie“ zwischen zwei Beulen-Eckpunkten und sind im Topo-Vertex-Set nicht enthalten (auch nicht durch weitere Topo-Iterationen erreichbar). Der Hull-Grenzkörper ist daher eng verwandt mit dem Topo/Hybrid-Grenzkörper, aber vermutlich nicht identisch — er sollte an den Beulen geringfügig weiter draußen liegen.
+**Topo und Hybrid** haben in jeder Iteration identische Vertex-Mengen (Hybrid übernimmt die Topo-Vertex-Erzeugung) und konvergieren damit trivial gegen denselben Grenzkörper. **Hull** hat eine echt größere Vertex-Menge: ab Iter 6 entstehen durch das Splitten nicht-planarer Quads zusätzliche Vertices an den Diagonal-Mittelpunkten, die im Topo-Set nicht enthalten sind und auch durch weitere Topo-Iterationen nicht erreicht werden. Trotzdem ist der Hüll-Envelope (`max_r` und `min_r`) in jeder Iteration empirisch identisch zu Topo: die zusätzlichen Hull-Vertices liegen auf der „Ridge-Linie“ zwischen Beulen-Eckpunkten, also _auf_ der Oberfläche des Topo-Grenzkörpers, nicht jenseits davon. Alle drei Varianten konvergieren somit gegen denselben Körper; sie unterscheiden sich nur darin, wie dicht sie ihn samplen (siehe absolute `min_r`/`max_r` weiter unten und den rAvg-Klappblock).
 
 ### Was alle drei Varianten gemeinsam haben
 
@@ -117,7 +117,7 @@ Mit dem Schrumpffolien-Bild wird auch klar, warum alle drei Varianten **bis Iter
 
 Jede Symmetrieoperation bildet Ecken auf Ecken, Kanten auf Kanten, Kantenmittelpunkte auf Kantenmittelpunkte ab. Die Menge der Mittelpunkte ist O<sub>h</sub>-invariant → die konvexe Hülle auch → jede Iteration erhält die O<sub>h</sub>-Symmetrie. ✓
 
-**Konvergenz gegen einen nicht-sphärischen Grenzkörper.** Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der Best-Fit-Kugel gegen einen festen Wert konvergiert, nicht gegen null:
+**Konvergenz gegen einen nicht-sphärischen Grenzkörper.** Die Vermutung liegt nahe, dass iterierte Rektifikation den Würfel zu einer Kugel glättet. Die numerische Simulation zeigt jedoch, dass die Abweichung von der Best-Fit-Kugel gegen einen festen Wert konvergiert, nicht gegen null (Werte relativ zum Topo-rAvg; absolute min_r/max_r weiter unten — diese sind für alle drei Varianten identisch):
 
 ```
 Iter  Beule (außen)    Delle (innen)
@@ -141,20 +141,40 @@ Iter  Beule (außen)    Delle (innen)
 
 Iterationen 0–2 haben exakt 0% Abweichung, weil alle Vertices gleich weit vom Zentrum entfernt sind (Würfel, Kuboktaeder und dessen Rektifikation haben jeweils gleich lange Kanten und äquidistante Vertices).
 
-| Iteration | Min (Delle) | Max (Beule) |
-| --------- | ----------- | ----------- |
-| 0         | 0,000%      | +0,000%     |
-| 1         | 0,000%      | +0,000%     |
-| 2         | 0,000%      | +0,000%     |
-| 3         | -2,548%     | +2,548%     |
-| 5         | -5,407%     | +6,272%     |
-| 7         | -6,291%     | +7,438%     |
-| 10        | -6,564%     | +7,793%     |
-| 13        | -6,599%     | +7,838%     |
-| 15        | -6,602%     | +7,843%     |
-| 20        | -6,604%     | +7,845%     |
+Werte relativ zum eigenen rAvg (was die App anzeigt):
 
-Die Abweichung stabilisiert sich bei **-6,604% / +7,845%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
+| Iteration (Topo) | Min (Delle) | Max (Beule) |
+| ---------------- | ----------- | ----------- |
+| 0                | 0,000%      | +0,000%     |
+| 1                | 0,000%      | +0,000%     |
+| 2                | 0,000%      | +0,000%     |
+| 3                | -2,548%     | +2,548%     |
+| 5                | -5,407%     | +6,272%     |
+| 7                | -6,291%     | +7,438%     |
+| 10               | -6,564%     | +7,793%     |
+| 13               | -6,599%     | +7,838%     |
+| 15               | -6,602%     | +7,843%     |
+| 20               | -6,604%     | +7,845%     |
+
+Da Hull einen anderen rAvg hat als Topo (siehe rAvg-Klappblock weiter unten), sind die relativen Prozente nicht direkt zwischen den Varianten vergleichbar. **Absolut**, in Distanzen vom Ursprung (zur Orientierung: die Würfel-Vertices liegen bei r = √3 ≈ 1,732, die Kantenmittelpunkte bei r = √2 ≈ 1,414, die Flächenzentren bei r = 1):
+
+| Iter | min_r (Delle) | max_r (Beule) | Topo rAvg | Hull rAvg |
+| ---- | ------------- | ------------- | --------- | --------- |
+| 3    | 1,11803       | 1,17260       | 1,14532   | 1,14532   |
+| 5    | 1,03078       | 1,15583       | 1,08867   | 1,08867   |
+| 7    | 1,00778       | 1,15477       | 1,07514   | 1,07560   |
+| 10   | 1,00098       | 1,15470       | 1,07126   | 1,07511   |
+| 13   | 1,00012       | 1,15470       | 1,07077   | 1,07584   |
+| 15   | 1,00003       | 1,15470       | 1,07072   | 1,07609   |
+
+**Beobachtungen:**
+
+- **min_r und max_r sind in jeder Iteration identisch für Topo und Hull** → identischer Außenrand, gleiche Tiefe der Dellen. Topo und Hull beschreiben geometrisch denselben Körper.
+- **max_r konvergiert numerisch gegen ≈ 1,15470** (ab Iter 10 auf 5 Nachkommastellen stabil). Bemerkenswert: dieser Wert liegt sehr nahe an 2/√3 ≈ 1,15470054 — algebraisch nicht bewiesen, aber plausibel.
+- **min_r konvergiert gegen 1,00000** — die Delle an den Flächenzentren erreicht exponentiell die Einheitsdistanz (Differenz halbiert sich pro Iter).
+- **Topo- und Hull-rAvg divergieren ab Iter 6 leicht** (siehe rAvg-Klappblock unten: 1,079595 vs. 1,078814 bei iter 6; bei iter 15: 1,07072 vs. 1,07609). Hull hat zusätzliche Vertices an den Diagonal-Mittelpunkten in Beulen-Nähe → Sample-Bias zugunsten höherer Radien. Die Vertex-Mengen sind verschieden, das Hüll-Volumen aber identisch.
+
+Die Abweichung stabilisiert sich (relativ zum Topo-rAvg) bei **-6,604% / +7,845%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
 **Die Ursache** ist eine topologische Nicht-Uniformität: die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten und sind topologische Singularitäten in einem ansonsten Quad-dominierten Mesh[^mesh].
 
@@ -368,12 +388,12 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 > - Der weighted-avg übersteigt rAvg(N)
 > - Die obere Schranke lässt rAvg(N+1) ≥ rAvg(N) zu
 >
-> **Konsequenz.** Topo und Hull haben ab Iter 6 disjunkte Vertex-Mengen (Hull fügt Diagonal-Mittelpunkte ein, die in Topo nicht erreicht werden) und konvergieren daher vermutlich gegen leicht unterschiedliche Grenzkörper:
+> **Konsequenz.** Topo und Hull haben ab Iter 6 echt verschiedene Vertex-Mengen (Hull fügt Diagonal-Mittelpunkte ein, die in Topo nicht vorkommen). Empirisch (siehe absolute min_r/max_r oben) sind die Hüll-Envelopes aber **identisch** — Topo und Hull konvergieren gegen denselben Körper, nur mit unterschiedlich verteilter Stichprobe:
 >
-> - Topo: gleichmäßige Stichprobe (alle Vertices Grad 4) → rAvg konvergiert _von oben_ gegen einen Grenzwert
-> - Hull: zusätzliche Vertices an den Beulen-Ridges → rAvg konvergiert nach kurzem Schrumpfen _von unten_ gegen einen höheren Wert
+> - Topo: gleichmäßige Stichprobe (alle Vertices Grad 4) → rAvg konvergiert _von oben_ gegen seinen Grenzwert
+> - Hull: zusätzliche Vertices auf den Beulen-Ridges (näher an den Beulen) → höherer Sample-Mittelwert, rAvg konvergiert _von unten_ gegen einen höheren Wert
 >
-> Der Unterschied ist klein (rAvg-Differenz < 1 % bei iter 15), aber er ist nicht reine Stichproben-Verzerrung: die zusätzlichen Hull-Vertices erweitern die Vertex-Menge in Bereiche, die Topo nicht abdeckt. Hybrid hat dieselbe Vertex-Menge wie Topo und damit denselben Grenzkörper.
+> Der rAvg-Unterschied (< 1 % bei iter 15) ist also reine **Stichproben-Verzerrung**, kein Körper-Unterschied. Hybrid hat dieselbe Vertex-Menge wie Topo und damit identisches rAvg.
 
 </details>
 
@@ -397,7 +417,7 @@ Vorteil gegenüber Topo:
 
 - **Flächen exakt planar** (per Hull-Definition)
 
-Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nur mit weniger Vertex-Inflation. Hybrid und Topo konvergieren gegen denselben Grenzkörper (identische Vertex-Mengen); Hull konvergiert gegen einen eng verwandten, aber vermutlich geringfügig größeren Grenzkörper (zusätzliche Diagonal-Mittelpunkte an den Beulen).
+Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nur mit weniger Vertex-Inflation. Alle drei Varianten konvergieren gegen denselben Grenzkörper (identische min_r/max_r); Hull samplet ihn nur dichter in den Beulen-Bereichen.
 
 <details>
 <summary><b>Hybrid-Verhalten an konkreten Iterationen</b></summary>
@@ -440,7 +460,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 | Flächen            | Polygone (möglicherweise nicht-planar) | exakt planar                                                                                       | exakt planar                                     |
 | Topologie          | konstant: 8 Dreiecke + Rest Quads      | wechselnd: ab Iter 5 mehr Dreiecke, ab Iter 9 Pentagone, ab Iter 10 Hexagone, ab Iter 14 Heptagone | wechselnd, aber bis Iter 15 nur Dreiecke + Quads |
 | Speicher (Iter 15) | < 50 MB                                | ~3 GB                                                                                              | ~544 MB                                          |
-| Konvergenz         | Grenzkörper K (= Hybrid)               | eng verwandter, vermutlich größerer Grenzkörper                                                    | Grenzkörper K (= Topo)                           |
+| Konvergenz         | Grenzkörper K                          | Grenzkörper K (echt größere Vertex-Menge, identischer Envelope)                                    | Grenzkörper K                                    |
 
 Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus — Desktop: Iter ≤ 14, Mobil: Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull-Variante warten.
 
