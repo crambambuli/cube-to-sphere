@@ -294,7 +294,7 @@ Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup
 | 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck: 384.296, 4-Eck: 242.250, 5-Eck: 5.328, 6-Eck: 144, 7-Eck: 48  | 1 h 30 min  | ~1,2 GB    |
 | 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck: 940.184, 4-Eck: 584.178, 5-Eck: 13.008, 6-Eck: 480, 7-Eck: 48 | 16 h 50 min | ~3 GB      |
 
-> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER = 12`). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB).
+> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER` (Desktop: 13, Mobil: 12)). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB).
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie[^ressym] _mathematisch exakt koplanar_ — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -439,7 +439,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 | Speicher (Iter 15) | < 50 MB                                | ~3 GB                                                                                              | ~544 MB                                          |
 | Konvergenz         | Grenzkörper K (= Hybrid)               | eng verwandter, vermutlich größerer Grenzkörper                                                    | Grenzkörper K (= Topo)                           |
 
-Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus, Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull warten.
+Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus — Desktop: Iter ≤ 13, Mobil: Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull warten.
 
 ### Der Grenzkörper
 
@@ -465,7 +465,7 @@ Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polye
 
 Die Anwendung zeigt den Körper in zwei Modi:
 
-- **Iteration 0–12 (Polyeder-Modus):** Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1 s Cross-Fade mit Ease-in-out).
+- **Polyeder-Modus** (Desktop: Iter 0–13, Mobil: Iter 0–12): Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1 s Cross-Fade mit Ease-in-out).
 
 ![Topologische Rektifikation mit Flächen, Kanten und Vertex-Punkten](topologische-rektifikation.jpg)
 
@@ -477,7 +477,7 @@ Die Hybrid-Variante kombiniert Topo-Vertex-Evolution (langsames Wachstum) mit pl
 
 ![Hybrid-Variante mit Topo-Vertices und Hull-Flächen](hybrid.jpg)
 
-- **Ab Iteration 13 (Kugel-Modus, nur Topo):** Hull und Hybrid enden bei Iter 12 (`HULL_MAX_ITER`); ab Iter 13 läuft nur die Topo-Variante weiter und wechselt in den Kugel-Modus. Eine halbtransparente Best-Fit-Kugel dient als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >50.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
+- **Kugel-Modus** (Desktop: ab Iter 14, Mobil: ab Iter 13, nur Topo): Hull und Hybrid enden bei `HULL_MAX_ITER` (Desktop: 13, Mobil: 12); danach läuft nur die Topo-Variante weiter und wechselt in den Kugel-Modus. Eine halbtransparente Best-Fit-Kugel dient als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >100.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
 
 ![Kugel-Modus mit farbcodierten Vertex-Punkten](kugelmodus.jpg)
 
@@ -495,7 +495,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 50.000 Vertices (Desktop) bzw. 25.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt ([Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren)). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus (Iter 13+) konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
+Bei mehr als 100.000 Vertices (Desktop) bzw. 50.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt ([Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren)). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
 
 Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
@@ -527,9 +527,9 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 | Parameter                 | Desktop | Mobil  |
 | ------------------------- | ------- | ------ |
 | Max. Iterationen (Topo)   | 20      | 18     |
-| Max. Iterationen (Hull)   | 12      | 12     |
-| Max. Iterationen (Hybrid) | 12      | 12     |
-| Max. Samples              | 50.000  | 25.000 |
+| Max. Iterationen (Hull)   | 13      | 12     |
+| Max. Iterationen (Hybrid) | 13      | 12     |
+| Max. Samples              | 100.000 | 50.000 |
 
 ## Bedienung
 
@@ -581,7 +581,7 @@ Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem
 
 Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 15 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
 
-`HULL_MAX_ITER = 12`: höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
+`HULL_MAX_ITER` (Desktop: 13, Mobil: 12): höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
 
 ### Hybrid-Rektifikation (`rectifyHybrid`)
 
@@ -592,7 +592,7 @@ Zwei Schritte pro Iteration:
 
 Worker-State speichert beides: `vertices` und `topoFaces`. Bei der nächsten Iteration wird `topoFaces` als Eingabe für den Topo-Schritt verwendet — die Display-Polygon-Faces (vom Hull) werden nicht persistiert, sondern bei jedem Aufruf neu berechnet.
 
-`HULL_MAX_ITER = 12` gilt auch hier (gleicher Auto-Switch in den Topo-Kugel-Modus).
+`HULL_MAX_ITER` (Desktop: 13, Mobil: 12) gilt auch hier (gleicher Auto-Switch in den Topo-Kugel-Modus).
 
 ### Parallele Vorberechnung im Main Thread
 

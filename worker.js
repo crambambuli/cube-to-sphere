@@ -1149,6 +1149,10 @@ self.onmessage = async function (e) {
     const variant = ["hull", "hybrid", "topo"].includes(e.data.variant)
       ? e.data.variant
       : "topo";
+    // Schwelle ab der Triangulation übersprungen wird (Kugel-Modus).
+    // Wird vom Main Thread mitgeschickt — Default 12 falls fehlend.
+    const polyMaxIter =
+      typeof e.data.polyMaxIter === "number" ? e.data.polyMaxIter : 12;
     const s = state[variant];
     const t0 = performance.now();
 
@@ -1233,8 +1237,8 @@ self.onmessage = async function (e) {
     }
 
     // Rektifikation berechnen, mit Fortschrittsmeldungen
-    // Ab Iter 13 (Kugel-Modus): keine Triangulierung nötig, spart Speicher + Zeit
-    const skipTri = iter > 12;
+    // Ab Kugel-Modus (iter > polyMaxIter): keine Triangulierung nötig.
+    const skipTri = iter > polyMaxIter;
     const rectFn =
       variant === "hull"
         ? rectifyHull
