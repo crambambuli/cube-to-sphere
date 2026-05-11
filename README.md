@@ -241,7 +241,7 @@ Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup
 <details>
 <summary><b>Algorithmus, Komplexität und numerische Sicherheit</b></summary>
 
-> Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull mit Konflikt-Listen** ([Clarkson-Shor-Stil](https://en.wikipedia.org/wiki/Output-sensitive_algorithm#Convex_hull_algorithms)) und anschließendem **koplanaren Polygon-Merge**:
+> Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull mit Konflikt-Listen** ([Clarkson-Shor-Stil](https://en.wikipedia.org/wiki/Kenneth_L._Clarkson)) und anschließendem **koplanaren Polygon-Merge**:
 >
 > **Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Multiplikation mit 2<sup>iter−1</sup> und Runden gewinnt die ganzzahligen Koordinaten exakt zurück.
 >
