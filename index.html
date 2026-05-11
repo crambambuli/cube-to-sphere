@@ -70,6 +70,16 @@
         font-size: clamp(0.9rem, 3.5vw, 1.3rem);
         color: #e0e0ff;
       }
+      #repo-link {
+        color: #7ec8e3;
+        text-decoration: none;
+        font-size: 0.75em;
+        margin-left: 0.4em;
+        vertical-align: middle;
+      }
+      #repo-link:hover {
+        color: #b8e0ee;
+      }
       #header p {
         font-size: clamp(0.65rem, 2.5vw, 0.8rem);
         color: #aaa;
@@ -158,7 +168,17 @@
   </head>
   <body>
     <div id="header">
-      <h1>Iterative Rektifikation</h1>
+      <h1>
+        Iterative Rektifikation
+        <a
+          id="repo-link"
+          href="https://github.com/crambambuli/cube-to-sphere#readme"
+          target="_blank"
+          rel="noopener"
+          title="Mathematik &amp; Implementierung im Repository"
+          >ℹ︎</a
+        >
+      </h1>
     </div>
 
     <div id="scene-container">
@@ -675,20 +695,15 @@
           }
         }
 
-        // Auf Mobilgeräten weniger Punkte rendern (weniger GPU-Speicher)
         const isMobile =
           /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
           window.innerWidth < 768;
-        // Im Kugel-Modus (iter > POLY_MAX_ITER) mehr Punkte zeigen, damit die
-        // Punktwolke die Form ausreichend dicht ausfüllt.
+        // Sampling-Cap nur im Kugel-Modus: dort sind die Punkte die einzige
+        // Darstellung des Körpers und sollen die Form dicht ausfüllen.
+        // Im Polyeder-Modus zeigt das Polygon-Mesh bereits alle Vertices —
+        // die Punkt-Dekoration darf hier ALLE Vertices abdecken.
         const inSphereMode = currentIdx > POLY_MAX_ITER;
-        const defaultDots = isMobile
-          ? inSphereMode
-            ? 50000
-            : 50000
-          : inSphereMode
-            ? 200000
-            : 100000;
+        const defaultDots = inSphereMode ? (isMobile ? 100000 : 200000) : Infinity;
         let maxDots = retryWithFewerDots || defaultDots;
         // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
         // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).

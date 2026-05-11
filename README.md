@@ -498,7 +498,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei vielen Vertices wird ein gleichmäßiges Zufalls-Sample per [Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren) angezeigt. Die Obergrenzen sind modus-abhängig: im Polyeder-Modus 100.000 (Desktop) bzw. 50.000 (Mobilgeräte); im Kugel-Modus 200.000 (Desktop, da die Punktwolke dort die Form ausreichend dicht ausfüllen muss) bzw. 50.000 (Mobilgeräte). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
+Im **Polyeder-Modus** werden alle Vertices als Punkte gerendert (das Polygon-Mesh zeigt die Geometrie ohnehin vollständig; die Punkte sind ergänzende Farb-Information). Im **Kugel-Modus** werden bei sehr großen Vertex-Mengen Zufalls-Samples per [Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren) gezogen: max. 200.000 auf Desktop bzw. 100.000 auf Mobil. Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
 
 Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
@@ -527,13 +527,12 @@ Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ..
 
 Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten reduzierte Limits:
 
-| Parameter                 | Desktop | Mobil  |
-| ------------------------- | ------- | ------ |
-| Max. Iterationen (Topo)   | 20      | 18     |
-| Max. Iterationen (Hull)   | 14      | 12     |
-| Max. Iterationen (Hybrid) | 14      | 12     |
-| Max. Samples (Polyeder)   | 100.000 | 50.000 |
-| Max. Samples (Kugel)      | 200.000 | 50.000 |
+| Parameter                  | Desktop | Mobil   |
+| -------------------------- | ------- | ------- |
+| Max. Iterationen (Topo)    | 20      | 18      |
+| Max. Iterationen (Hull)    | 14      | 12      |
+| Max. Iterationen (Hybrid)  | 14      | 12      |
+| Max. Samples (Kugel-Modus) | 200.000 | 100.000 |
 
 ## Bedienung
 
