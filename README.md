@@ -295,7 +295,7 @@ Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup
 | 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck: 384.296, 4-Eck: 242.250, 5-Eck: 5.328, 6-Eck: 144, 7-Eck: 48  | 30 s     | ~1,2 GB    |
 | 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck: 940.184, 4-Eck: 584.178, 5-Eck: 13.008, 6-Eck: 480, 7-Eck: 48 | 3 min    | ~3 GB      |
 
-> **Hinweis:** In der App werden Hull-Werte bis `HULL_MAX_ITER` berechnet (Desktop: 14, Mobil: 12). Iter 15+ wurden offline mit Node.js ermittelt — der Speicherbedarf (Spalten oben) übersteigt die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB) mit dem aktuellen Konflikt-Listen-Algorithmus.
+> **Hinweis:** In der App werden Hull-Werte bis `HULL_MAX_ITER` berechnet (Desktop: 14, Mobil: 12). Iter 15 wurde offline mit Node.js ermittelt — der Speicherbedarf (Spalte oben) übersteigt die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB) mit dem aktuellen Konflikt-Listen-Algorithmus.
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie[^ressym] _mathematisch exakt koplanar_ — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -468,7 +468,7 @@ Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polye
 
 Die Anwendung zeigt den Körper in zwei Modi:
 
-- **Polyeder-Modus** (Desktop: Iter 0–14, Mobil: Iter 0–12): Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1 s Cross-Fade[^crossfade] mit Ease-in-out).
+- **Polyeder-Modus** (Desktop: Iter 0–14, Mobil: Iter 0–12): Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1 s Cross-Fade mit Ease-in-out).
 
 ![Topologische Rektifikation mit Flächen, Kanten und Vertex-Punkten](topologische-rektifikation.jpg)
 
@@ -648,52 +648,50 @@ Dank an **Dr. rer. nat. Gregor Peltri** (HTWK Leipzig) für die ursprüngliche P
 
 MIT
 
-[^tess]: **Tessellierung** (auch Pflasterung, Parkettierung) — lückenlose und überlappungsfreie Zerlegung einer Fläche in Polygone. Beispiele: das Schachbrett (Quadrat-Tessellierung der Ebene), die Bienenwabe (Hexagon-Tessellierung), die Triangulierung eines Polygons. Im Kontext hier: die konkrete Aufteilung einer flachen Region in mehrere Polygone, im Gegensatz zur Sichtweise „eine ungeteilte Region“ ([Wikipedia](https://de.wikipedia.org/wiki/Parkettierung)).
+[^tess]: **Tessellierung** (auch Pflasterung, Parkettierung) — lückenlose und überlappungsfreie Zerlegung einer Fläche in Polygone. Beispiele: das Schachbrett (Quadrat-Tessellierung der Ebene), die Bienenwabe (Hexagon-Tessellierung), die Triangulierung eines Polygons. Im Kontext hier: die konkrete Aufteilung einer flachen Region in mehrere Polygone, im Gegensatz zur Sichtweise „eine ungeteilte Region“.
 
-[^quad]: **Quad** = Viereck (englisch _quadrilateral_, Kurzform _quad_). Im 3D-Grafik- und Polyeder-Jargon kurz und gebräuchlich; schließt schiefe, gewölbte (nicht-planare) und unregelmäßige Vierecke mit ein, im Unterschied zum „Quadrat“ (= Viereck mit gleichen Seiten und 90°-Winkeln) ([Wikipedia](https://de.wikipedia.org/wiki/Viereck)).
+[^quad]: **Quad** = Viereck (englisch _quadrilateral_, Kurzform _quad_). Im 3D-Grafik- und Polyeder-Jargon kurz und gebräuchlich; schließt schiefe, gewölbte (nicht-planare) und unregelmäßige Vierecke mit ein, im Unterschied zum „Quadrat“ (= Viereck mit gleichen Seiten und 90°-Winkeln).
 
 [^quasi]: **quasiregulär** — Polyeder, bei dem sowohl alle Vertices als auch alle Kanten unter der Symmetriegruppe äquivalent sind (vertex-transitiv _und_ kantentransitiv), aber nicht notwendig alle Flächen. Beispiel: das Kuboktaeder. Strenger als „regulär“ ist nur der Begriff der platonischen Körper (zusätzlich auch flächentransitiv).
 
 [^vertex]: **Vertex** (Plural _Vertices_) — Eckpunkt eines Polygons oder Polyeders. In der 3D-Grafik gebräuchlicher als „Ecke“.
 
-[^inzidenz]: **Inzidenz / Inzidenzstruktur** — die kombinatorische Information „welcher Vertex liegt auf welcher Kante, welche Kante grenzt an welche Fläche“. Im Gegensatz zu den geometrischen Koordinaten ([Wikipedia](<https://de.wikipedia.org/wiki/Inzidenz_(Geometrie)>)).
+[^inzidenz]: **Inzidenz / Inzidenzstruktur** — die kombinatorische Information „welcher Vertex liegt auf welcher Kante, welche Kante grenzt an welche Fläche“. Im Gegensatz zu den geometrischen Koordinaten.
 
-[^vfig]: **Vertex-Figur** — das Polygon, das beim „Abschneiden“ einer Polyederecke entsteht. Bei einer Ecke vom Grad _d_ (= _d_ einlaufende Kanten) ist die Vertex-Figur ein _d_-Eck aus den Mittelpunkten dieser Kanten ([Wikipedia](https://en.wikipedia.org/wiki/Vertex_figure)).
+[^vfig]: **Vertex-Figur** — das Polygon, das beim „Abschneiden“ einer Polyederecke entsteht. Bei einer Ecke vom Grad _d_ (= _d_ einlaufende Kanten) ist die Vertex-Figur ein _d_-Eck aus den Mittelpunkten dieser Kanten.
 
-[^koplanar]: **koplanar** — in einer gemeinsamen Ebene liegend. Drei Punkte sind immer koplanar (definieren eine Ebene); 4+ Punkte nur, wenn der vierte (und alle weiteren) zufällig in derselben Ebene liegt ([Wikipedia](https://de.wikipedia.org/wiki/Koplanarit%C3%A4t)).
+[^koplanar]: **koplanar** — in einer gemeinsamen Ebene liegend. Drei Punkte sind immer koplanar (definieren eine Ebene); 4+ Punkte nur, wenn der vierte (und alle weiteren) zufällig in derselben Ebene liegt.
 
-[^mesh]: **Mesh** — Polygonnetz; in der 3D-Grafik die Sammlung aller Flächen, Kanten und Vertices, die ein Objekt definieren. Hier synonym mit „Polyeder-Topologie“ ([Wikipedia](https://de.wikipedia.org/wiki/Polygonnetz)).
+[^mesh]: **Mesh** — Polygonnetz; in der 3D-Grafik die Sammlung aller Flächen, Kanten und Vertices, die ein Objekt definieren. Hier synonym mit „Polyeder-Topologie“.
 
 [^ktrans]: **kantentransitiv** — Eigenschaft einer Symmetriegruppe, jede Kante auf jede andere abbilden zu können. D. h. alle Kanten sind „gleich“ im symmetrischen Sinn.
 
 [^ressym]: **residuelle Symmetrie** — die nach mehreren Iterationen lokal noch erhaltene Untergruppe der ursprünglichen Würfel-Symmetrie O<sub>h</sub>. Erzwingt geometrische Eigenschaften wie Koplanarität bei hochsymmetrischen Konfigurationen.
 
-[^bahn]: **Bahn** (Orbit) — Menge aller Punkte, die durch Anwendung der Symmetriegruppe aufeinander abgebildet werden. Generische O<sub>h</sub>-Bahnen haben die volle Gruppenordnung 48; höhersymmetrische Positionen liefern Teiler (24, 12, 8, 6) ([Wikipedia](https://de.wikipedia.org/wiki/Gruppenoperation)).
+[^bahn]: **Bahn** (Orbit) — Menge aller Punkte, die durch Anwendung der Symmetriegruppe aufeinander abgebildet werden. Generische O<sub>h</sub>-Bahnen haben die volle Gruppenordnung 48; höhersymmetrische Positionen liefern Teiler (24, 12, 8, 6).
 
-[^dyad]: **dyadisch rational** — Bruch mit Zweierpotenz im Nenner (Form _a / 2<sup>n</sup>_). Beispiele: ½, 3/8, 5/16. Solche Zahlen lassen sich nach Multiplikation mit 2<sup>n</sup> als ganze Zahlen exakt darstellen ([Wikipedia](https://en.wikipedia.org/wiki/Dyadic_rational)).
+[^dyad]: **dyadisch rational** — Bruch mit Zweierpotenz im Nenner (Form _a / 2<sup>n</sup>_). Beispiele: ½, 3/8, 5/16. Solche Zahlen lassen sich nach Multiplikation mit 2<sup>n</sup> als ganze Zahlen exakt darstellen.
 
-[^skal]: **Skalarprodukt** — _a·b = a₁b₁ + a₂b₂ + a₃b₃_; ergibt eine Zahl (Skalar), die u. a. messen kann, ob zwei Vektoren in dieselbe Richtung zeigen ([Wikipedia](https://de.wikipedia.org/wiki/Skalarprodukt)).
+[^skal]: **Skalarprodukt** — _a·b = a₁b₁ + a₂b₂ + a₃b₃_; ergibt eine Zahl (Skalar), die u. a. messen kann, ob zwei Vektoren in dieselbe Richtung zeigen.
 
-[^cross]: **Cross-Product** (Kreuzprodukt) — _a × b_; ergibt einen Vektor, der senkrecht auf _a_ und _b_ steht. Hier verwendet, um Flächennormalen aus zwei Kantenvektoren zu berechnen ([Wikipedia](https://de.wikipedia.org/wiki/Kreuzprodukt)).
+[^cross]: **Cross-Product** (Kreuzprodukt) — _a × b_; ergibt einen Vektor, der senkrecht auf _a_ und _b_ steht. Hier verwendet, um Flächennormalen aus zwei Kantenvektoren zu berechnen.
 
-[^det]: **Determinante** — eine Zahl, die einer quadratischen Matrix zugeordnet ist. Hier: die 3×3-Determinante det(_v₁_, _v₂_, _v₃_) ist das (vorzeichenbehaftete) Volumen des von den drei Vektoren aufgespannten Parallelepipeds; = 0 ⇔ Vektoren liegen in einer Ebene ([Wikipedia](https://de.wikipedia.org/wiki/Determinante)).
+[^det]: **Determinante** — eine Zahl, die einer quadratischen Matrix zugeordnet ist. Hier: die 3×3-Determinante det(_v₁_, _v₂_, _v₃_) ist das (vorzeichenbehaftete) Volumen des von den drei Vektoren aufgespannten Parallelepipeds; = 0 ⇔ Vektoren liegen in einer Ebene.
 
-[^safe]: **Safe-Integer** — JavaScript repräsentiert alle Zahlen als 64-Bit-Floats. Ganzzahlen unterhalb 2<sup>53</sup> sind exakt darstellbar; darüber gibt es Lücken (z. B. 2<sup>53</sup> + 1 wird auf 2<sup>53</sup> gerundet). `Number.isSafeInteger()` testet darauf ([MDN](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger)).
+[^safe]: **Safe-Integer** — JavaScript repräsentiert alle Zahlen als 64-Bit-Floats. Ganzzahlen unterhalb 2<sup>53</sup> sind exakt darstellbar; darüber gibt es Lücken (z. B. 2<sup>53</sup> + 1 wird auf 2<sup>53</sup> gerundet). `Number.isSafeInteger()` testet darauf.
 
 [^konfliktlisten]: **Konflikt-Listen** — Datenstruktur für inkrementelle geometrische Algorithmen: jede Fläche f speichert die noch unverarbeiteten Punkte, die sie sehen; jeder Punkt einen Rückzeiger auf seine aktuelle Konflikt-Fläche. Bei Hinzufügen eines Punktes muss nicht über alle Flächen iteriert werden, sondern nur über die Nachbarn der bekannten Konflikt-Fläche (Flood-Fill). Macht aus O(n²) erwartet O(n log n).
 
-[^floodfill]: **Flood-Fill** — Algorithmus, der ausgehend von einem Startknoten alle erreichbaren Nachbarknoten in einem Graphen besucht (Breitensuche oder Tiefensuche), solange ein Kriterium erfüllt ist. Namensgebend: Eimer-Werkzeug in Mal-Programmen, das eine zusammenhängende Region einfärbt ([Wikipedia](https://de.wikipedia.org/wiki/Floodfill)).
+[^floodfill]: **Flood-Fill** — Algorithmus, der ausgehend von einem Startknoten alle erreichbaren Nachbarknoten in einem Graphen besucht (Breitensuche oder Tiefensuche), solange ein Kriterium erfüllt ist. Namensgebend: Eimer-Werkzeug in Mal-Programmen, das eine zusammenhängende Region einfärbt.
 
-[^unionfind]: **Union-Find** (auch _Disjoint-Set_) — Datenstruktur, die eine Menge von Elementen in disjunkte Gruppen partitioniert und zwei Operationen unterstützt: `find(x)` liefert den Repräsentanten der Gruppe von x; `union(x,y)` vereinigt die Gruppen von x und y. Mit Path-Compression und Union-by-Rank nahezu konstant pro Operation ([Wikipedia](https://de.wikipedia.org/wiki/Union-Find-Struktur)).
+[^unionfind]: **Union-Find** (auch _Disjoint-Set_) — Datenstruktur, die eine Menge von Elementen in disjunkte Gruppen partitioniert und zwei Operationen unterstützt: `find(x)` liefert den Repräsentanten der Gruppe von x; `union(x,y)` vereinigt die Gruppen von x und y. Mit Path-Compression und Union-by-Rank nahezu konstant pro Operation.
 
-[^stuetz]: **Stützwert / Stützebene** — eine Stützebene eines konvexen Körpers ist eine Ebene, die den Körper berührt, aber nicht durchdringt (alle Körperpunkte liegen auf einer Seite). Der Stützwert _d_ einer Ebene mit Normale _n_ ist die Konstante in der Ebenengleichung _n·x = d_; für eine Hull-Fläche gilt: alle Hull-Punkte _x_ erfüllen _n·x ≤ d_ ([Wikipedia](https://de.wikipedia.org/wiki/St%C3%BCtzhyperebene)).
+[^stuetz]: **Stützwert / Stützebene** — eine Stützebene eines konvexen Körpers ist eine Ebene, die den Körper berührt, aber nicht durchdringt (alle Körperpunkte liegen auf einer Seite). Der Stützwert _d_ einer Ebene mit Normale _n_ ist die Konstante in der Ebenengleichung _n·x = d_; für eine Hull-Fläche gilt: alle Hull-Punkte _x_ erfüllen _n·x ≤ d_.
 
-[^triang]: **Triangulierung** — Zerlegung eines Polygons (oder einer Punktmenge) in Dreiecke. Im Gegensatz zur konvexen Hülle nicht eindeutig: ein Quadrat kann z. B. entlang einer der beiden Diagonalen trianguliert werden. Für GPU-Rendering nötig, da nur Dreiecke direkt darstellbar sind ([Wikipedia](https://de.wikipedia.org/wiki/Triangulierung)).
+[^triang]: **Triangulierung** — Zerlegung eines Polygons (oder einer Punktmenge) in Dreiecke. Im Gegensatz zur konvexen Hülle nicht eindeutig: ein Quadrat kann z. B. entlang einer der beiden Diagonalen trianguliert werden. Für GPU-Rendering nötig, da nur Dreiecke direkt darstellbar sind.
 
-[^quat]: **Quaternion** — vierdimensionales Zahlsystem (_a + bi + cj + dk_), entdeckt von Hamilton 1843. In der 3D-Grafik gebräuchlich zur Repräsentation und Komposition von Rotationen, da Quaternion-Rotation gimbal-lock-frei und numerisch stabiler ist als die mit Euler-Winkeln ([Wikipedia](https://de.wikipedia.org/wiki/Quaternion)).
+[^quat]: **Quaternion** — vierdimensionales Zahlsystem (_a + bi + cj + dk_), entdeckt von Hamilton 1843. In der 3D-Grafik gebräuchlich zur Repräsentation und Komposition von Rotationen, da Quaternion-Rotation gimbal-lock-frei und numerisch stabiler ist als die mit Euler-Winkeln.
 
-[^gimbal]: **Gimbal Lock** — Verlust eines Rotationsfreiheitsgrades bei Euler-Winkel-Darstellung, wenn zwei der drei Achsen parallel ausgerichtet sind (z. B. bei 90°-Pitch). Mechanisch sichtbar bei kardanisch aufgehängten Geräten (Gimbal). Mit Quaternionen tritt das Problem nicht auf ([Wikipedia](https://de.wikipedia.org/wiki/Gimbal_Lock)).
+[^gimbal]: **Gimbal Lock** — Verlust eines Rotationsfreiheitsgrades bei Euler-Winkel-Darstellung, wenn zwei der drei Achsen parallel ausgerichtet sind (z. B. bei 90°-Pitch). Mechanisch sichtbar bei kardanisch aufgehängten Geräten (Gimbal). Mit Quaternionen tritt das Problem nicht auf.
 
 [^trackball]: **Trackball-Rotation** — UI-Pattern für 3D-Rotation: der Mauszeiger wird auf eine virtuelle Kugel projiziert, und das Ziehen zwischen zwei Punkten auf der Kugel definiert eine Rotation (durch die zwei Punkte und das Kugel-Zentrum). Intuitiver als Pitch/Yaw-Schieberegler.
-
-[^crossfade]: **Cross-Fade** — Überblendung zwischen zwei visuellen Zuständen, bei der gleichzeitig der alte Zustand ausgeblendet und der neue eingeblendet wird (Opacity-Animation). In der App: 1 s Übergang zwischen aufeinanderfolgenden Iterationen mit Ease-in-out-Kurve ([Wikipedia EN](https://en.wikipedia.org/wiki/Crossfade)).
