@@ -172,6 +172,8 @@ Da Hull einen anderen rAvg hat als Topo (siehe rAvg-Klappblock weiter unten), si
 | 19   | 1,00000191    | 1,15470054    | 1,07070681 | —          |
 | 20   | 1,00000095    | 1,15470054    | 1,07070627 | —          |
 
+> _Hull ab Iter 16 nicht berechnet: Iter 15 erfordert ~3 GB Speicher, Iter 16 würde mit ~2,5 M Vertices ~7–8 GB benötigen. Außerdem würde Iter 16+ den JavaScript-Safe-Integer-Bereich (< 2<sup>53</sup>) überschreiten — eine Umstellung auf BigInt wäre nötig. Für Topo ist beides kein Problem: Float-Arithmetik reicht (keine exakten Prädikate), und V wächst nur ×2 pro Iter (Iter 20: 6,3 M Vertices, ~200 MB)._
+
 **Beobachtungen:**
 
 - **min_r und max_r sind in jeder Iteration identisch für Topo und Hull** → identischer Außenrand, gleiche Tiefe der Dellen. Topo und Hull beschreiben geometrisch denselben Körper.
