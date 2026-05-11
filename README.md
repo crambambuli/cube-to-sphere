@@ -181,6 +181,29 @@ Da Hull einen anderen rAvg hat als Topo (siehe rAvg-Klappblock weiter unten), si
 - **min_r konvergiert gegen 1** — die Delle an den Flächenzentren erreicht exponentiell die Einheitsdistanz: die Differenz halbiert sich pro Iteration (Faktor genau ½ bis auf Float-Rundung im letzten Bit; ab Iter 15 bis 20 in Einheiten von 10<sup>−8</sup>: 3052 → 1526 → 763 → 381 → 191 → 95).
 - **Topo- und Hull-rAvg divergieren ab Iter 6 leicht** (siehe rAvg-Klappblock unten: 1,079595 vs. 1,078814 bei iter 6; bei iter 15: 1,07072 vs. 1,07609). Hull hat zusätzliche Vertices an den Diagonal-Mittelpunkten in Beulen-Nähe → Sample-Bias zugunsten höherer Radien. Die Vertex-Mengen sind verschieden, das Hüll-Volumen aber identisch.
 
+<details>
+<summary><b>Geometrische Erklärung für max_r = 2/√3</b></summary>
+
+> Bei Iter 1 (Kuboktaeder) wird jede Würfelecke durch eine kleine **Dreiecksfläche** ersetzt. Für die Würfelecke (1, 1, 1) sind die drei Dreiecks-Vertices die Mittelpunkte der dort einlaufenden Kanten:
+>
+> - (1, 1, 0) — Mittelpunkt der Kante zu (1, 1, −1)
+> - (1, 0, 1) — Mittelpunkt der Kante zu (1, −1, 1)
+> - (0, 1, 1) — Mittelpunkt der Kante zu (−1, 1, 1)
+>
+> Alle drei liegen bei r = √2 ≈ 1,414. Der **Schwerpunkt** dieses Dreiecks liegt bei
+>
+> $$\left(\tfrac{1+1+0}{3},\, \tfrac{1+0+1}{3},\, \tfrac{0+1+1}{3}\right) = \left(\tfrac{2}{3},\, \tfrac{2}{3},\, \tfrac{2}{3}\right)$$
+>
+> mit Abstand vom Ursprung
+>
+> $$\sqrt{3 \cdot \left(\tfrac{2}{3}\right)^2} = \sqrt{\tfrac{12}{9}} = \tfrac{2\sqrt{3}}{3} = \tfrac{2}{\sqrt{3}} \approx 1{,}1547.$$
+>
+> **Was passiert über die Iterationen?** Die 8 Dreiecke aus den Würfelecken bleiben über alle Iterationen als Flächen erhalten (sie sind topologische Invarianten), schrumpfen aber kontinuierlich auf ihren jeweiligen Schwerpunkt zu. Alle Vertices eines solchen geschrumpften Dreiecks konvergieren gegen den Schwerpunkt — für die (1, 1, 1)-Ecke also gegen den Punkt (2/3, 2/3, 2/3).
+>
+> Da der Beulen-Vertex immer der am weitesten draußen liegende Vertex des Körpers ist, gilt im Limit: **max_r = 2/√3**.
+
+</details>
+
 Die Abweichung stabilisiert sich (relativ zum Topo-rAvg) bei **-6,604% / +7,845%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
 
 **Die Ursache** ist eine topologische Nicht-Uniformität: die 8 Dreiecke aus den ursprünglichen Würfelecken bleiben über alle Iterationen als Flächen erhalten und sind topologische Singularitäten in einem ansonsten Quad-dominierten Mesh[^mesh].
