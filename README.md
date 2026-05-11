@@ -178,7 +178,7 @@ Da Hull einen anderen rAvg hat als Topo (siehe rAvg-Klappblock weiter unten), si
 
 - **min_r und max_r sind in jeder Iteration identisch für Topo und Hull** → identischer Außenrand, gleiche Tiefe der Dellen. Topo und Hull beschreiben geometrisch denselben Körper.
 - **max_r konvergiert gegen 2/√3 ≈ 1,15470054** — die Beule an den Würfelecken erreicht im Limit exakt diesen algebraischen Wert (ab Iter 15 numerisch auf 8 Nachkommastellen exakt bestätigt).
-- **min_r konvergiert gegen 1,00000000** — die Delle an den Flächenzentren erreicht exponentiell die Einheitsdistanz: die Differenz halbiert sich pro Iteration (Faktor genau ½ bis auf Float-Rundung im letzten Bit; ab Iter 15 bis 20 in Einheiten von 10<sup>−8</sup>: 3052 → 1526 → 763 → 381 → 191 → 95).
+- **min_r konvergiert gegen 1** — die Delle an den Flächenzentren erreicht exponentiell die Einheitsdistanz: die Differenz halbiert sich pro Iteration (Faktor genau ½ bis auf Float-Rundung im letzten Bit; ab Iter 15 bis 20 in Einheiten von 10<sup>−8</sup>: 3052 → 1526 → 763 → 381 → 191 → 95).
 - **Topo- und Hull-rAvg divergieren ab Iter 6 leicht** (siehe rAvg-Klappblock unten: 1,079595 vs. 1,078814 bei iter 6; bei iter 15: 1,07072 vs. 1,07609). Hull hat zusätzliche Vertices an den Diagonal-Mittelpunkten in Beulen-Nähe → Sample-Bias zugunsten höherer Radien. Die Vertex-Mengen sind verschieden, das Hüll-Volumen aber identisch.
 
 Die Abweichung stabilisiert sich (relativ zum Topo-rAvg) bei **-6,604% / +7,845%** — der Körper konvergiert gegen einen nicht-sphärischen Grenzkörper. Bemerkenswert: die Beulen (an den Würfelecken) sind stärker ausgeprägt als die Dellen (an den Flächenzentren).
