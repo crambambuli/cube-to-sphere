@@ -395,14 +395,25 @@ async function rectifyTopological(
 // Eingabe: points = [[x,y,z], ...]
 // Ausgabe: { faces: [[i,j,k], ...] } — Dreieck-Indizes (gegen den Uhrzeigersinn von außen)
 //
-// Algorithmus: Initiales Tetraeder aus 4 nicht-koplanaren Punkten,
-// dann iterativ jeden weiteren Punkt einarbeiten:
-//   - Finde alle Flächen, die von P aus sichtbar sind (Normale zeigt auf P)
-//   - Entferne sie, finde die Grenzkanten der entstandenen "Lücke"
-//   - Verbinde P mit jeder Grenzkante → neue Dreiecksflächen
+// Algorithmus: Initiales Tetraeder + Konflikt-Listen-Inkrement (Clarkson-Shor).
 //
-// Komplexität: O(n²) im Worst Case, in der Praxis schneller.
-// Für unsere Größenordnungen (≤ 25k Punkte) ausreichend.
+//   1. Initiales Tetraeder aus 4 nicht-koplanaren Punkten bauen.
+//   2. Jedem verbleibenden Punkt p eine Fläche zuweisen, die ihn „sieht“
+//      (p.face = f, gleichzeitig f.conflicts.push(p)). Punkte ohne sichtbare
+//      Fläche liegen im Inneren → werden ignoriert.
+//   3. Solange noch Punkte in irgendeiner Konfliktliste:
+//        - Punkt p auswählen, dessen aktive Fläche f noch existiert
+//        - Sichtbare Region per Flood-Fill ausgehend von f bestimmen
+//          (face.neighbors für Adjazenz)
+//        - Horizon-Edges sammeln, Cone von p zu Horizon bauen
+//        - Punkte aus den Konfliktlisten der entfernten Flächen umverteilen
+//          auf die neuen Flächen (jeder Punkt p' wird der ersten neuen
+//          Fläche zugewiesen, die ihn sieht)
+//
+// Vorteil gegenüber O(n²)-naivem Inkrement: Sichtbarkeit muss nicht mehr
+// gegen ALLE aktuellen Flächen getestet werden, sondern nur gegen die
+// Flood-Fill-Nachbarn der bekannten konflikt-Fläche. Erwartete Komplexität
+// O(n log n) bei zufälliger Punktreihenfolge.
 //
 // `exact` (optional): wenn true, Predikate ohne Toleranz und mit `>= 0`
 // statt `> ε` für Sichtbarkeit (koplanare Punkte werden inkludiert).
@@ -488,20 +499,34 @@ function convexHull3D(points, exact = false) {
       nz = ux * vy - uy * vx;
     // d = n · a, damit isVisible(p) == n·p > d
     const d = nx * a[0] + ny * a[1] + nz * a[2];
-    return { v: [ai, bi, ci], nx, ny, nz, d };
+    return {
+      v: [ai, bi, ci],
+      nx,
+      ny,
+      nz,
+      d,
+      conflicts: [], // Punkte, die diese Fläche sehen (noch unverarbeitet)
+      alive: true,
+    };
+  }
+
+  // Sichtbarkeit von p gegen Fläche f. Exakt: koplanar (= 0) zählt als sichtbar.
+  function visible(f, p) {
+    const v = f.nx * p[0] + f.ny * p[1] + f.nz * p[2] - f.d;
+    return exact ? v >= 0 : v > 1e-12;
   }
 
   // Tetraeder mit konsistenter Außenorientierung aufbauen.
-  let faces;
+  let faceList;
   if (maxD3 > 0) {
-    faces = [
+    faceList = [
       makeFace(i0, i2, i1), // Boden: Normale weg von i3
       makeFace(i0, i1, i3),
       makeFace(i1, i2, i3),
       makeFace(i2, i0, i3),
     ];
   } else {
-    faces = [
+    faceList = [
       makeFace(i0, i1, i2),
       makeFace(i0, i3, i1),
       makeFace(i1, i3, i2),
@@ -509,59 +534,143 @@ function convexHull3D(points, exact = false) {
     ];
   }
 
+  // Edge-Map für Adjazenz: ungerichtete Kante → die zwei Faces, die sie teilen.
+  // Schlüssel: min*MULT + max (MULT >= n). Wert: Array von Face-Referenzen.
+  const MULT = Math.max(1000000, n + 1);
+  const edgeMap = new Map();
+  function edgeKey3(a, b) {
+    return a < b ? a * MULT + b : b * MULT + a;
+  }
+  function registerFace(f) {
+    for (let j = 0; j < 3; j++) {
+      const k = edgeKey3(f.v[j], f.v[(j + 1) % 3]);
+      let arr = edgeMap.get(k);
+      if (!arr) {
+        arr = [];
+        edgeMap.set(k, arr);
+      }
+      arr.push(f);
+    }
+  }
+  function unregisterFace(f) {
+    for (let j = 0; j < 3; j++) {
+      const k = edgeKey3(f.v[j], f.v[(j + 1) % 3]);
+      const arr = edgeMap.get(k);
+      if (!arr) continue;
+      const i = arr.indexOf(f);
+      if (i >= 0) arr.splice(i, 1);
+      if (arr.length === 0) edgeMap.delete(k);
+    }
+  }
+  // Adjazente Fläche zu f über die Kante (a,b) finden (das andere Element der Edge-Map).
+  function neighborAcross(f, a, b) {
+    const arr = edgeMap.get(edgeKey3(a, b));
+    if (!arr) return null;
+    for (const g of arr) if (g !== f && g.alive) return g;
+    return null;
+  }
+  for (const f of faceList) registerFace(f);
+
   const initialSet = new Set([i0, i1, i2, i3]);
 
-  // ---- Inkrementell jeden weiteren Punkt einarbeiten ----
+  // ---- Initiale Konfliktlisten ----
+  // Jeden noch unverarbeiteten Punkt der ersten Fläche zuweisen, die ihn sieht.
+  // pointFace[pi] = aktuelle Fläche, in deren conflicts-Array pi liegt.
+  // null = Punkt liegt im Inneren (oder noch nicht zugewiesen, falls erst später
+  // verschoben). -1 verwenden wir hier nicht; null reicht.
+  const pointFace = new Array(n).fill(null);
+  // Wartende Punkte (FIFO-Reihenfolge der Eingabe; Reihenfolge egal für Korrektheit).
+  const pending = [];
   for (let pi = 0; pi < n; pi++) {
     if (initialSet.has(pi)) continue;
     const p = points[pi];
-    const px = p[0],
-      py = p[1],
-      pz = p[2];
-    // Sichtbare Flächen finden (gecachte Normale → 1 Skalarprodukt pro Fläche)
-    // Im exakten Modus: koplanare Punkte (= 0) werden mit-inkludiert, damit
-    // sie nicht aus dem Hull verschwinden.
-    const visible = [];
-    const kept = [];
-    if (exact) {
-      for (const f of faces) {
-        const v = f.nx * px + f.ny * py + f.nz * pz - f.d;
-        if (v >= 0) visible.push(f);
-        else kept.push(f);
+    for (const f of faceList) {
+      if (visible(f, p)) {
+        f.conflicts.push(pi);
+        pointFace[pi] = f;
+        pending.push(pi);
+        break;
       }
-    } else {
-      for (const f of faces) {
-        if (f.nx * px + f.ny * py + f.nz * pz > f.d + 1e-12) visible.push(f);
-        else kept.push(f);
-      }
-    }
-    if (visible.length === 0) continue; // Punkt liegt innerhalb des Hulls
-
-    // Grenzkanten der sichtbaren Region (Kanten, die nur in EINER sichtbaren Fläche vorkommen).
-    // Trick: gerichtete Kanten (a→b). Wenn die Gegenrichtung b→a schon in der Map
-    // ist, sind beide Kanten innerhalb der sichtbaren Region (zwei adjazente
-    // Dreiecke nutzen sie in entgegengesetzter Richtung) → löschen. Was übrig bleibt,
-    // ist die Boundary, mit der korrekten Außen-Orientierung für die neuen Dreiecke.
-    const edgeCount = new Map();
-    for (const f of visible) {
-      for (let j = 0; j < 3; j++) {
-        const a = f.v[j],
-          b = f.v[(j + 1) % 3];
-        const key = a * 1000000 + b;
-        const revKey = b * 1000000 + a;
-        if (edgeCount.has(revKey)) edgeCount.delete(revKey);
-        else edgeCount.set(key, [a, b]);
-      }
-    }
-
-    // Neue Flächen: Grenzkante a→b + Punkt pi → Dreieck (a, b, pi)
-    faces = kept;
-    for (const [a, b] of edgeCount.values()) {
-      faces.push(makeFace(a, b, pi));
     }
   }
 
-  return { faces: faces.map((f) => f.v) };
+  // ---- Konflikt-getriebener Inkrement-Loop ----
+  // Punkt für Punkt aus pending abarbeiten. Punkt p ist noch relevant, wenn er
+  // weiterhin eine sichtbare Fläche hat (pointFace[p] noch alive).
+  for (const pi of pending) {
+    const currentFace = pointFace[pi];
+    if (!currentFace || !currentFace.alive) continue; // schon durch frühere Iter erledigt
+    const p = points[pi];
+    // Sichtbare Region per Flood-Fill, ausgehend von currentFace
+    const visibleFaces = [currentFace];
+    const visMark = new Set([currentFace]);
+    let head = 0;
+    while (head < visibleFaces.length) {
+      const f = visibleFaces[head++];
+      for (let j = 0; j < 3; j++) {
+        const a = f.v[j],
+          b = f.v[(j + 1) % 3];
+        const g = neighborAcross(f, a, b);
+        if (g && !visMark.has(g) && visible(g, p)) {
+          visMark.add(g);
+          visibleFaces.push(g);
+        }
+      }
+    }
+
+    // Boundary-Kanten der sichtbaren Region (Kanten, die genau einmal in den
+    // sichtbaren Faces vorkommen, mit Orientierung erhalten). Gerichtete-Kanten-
+    // Trick wie zuvor.
+    const boundary = new Map();
+    for (const f of visibleFaces) {
+      for (let j = 0; j < 3; j++) {
+        const a = f.v[j],
+          b = f.v[(j + 1) % 3];
+        const dk = a * MULT + b,
+          rk = b * MULT + a;
+        if (boundary.has(rk)) boundary.delete(rk);
+        else boundary.set(dk, [a, b]);
+      }
+    }
+
+    // Konflikt-Punkte aller entfernten Flächen sammeln (Union, ohne pi).
+    const orphan = [];
+    for (const f of visibleFaces) {
+      for (const q of f.conflicts) {
+        if (q !== pi && pointFace[q] === f) orphan.push(q);
+      }
+      f.alive = false;
+      unregisterFace(f);
+    }
+
+    // Neue Faces aus Cone bauen, registrieren.
+    const newFaces = [];
+    for (const [, ab] of boundary) {
+      const nf = makeFace(ab[0], ab[1], pi);
+      newFaces.push(nf);
+      faceList.push(nf);
+      registerFace(nf);
+    }
+
+    // Orphan-Punkte umverteilen: jeweils erste neue Fläche zuweisen, die sie sieht.
+    // (Wenn keine sieht, liegt der Punkt jetzt im Inneren des erweiterten Hulls.)
+    for (const q of orphan) {
+      pointFace[q] = null;
+      const pq = points[q];
+      for (const nf of newFaces) {
+        if (visible(nf, pq)) {
+          nf.conflicts.push(q);
+          pointFace[q] = nf;
+          break;
+        }
+      }
+    }
+  }
+
+  // Tote Flächen aussortieren
+  const result = [];
+  for (const f of faceList) if (f.alive) result.push(f.v);
+  return { faces: result };
 }
 
 // ============================================================================

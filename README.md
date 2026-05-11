@@ -84,7 +84,7 @@ Output: Polyeder mit vorgegebener Topologie. Die geometrischen Positionen der ne
 >
 > - **Konvex.** Die Hülle kann nirgends nach innen einbeulen. Formal: für je zwei Punkte p, q ∈ Hülle liegt die ganze Verbindungsstrecke wieder in der Hülle. Anschaulich: eine gerade Linie zwischen zwei Hull-Punkten verläuft immer durch das Innere oder auf der Oberfläche, niemals außen herum.
 > - **Minimal.** Sie ist die _engstmögliche_ konvexe Verpackung der Punktmenge — jede kleinere konvexe Form würde mindestens einen Punkt nicht mehr enthalten. Formal: gleich dem Schnitt aller konvexen Mengen, die alle Eingabepunkte enthalten.
-> - **Eindeutig.** Bei gegebener Punktmenge gibt es genau eine konvexe Hülle (im Gegensatz z. B. zur Triangulierung, die viele Lösungen erlaubt).
+> - **Eindeutig.** Bei gegebener Punktmenge gibt es genau eine konvexe Hülle (im Gegensatz z. B. zur Triangulierung[^triang], die viele Lösungen erlaubt).
 > - **Vertices ⊆ Eingabepunkte.** Jeder Hull-Vertex ist ein Eingabepunkt; keine neuen Punkte werden erfunden. Genau die _extremen_ Punkte (= solche, die nicht im Inneren der Hülle der übrigen liegen) erscheinen als Vertices.
 > - **Flächen exakt planar.** Per Definition entsteht jede Fläche aus Punkten, die auf einer gemeinsamen Ebene liegen, sodass alle anderen Punkte auf derselben Seite dieser Ebene sind.
 > - **Geometrisch, nicht kombinatorisch.** Die Hülle hängt nur von den Koordinaten ab, nicht von einer Eingabe-Topologie. Verschiebt man Punkte stetig, kann sich die Hull-Topologie sprunghaft ändern (z. B. ein Quad spaltet in zwei Dreiecke, sobald 4 Punkte aus der Koplanarität fallen).
@@ -236,12 +236,12 @@ Konkret:
 
 Statt die Vertex-Figuren als (möglicherweise nicht-planare) Polygone topologisch fortzuschreiben, kann man die Operation rein geometrisch definieren: pro Iteration **alle Kantenmittelpunkte sammeln und ihre konvexe Hülle bilden**. Die Vertex-Anzahl bleibt identisch (V' = E), aber nicht-planare Vertex-Figuren werden vom Hull-Algorithmus zwangsläufig in mehrere Dreiecke aufgespalten. Die resultierenden Flächen sind per Definition immer exakt plan.
 
-Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Iter 0–10 wurden gegen die wissenschaftliche Referenzimplementierung [`scipy.spatial.ConvexHull`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.ConvexHull.html) (basierend auf der [QHull-Bibliothek](http://www.qhull.org/)) abgeglichen und stimmen dort exakt überein. Iter 11–15 sind nur intern berechnet, dank der exakten Arithmetik aber durch Konstruktion korrekt.
+Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup>), kann der Hull-Algorithmus mit **exakter Integer-Arithmetik** rechnen — keine Floating-Point-Toleranzen, keine Rundungsfehler. Iter 0–10 wurden ursprünglich mit einer naiven O(n²)-Variante implementiert und gegen die wissenschaftliche Referenzimplementierung [`scipy.spatial.ConvexHull`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.ConvexHull.html) (basierend auf der [QHull-Bibliothek](http://www.qhull.org/)) abgeglichen — exakte Übereinstimmung. Der jetzige Konflikt-Listen[^konfliktlisten]-Algorithmus produziert in allen Test-Iterationen 0–15 dieselben Topologie-Zählungen wie die naive Variante — damit transitiv scipy-validiert. Iter 11–15 sind nur intern berechnet, dank der exakten Arithmetik aber durch Konstruktion korrekt.
 
 <details>
 <summary><b>Algorithmus, Komplexität und numerische Sicherheit</b></summary>
 
-> Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull** mit anschließendem **koplanaren Polygon-Merge**:
+> Der implementierte Hull-Algorithmus ist ein **inkrementeller 3D-Convex-Hull mit Konflikt-Listen** ([Clarkson-Shor-Stil](https://en.wikipedia.org/wiki/Output-sensitive_algorithm#Convex_hull_algorithms)) und anschließendem **koplanaren Polygon-Merge**:
 >
 > **Schritt 1 — Integer-Repräsentation.** Die Vertex-Koordinaten der vorherigen Iteration liegen als Floats vor, sind aber exakt darstellbar (dyadisch rational mit Nenner 2<sup>iter−1</sup>). Multiplikation mit 2<sup>iter−1</sup> und Runden gewinnt die ganzzahligen Koordinaten exakt zurück.
 >
@@ -256,45 +256,46 @@ Da alle Vertex-Koordinaten dyadisch rational[^dyad] sind (Nenner 2<sup>iter</sup
 >
 > Die Orientierung der vier Tetraeder-Flächen wird so festgelegt, dass alle Normalen nach außen zeigen.
 >
-> **Schritt 4 — Inkrementelle Erweiterung.** Für jeden weiteren Punkt p:
+> **Schritt 4 — Inkrementelle Erweiterung.** Punkte werden über Konflikt-Listen verwaltet: jede Fläche f führt eine Liste der noch unverarbeiteten Punkte, die sie sehen (`f.conflicts`); jeder Punkt einen Rückzeiger auf seine aktuelle Konflikt-Fläche (`pointFace[p]`). Punkte ohne sichtbare Fläche liegen im Inneren des aktuellen Hulls und werden ignoriert. Für jeden Punkt p mit aktiver Konflikt-Fläche f:
 >
-> 1. **Sichtbarkeitstest:** Eine Fläche f mit Normale n und Stützwert d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt[^skal] + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren.
-> 2. **Sichtbare Region entfernen:** Alle sichtbaren Flächen werden gelöscht.
+> 1. **Sichtbare Region per Flood-Fill[^floodfill] bestimmen:** Ausgehend von f werden über Face-Adjazenz alle benachbarten Flächen besucht, die p ebenfalls sehen. Sichtbarkeitstest: Eine Fläche g mit Normale n und Stützwert[^stuetz] d ist von p aus sichtbar gdw. n·p ≥ d. Mit gecachten Integer-Normalen ist das ein einziges Skalarprodukt[^skal] + Vergleich, exakt ohne Toleranz. Koplanare Punkte (n·p = d) werden als sichtbar behandelt — sonst gingen sie als Hull-Vertices verloren. Der Flood-Fill spart das Scannen aller Flächen.
+> 2. **Sichtbare Region entfernen:** Alle sichtbaren Flächen werden als tot markiert und aus der Adjazenz-Map entfernt.
 > 3. **Grenzkanten finden:** Eine Kante ist Grenze gdw. sie nur in einer entfernten Fläche vorkam (innere Kanten der entfernten Region kommen zweimal vor und heben sich auf). Implementiert via Map mit gerichteten Kanten — gegenläufige Paare löschen sich.
 > 4. **Cone bilden:** Für jede Grenzkante (a, b) wird ein neues Dreieck (a, b, p) angelegt, mit cached Integer-Normale für künftige Sichtbarkeitstests.
+> 5. **Konfliktlisten umverteilen:** Die Konfliktlisten der entfernten Flächen (ohne p) werden eingesammelt und auf die neuen Cone-Flächen umverteilt — jeder Punkt wird der ersten neuen Fläche zugewiesen, die ihn sieht (oder als interior verworfen).
 >
 > **Schritt 5 — Koplanare Dreiecke mergen.** Der Hull-Algorithmus liefert nur Dreiecke. Größere planare Flächen (Quads, Pentagone, Hexagone) entstehen durch Zusammenfassen koplanarer Nachbarn:
 >
 > 1. Für jede gemeinsame Kante zweier Dreiecke (a, b, c) und (a, b, d) wird die 3×3-Determinante[^det] det(b−a, c−a, d−a) ausgewertet. = 0 ⇒ koplanar (exakter Test über Integer-Differenzen).
-> 2. Union-Find fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
+> 2. Union-Find[^unionfind] fasst alle paarweise koplanaren Dreiecke zu einem Cluster zusammen.
 > 3. Pro Cluster werden die Boundary-Kanten extrahiert (Kanten die nur einmal vorkommen) und zu einem zyklischen Polygon verbunden.
 >
-> **Komplexität.** Der inkrementelle Algorithmus ist im Worst-Case O(n²), für die hier auftretenden Verteilungen in der Praxis ähnlich (jeder Punkt sieht ~ O(n<sup>1/2</sup>) Flächen). Konkret: Iter 11 (~31.000 Punkte) ≈ 17 s, Iter 12 (~75.000) ≈ 1 min 40 s, Iter 13 (~182.000) ≈ 13 min, Iter 14 (~443.000) ≈ 1 h 30 min, Iter 15 (~1.075.000) ≈ 16 h 50 min. [Quickhull](https://en.wikipedia.org/wiki/Quickhull) (O(n log n) im Mittel) wäre asymptotisch besser, würde die exakten Predikate aber komplizierter machen.
+> **Komplexität.** Durch die Konflikt-Listen aus Schritt 4 (Flood-Fill statt All-Faces-Scan) erreicht der Algorithmus erwartete O(n log n) statt O(n²). Konkret: Iter 11 ~0,7 s, Iter 12 ~2,5 s, Iter 13 ~6 s, Iter 14 ~30 s, Iter 15 ~3 min. Vorher (naive O(n²)-Implementation): Iter 13 ~13 min, Iter 14 ~1 h 30 min, Iter 15 ~17 h — Speedup ~40–330×.
 >
-> **Numerische Sicherheit.** Bei iter ≤ 15 bleiben alle Zwischenwerte (Cross-Products[^cross], Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs[^safe] (< 2<sup>53</sup>). Konkret: bei iter 12 sind Vertex-Koordinaten bis ±4096, Cross-Product-Komponenten bis ~7×10<sup>7</sup>, Determinanten-Terme bis ~3×10<sup>12</sup>. Bei iter 16+ würde BigInt nötig.
+> **Numerische Sicherheit.** Bei iter ≤ 15 bleiben alle Zwischenwerte (Cross-Products[^cross], Determinanten) innerhalb des JavaScript Safe-Integer-Bereichs[^safe] (< 2<sup>53</sup>). Konkret: bei iter 14 (App-Maximum im Browser, Desktop) sind Vertex-Koordinaten bis ±16384, Cross-Product-Komponenten bis ~10<sup>9</sup>, Determinanten-Terme bis ~5×10<sup>14</sup>. Bei iter 16+ würde BigInt nötig.
 
 </details>
 
-| Iter  | V         | E         | F         | n-Eck-Verteilung                                                     | Dauer       | Speicher   |
-| ----- | --------- | --------- | --------- | -------------------------------------------------------------------- | ----------- | ---------- |
-| 0     | 8         | 12        | 6         | 4-Eck: 6                                                             | —           | < 1 MB     |
-| 1     | 12        | 24        | 14        | 3-Eck: 8, 4-Eck: 6                                                   | < 1 ms      | < 1 MB     |
-| 2     | 24        | 48        | 26        | 3-Eck: 8, 4-Eck: 18                                                  | < 1 ms      | < 1 MB     |
-| 3     | 48        | 96        | 50        | 3-Eck: 8, 4-Eck: 42                                                  | 2 ms        | < 1 MB     |
-| 4     | 96        | 192       | 98        | 3-Eck: 8, 4-Eck: 90                                                  | 2 ms        | < 1 MB     |
-| **5** | **192**   | **432**   | **242**   | **3-Eck: 104, 4-Eck: 138**                                           | **6 ms**    | **< 1 MB** |
-| 6     | 432       | 1.008     | 578       | 3-Eck: 296, 4-Eck: 282                                               | 13 ms       | 9 MB       |
-| 7     | 1.008     | 2.352     | 1.346     | 3-Eck: 680, 4-Eck: 666                                               | 21 ms       | 14 MB      |
-| 8     | 2.352     | 5.424     | 3.074     | 3-Eck: 1.448, 4-Eck: 1.626                                           | 80 ms       | 25 MB      |
-| 9     | 5.424     | 13.008    | 7.586     | 3-Eck: 4.376, 4-Eck: 3.162, 5-Eck: 48                                | 270 ms      | 46 MB      |
-| 10    | 13.008    | 31.104    | 18.098    | 3-Eck: 10.376, 4-Eck: 7.578, 5-Eck: 96, 6-Eck: 48                    | 1,9 s       | 75 MB      |
-| 11    | 31.104    | 75.168    | 44.066    | 3-Eck: 26.360, 4-Eck: 17.322, 5-Eck: 336, 6-Eck: 48                  | 17 s        | 135 MB     |
-| 12    | 75.168    | 181.776   | 106.610   | 3-Eck: 63.944, 4-Eck: 41.658, 5-Eck: 960, 6-Eck: 48                  | 1 min 40 s  | 178 MB     |
-| 13    | 181.776   | 442.800   | 261.026   | 3-Eck: 160.808, 4-Eck: 97.962, 5-Eck: 2.208, 6-Eck: 48               | 13 min      | 411 MB     |
-| 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck: 384.296, 4-Eck: 242.250, 5-Eck: 5.328, 6-Eck: 144, 7-Eck: 48  | 1 h 30 min  | ~1,2 GB    |
-| 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck: 940.184, 4-Eck: 584.178, 5-Eck: 13.008, 6-Eck: 480, 7-Eck: 48 | 16 h 50 min | ~3 GB      |
+| Iter  | V         | E         | F         | n-Eck-Verteilung                                                     | Dauer    | Speicher   |
+| ----- | --------- | --------- | --------- | -------------------------------------------------------------------- | -------- | ---------- |
+| 0     | 8         | 12        | 6         | 4-Eck: 6                                                             | —        | < 1 MB     |
+| 1     | 12        | 24        | 14        | 3-Eck: 8, 4-Eck: 6                                                   | < 1 ms   | < 1 MB     |
+| 2     | 24        | 48        | 26        | 3-Eck: 8, 4-Eck: 18                                                  | < 1 ms   | < 1 MB     |
+| 3     | 48        | 96        | 50        | 3-Eck: 8, 4-Eck: 42                                                  | 2 ms     | < 1 MB     |
+| 4     | 96        | 192       | 98        | 3-Eck: 8, 4-Eck: 90                                                  | 2 ms     | < 1 MB     |
+| **5** | **192**   | **432**   | **242**   | **3-Eck: 104, 4-Eck: 138**                                           | **6 ms** | **< 1 MB** |
+| 6     | 432       | 1.008     | 578       | 3-Eck: 296, 4-Eck: 282                                               | 13 ms    | 9 MB       |
+| 7     | 1.008     | 2.352     | 1.346     | 3-Eck: 680, 4-Eck: 666                                               | 21 ms    | 14 MB      |
+| 8     | 2.352     | 5.424     | 3.074     | 3-Eck: 1.448, 4-Eck: 1.626                                           | 50 ms    | 25 MB      |
+| 9     | 5.424     | 13.008    | 7.586     | 3-Eck: 4.376, 4-Eck: 3.162, 5-Eck: 48                                | 120 ms   | 46 MB      |
+| 10    | 13.008    | 31.104    | 18.098    | 3-Eck: 10.376, 4-Eck: 7.578, 5-Eck: 96, 6-Eck: 48                    | 250 ms   | 75 MB      |
+| 11    | 31.104    | 75.168    | 44.066    | 3-Eck: 26.360, 4-Eck: 17.322, 5-Eck: 336, 6-Eck: 48                  | 0,7 s    | 135 MB     |
+| 12    | 75.168    | 181.776   | 106.610   | 3-Eck: 63.944, 4-Eck: 41.658, 5-Eck: 960, 6-Eck: 48                  | 2,5 s    | 178 MB     |
+| 13    | 181.776   | 442.800   | 261.026   | 3-Eck: 160.808, 4-Eck: 97.962, 5-Eck: 2.208, 6-Eck: 48               | 6 s      | 411 MB     |
+| 14    | 442.800   | 1.074.864 | 632.066   | 3-Eck: 384.296, 4-Eck: 242.250, 5-Eck: 5.328, 6-Eck: 144, 7-Eck: 48  | 30 s     | ~1,2 GB    |
+| 15    | 1.074.864 | 2.612.760 | 1.537.898 | 3-Eck: 940.184, 4-Eck: 584.178, 5-Eck: 13.008, 6-Eck: 480, 7-Eck: 48 | 3 min    | ~3 GB      |
 
-> **Hinweis:** In der App werden Hull-Werte nur bis Iter 12 berechnet (`HULL_MAX_ITER` (Desktop: 13, Mobil: 12)). Iter 13+ wurden offline mit Node.js ermittelt — Rechenzeit und Speicherbedarf (Spalten oben) übersteigen die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB).
+> **Hinweis:** In der App werden Hull-Werte bis `HULL_MAX_ITER` berechnet (Desktop: 14, Mobil: 12). Iter 15+ wurden offline mit Node.js ermittelt — der Speicherbedarf (Spalten oben) übersteigt die Browser-Grenzen. Alle Dauer-Angaben gemessen auf MacBook Pro 16" (2021, Apple M1 Max, 32 GB) mit dem aktuellen Konflikt-Listen-Algorithmus.
 
 **Iter 0–4: identisch zur topologischen Rektifikation.** Alle Vertex-Figuren sind durch die residuelle Symmetrie[^ressym] _mathematisch exakt koplanar_ — der Determinanten-Test der Integer-Arithmetik liefert exakt 0, der Hull-Algorithmus sieht sie als ein Quad. Es gibt genau 8 Dreiecke (die unveränderten Würfelecken).
 
@@ -356,7 +357,7 @@ Die Zahl **48** ist exakt die Ordnung der Symmetriegruppe O<sub>h</sub> — also
 > | 14   | 1,070740  | 1,075965 ↑     |
 > | 15   | 1,070723  | 1,076085 ↑     |
 >
-> _Hull-Werte ab Iter 13 sind offline berechnet (s. n-Eck-Tabelle oben)._
+> _Hull-Werte ab Iter 15 sind offline berechnet (s. n-Eck-Tabelle oben)._
 >
 > Topo schrumpft monoton; Hull steigt ab Iter 9 wieder leicht an (1,074486 → 1,074741 ↑ → 1,075112 ↑ → 1,075743 ↑ → 1,075705 ↓ → 1,075842 ↑ → 1,075965 ↑ → 1,076085 ↑) — die Monotonie ist verloren. Bei 6 von 7 Iterationsschritten (iter 8 → 15) steigt rAvg, einmal sinkt er kurz: ein klarer Aufwärtstrend mit einer Ausnahme.
 >
@@ -384,12 +385,12 @@ Pro Iteration:
 
 1. **Topo-Schritt** liefert die neue Vertex-Menge (Mittelpunkte der Topo-Polygon-Kanten, exakt × 2 pro Iteration) und die kombinatorischen topoFaces (für die Vertex-Erzeugung in der nächsten Iteration).
 2. **Convex Hull** dieser Vertex-Menge liefert die planaren Polygon-Flächen für die Anzeige.
-3. State speichert beides — vertices und topoFaces; der Hull wird je Iteration neu berechnet.
+3. State speichert beides — vertices und topoFaces; die Hull-Flächen werden je Iteration neu berechnet.
 
 Vorteile gegenüber Hull:
 
 - **V wächst nur × 2** (statt überproportional wie bei Hull) — Iter 15 hat 196.608 Vertices statt 1.074.864 (Faktor ~5,5× weniger)
-- **Hull-Berechnung deutlich billiger** (kleineres n in O(n²))
+- **Hull-Berechnung deutlich billiger** (kleineres n in O(n log n))
 - **Speicher reduziert** auf einen Bruchteil
 
 Vorteil gegenüber Topo:
@@ -401,24 +402,26 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 <details>
 <summary><b>Hybrid-Verhalten an konkreten Iterationen</b></summary>
 
-> | Iter | V       | E       | F       | n-Eck-Verteilung              | Dauer      | Speicher |
-> | ---- | ------- | ------- | ------- | ----------------------------- | ---------- | -------- |
-> | 0    | 8       | 12      | 6       | 4-Eck: 6                      | —          | < 1 MB   |
-> | 1    | 12      | 24      | 14      | 3-Eck: 8, 4-Eck: 6            | < 1 ms     | < 1 MB   |
-> | 2    | 24      | 48      | 26      | 3-Eck: 8, 4-Eck: 18           | < 1 ms     | < 1 MB   |
-> | 3    | 48      | 96      | 50      | 3-Eck: 8, 4-Eck: 42           | < 1 ms     | < 1 MB   |
-> | 4    | 96      | 192     | 98      | 3-Eck: 8, 4-Eck: 90           | < 1 ms     | < 1 MB   |
-> | 5    | 192     | 432     | 242     | 3-Eck: 104, 4-Eck: 138        | < 1 ms     | < 1 MB   |
-> | 6    | 384     | 816     | 434     | 3-Eck: 104, 4-Eck: 330        | < 1 ms     | < 1 MB   |
-> | 7    | 768     | 1.824   | 1.058   | 3-Eck: 584, 4-Eck: 474        | < 1 ms     | 14 MB    |
-> | 8    | 1.536   | 3.360   | 1.826   | 3-Eck: 584, 4-Eck: 1.242      | < 1 ms     | 22 MB    |
-> | 9    | 3.072   | 7.488   | 4.418   | 3-Eck: 2.696, 4-Eck: 1.722    | 0,1 s      | 44 MB    |
-> | 10   | 6.144   | 13.632  | 7.490   | 3-Eck: 2.696, 4-Eck: 4.794    | 0,3 s      | 54 MB    |
-> | 11   | 12.288  | 30.336  | 18.050  | 3-Eck: 11.528, 4-Eck: 6.522   | 1,7 s      | 70 MB    |
-> | 12   | 24.576  | 54.912  | 30.338  | 3-Eck: 11.528, 4-Eck: 18.810  | 11 s       | 158 MB   |
-> | 13   | 49.152  | 122.112 | 72.962  | 3-Eck: 47.624, 4-Eck: 25.338  | 48 s       | 137 MB   |
-> | 14   | 98.304  | 220.416 | 122.114 | 3-Eck: 47.624, 4-Eck: 74.490  | 4 min 40 s | 410 MB   |
-> | 15   | 196.608 | 489.984 | 293.378 | 3-Eck: 193.544, 4-Eck: 99.834 | 21 min     | 544 MB   |
+> | Iter | V       | E       | F       | n-Eck-Verteilung              | Dauer  | Speicher |
+> | ---- | ------- | ------- | ------- | ----------------------------- | ------ | -------- |
+> | 0    | 8       | 12      | 6       | 4-Eck: 6                      | —      | < 1 MB   |
+> | 1    | 12      | 24      | 14      | 3-Eck: 8, 4-Eck: 6            | < 1 ms | < 1 MB   |
+> | 2    | 24      | 48      | 26      | 3-Eck: 8, 4-Eck: 18           | < 1 ms | < 1 MB   |
+> | 3    | 48      | 96      | 50      | 3-Eck: 8, 4-Eck: 42           | < 1 ms | < 1 MB   |
+> | 4    | 96      | 192     | 98      | 3-Eck: 8, 4-Eck: 90           | < 1 ms | < 1 MB   |
+> | 5    | 192     | 432     | 242     | 3-Eck: 104, 4-Eck: 138        | < 1 ms | < 1 MB   |
+> | 6    | 384     | 816     | 434     | 3-Eck: 104, 4-Eck: 330        | < 1 ms | < 1 MB   |
+> | 7    | 768     | 1.824   | 1.058   | 3-Eck: 584, 4-Eck: 474        | < 1 ms | 14 MB    |
+> | 8    | 1.536   | 3.360   | 1.826   | 3-Eck: 584, 4-Eck: 1.242      | < 1 ms | 22 MB    |
+> | 9    | 3.072   | 7.488   | 4.418   | 3-Eck: 2.696, 4-Eck: 1.722    | 0,1 s  | 44 MB    |
+> | 10   | 6.144   | 13.632  | 7.490   | 3-Eck: 2.696, 4-Eck: 4.794    | 0,3 s  | 54 MB    |
+> | 11   | 12.288  | 30.336  | 18.050  | 3-Eck: 11.528, 4-Eck: 6.522   | 0,2 s  | 70 MB    |
+> | 12   | 24.576  | 54.912  | 30.338  | 3-Eck: 11.528, 4-Eck: 18.810  | 0,5 s  | 158 MB   |
+> | 13   | 49.152  | 122.112 | 72.962  | 3-Eck: 47.624, 4-Eck: 25.338  | 1,1 s  | 137 MB   |
+> | 14   | 98.304  | 220.416 | 122.114 | 3-Eck: 47.624, 4-Eck: 74.490  | 2,3 s  | 410 MB   |
+> | 15   | 196.608 | 489.984 | 293.378 | 3-Eck: 193.544, 4-Eck: 99.834 | 5,6 s  | 544 MB   |
+>
+> _Iter 15 ist offline berechnet (in der App: `HULL_MAX_ITER` = 14 Desktop, 12 Mobil)._
 >
 > **Beobachtung 1: schlankeres Mesh.** Der „explosive“ Vertex-Anstieg von Hull (durch Diagonal-Mittelpunkte als zusätzliche Vertices) entfällt. Iter 15: 197 k Vertices statt 1.075 k bei Hull (Faktor ~5,5× weniger).
 >
@@ -439,7 +442,7 @@ Trade-off: Topologie wechselt wie bei Hull (zusätzliche Dreiecke ab Iter 5), nu
 | Speicher (Iter 15) | < 50 MB                                | ~3 GB                                                                                              | ~544 MB                                          |
 | Konvergenz         | Grenzkörper K (= Hybrid)               | eng verwandter, vermutlich größerer Grenzkörper                                                    | Grenzkörper K (= Topo)                           |
 
-Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus — Desktop: Iter ≤ 13, Mobil: Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull warten.
+Alle drei Varianten sind in der App per Toggle-Button umschaltbar (zyklisch: Topo → Hull → Hybrid → Topo, nur im Polyeder-Modus — Desktop: Iter ≤ 14, Mobil: Iter ≤ 12). Sie werden parallel auf drei separaten [Web Workern](https://developer.mozilla.org/de/docs/Web/API/Web_Workers_API) berechnet — die schnelleren Varianten müssen nicht auf die langsamere Hull-Variante warten.
 
 ### Der Grenzkörper
 
@@ -465,7 +468,7 @@ Er ist **kein** bekannter Standardkörper (weder Kugel noch ein reguläres Polye
 
 Die Anwendung zeigt den Körper in zwei Modi:
 
-- **Polyeder-Modus** (Desktop: Iter 0–13, Mobil: Iter 0–12): Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1 s Cross-Fade mit Ease-in-out).
+- **Polyeder-Modus** (Desktop: Iter 0–14, Mobil: Iter 0–12): Halbtransparente Flächen mit weißen Kanten und farbcodierten Vertex-Punkten. Die Flächen werden in zwei Passes gerendert (Rückseite, dann Vorderseite) für korrektes Alpha-Blending. Beim Iterationswechsel wird fließend zwischen altem und neuem Körper überblendet (1 s Cross-Fade[^crossfade] mit Ease-in-out).
 
 ![Topologische Rektifikation mit Flächen, Kanten und Vertex-Punkten](topologische-rektifikation.jpg)
 
@@ -477,7 +480,7 @@ Die Hybrid-Variante kombiniert Topo-Vertex-Evolution (langsames Wachstum) mit pl
 
 ![Hybrid-Variante mit Topo-Vertices und Hull-Flächen](hybrid.jpg)
 
-- **Kugel-Modus** (Desktop: ab Iter 14, Mobil: ab Iter 13, nur Topo): Hull und Hybrid enden bei `HULL_MAX_ITER` (Desktop: 13, Mobil: 12); danach läuft nur die Topo-Variante weiter und wechselt in den Kugel-Modus. Eine halbtransparente Best-Fit-Kugel dient als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — die Flächen und Kanten würden bei >100.000 Vertices den Browser überlasten. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
+- **Kugel-Modus** (Desktop: ab Iter 15, Mobil: ab Iter 13, nur Topo): Hull und Hybrid enden bei `HULL_MAX_ITER` (Desktop: 14, Mobil: 12); danach läuft nur die Topo-Variante weiter und wechselt in den Kugel-Modus. Eine halbtransparente Best-Fit-Kugel dient als Referenz. Der Körper schrumpft natürlich mit jeder Iteration (Kantenmittelpunkte liegen näher am Zentrum als die Endpunkte). Nur noch farbcodierte Vertex-Punkte sind sichtbar — Flächen und Kanten würden bei den hier auftretenden Größenordnungen (Topo iter 15: 786 k Vertices, iter 20: 6 M) den Browser überlasten; die Punktwolke vermittelt die Form ausreichend. Punkte werden mit `depthTest: false` gerendert, damit auch die innerhalb der Kugel liegenden (grünen) sichtbar bleiben.
 
 ![Kugel-Modus mit farbcodierten Vertex-Punkten](kugelmodus.jpg)
 
@@ -495,7 +498,7 @@ Die Farbintensität skaliert linear mit der Abweichung: je weiter vom Kugelradiu
 
 ### Sampling
 
-Bei mehr als 100.000 Vertices (Desktop) bzw. 50.000 (Mobilgeräte) wird ein gleichmäßiges Zufalls-Sample angezeigt ([Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren)). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
+Bei vielen Vertices wird ein gleichmäßiges Zufalls-Sample per [Fisher-Yates Shuffle](https://de.wikipedia.org/wiki/Zuf%C3%A4llige_Permutation#Fisher-Yates-Verfahren) angezeigt. Die Obergrenzen sind modus-abhängig: im Polyeder-Modus 100.000 (Desktop) bzw. 50.000 (Mobilgeräte); im Kugel-Modus 200.000 (Desktop, da die Punktwolke dort die Form ausreichend dicht ausfüllen muss) bzw. 50.000 (Mobilgeräte). Die Stats-Zeile zeigt die Anzahl der dargestellten Samples. Die Punktgröße im Polyeder-Modus nimmt mit jeder Iteration ab: 0,010 bei Iter 0, dann pro Schritt 0,001 kleiner, ab Iter 9 konstant 0,001. Im Kugel-Modus konstant 0,003 — die Punkte verteilen sich auf einer größeren Kugelfläche und brauchen mehr Sichtbarkeit.
 
 Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automatisch halbiert und das Rendering erneut versucht.
 
@@ -512,13 +515,13 @@ Bei Speicherfehlern (insbesondere auf Mobilgeräten) wird die Punktanzahl automa
 | Dauer        | Berechnungszeit der Iteration im Web Worker                                                                                |
 | Samples      | Angezeigte Vertex-Punkte (= alle, oder Sample bei hohen Iterationen)                                                       |
 | Abweichung   | Min/Max-Abweichung von der Best-Fit-Kugel in Prozent                                                                       |
-| Vorberechnet | Höchster vorberechneter Index pro Variante (z. B. `topo 20/20, hull 8/12, hybrid 12/12` — Topo ist meist schneller fertig) |
+| Vorberechnet | Höchster vorberechneter Index pro Variante (z. B. `topo 20/20, hull 8/14, hybrid 12/14` — Topo ist meist schneller fertig) |
 
 Werte zeigen „-“ an, solange die Iteration noch berechnet wird.
 
 ### Vorberechnung
 
-Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo, Hull und Hybrid laufen auf drei separaten Web Workern echt parallel — bei höheren Iterationen ist Topo deutlich schneller als Hybrid, Hull am langsamsten (z. B. Iter 12: Topo < 1 s, Hybrid 11 s, Hull 1 min 40 s). Beim Klick auf „Weiter“ wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der nächsten Variante ersetzt (sofern bereits vorberechnet).
+Iterationen werden im Hintergrund sequentiell vorberechnet (0 → 1 → 2 → ...). Topo, Hull und Hybrid laufen auf drei separaten Web Workern echt parallel — bei höheren Iterationen ist Topo deutlich schneller als Hybrid, Hull am langsamsten (z. B. Iter 13: Topo < 1 s, Hybrid 1 s, Hull 6 s). Beim Klick auf „Weiter“ wird entweder das vorberechnete Ergebnis sofort angezeigt oder eine Sanduhr (⏳), bis die Berechnung abgeschlossen ist. Bei Variantenwechsel wird der aktuell sichtbare Körper sofort durch das Pendant der nächsten Variante ersetzt (sofern bereits vorberechnet).
 
 ### Mobilgeräte
 
@@ -527,9 +530,10 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 | Parameter                 | Desktop | Mobil  |
 | ------------------------- | ------- | ------ |
 | Max. Iterationen (Topo)   | 20      | 18     |
-| Max. Iterationen (Hull)   | 13      | 12     |
-| Max. Iterationen (Hybrid) | 13      | 12     |
-| Max. Samples              | 100.000 | 50.000 |
+| Max. Iterationen (Hull)   | 14      | 12     |
+| Max. Iterationen (Hybrid) | 14      | 12     |
+| Max. Samples (Polyeder)   | 100.000 | 50.000 |
+| Max. Samples (Kugel)      | 200.000 | 50.000 |
 
 ## Bedienung
 
@@ -552,13 +556,13 @@ Die Auto-Rotation pausiert 3 Sekunden nach manueller Interaktion und setzt dann 
 ### Architektur
 
 ```
-                  ──── {iter, variant: 'topo'} ────►    Worker (topo)
+                  ──── {iter, variant: 'topo', polyMaxIter} ────►    Worker (topo)
                   ◄── {coords, triIndices, ngonDist}── rectifyTopological()
   Main Thread
-  (index.html)    ──── {iter, variant: 'hull'} ────►    Worker (hull)
+  (index.html)    ──── {iter, variant: 'hull', polyMaxIter} ────►    Worker (hull)
                   ◄── {coords, triIndices, ngonDist}── rectifyHull()
 
-                  ──── {iter, variant: 'hybrid'} ──►    Worker (hybrid)
+                  ──── {iter, variant: 'hybrid', polyMaxIter} ──►    Worker (hybrid)
                   ◄── {coords, triIndices, ngonDist}── rectifyHybrid()
 ```
 
@@ -581,7 +585,7 @@ Inkrementeller 3D-Convex-Hull mit exakter Integer-Arithmetik und anschließendem
 
 Die exakte Arithmetik nutzt aus, dass alle Vertex-Koordinaten dyadisch rational sind und im 2<sup>iter</sup>-Gitter als ganze Zahlen exakt darstellbar bleiben (bis iter 15 innerhalb des Safe-Integer-Bereichs). Sichtbarkeits- und Coplanaritätstests werden zu exakten Vorzeichen- bzw. Gleichheitsvergleichen — keine Toleranzschwellen.
 
-`HULL_MAX_ITER` (Desktop: 13, Mobil: 12): höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus, da der O(n²)-Hull bei n > 30.000 sehr lange braucht.
+`HULL_MAX_ITER` (Desktop: 14, Mobil: 12): höhere Iterationen wechseln automatisch in den Topo-Kugel-Modus. Mit dem Konflikt-Listen-Algorithmus ist Iter 14 unproblematisch (~30 s); ab Iter 15 wäre Hull dann eher durch Speicher als durch Zeit begrenzt (>3 GB für Iter 15).
 
 ### Hybrid-Rektifikation (`rectifyHybrid`)
 
@@ -592,7 +596,7 @@ Zwei Schritte pro Iteration:
 
 Worker-State speichert beides: `vertices` und `topoFaces`. Bei der nächsten Iteration wird `topoFaces` als Eingabe für den Topo-Schritt verwendet — die Display-Polygon-Faces (vom Hull) werden nicht persistiert, sondern bei jedem Aufruf neu berechnet.
 
-`HULL_MAX_ITER` (Desktop: 13, Mobil: 12) gilt auch hier (gleicher Auto-Switch in den Topo-Kugel-Modus).
+`HULL_MAX_ITER` (Desktop: 14, Mobil: 12) gilt auch hier (gleicher Auto-Switch in den Topo-Kugel-Modus).
 
 ### Parallele Vorberechnung im Main Thread
 
@@ -605,25 +609,25 @@ Worker-State speichert beides: `vertices` und `topoFaces`. Bei der nächsten Ite
 
 - [**BufferGeometry**](https://threejs.org/docs/#api/en/core/BufferGeometry) statt ConvexGeometry — der Worker liefert triangulierte Indizes, der Main Thread muss keinen Hull mehr berechnen.
 - **Zwei-Pass-Blending** für transparente Flächen (erst Rückseiten mit `renderOrder=0`, dann Vorderseiten mit `renderOrder=1`).
-- **Morph-Animation** (Iter 0–12): Cross-Fade zwischen altem und neuem Körper (1 s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
-- **Farbcodierte Vertex-Punkte** über individuelle `MeshBasicMaterial`-Instanzen mit `depthTest: false` (immer sichtbar, auch hinter der Kugel).
-- [**Quaternion-Trackball-Rotation**](https://raw.org/code/trackball-rotation-using-quaternions/) ohne Gimbal Lock, ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
+- **Morph-Animation** (im Polyeder-Modus, also bis `POLY_MAX_ITER` — Desktop: Iter ≤ 14, Mobil: Iter ≤ 12): Cross-Fade zwischen altem und neuem Körper (1 s, ease-in-out). Altes Mesh wird in separate Group verschoben und parallel ausgeblendet.
+- **Farbcodierte Vertex-Punkte** als einzelnes [`THREE.Points`](https://threejs.org/docs/#api/en/objects/Points)-Mesh mit per-Punkt-Farbe (Color-Attribut der BufferGeometry) und globalem `PointsMaterial` (`depthTest: false`, `renderOrder = 10` — Punkte immer vor der halbtransparenten Kugel). Die kamera-distanz-abhängige Verblassen-Modulation wird in die RGB-Werte multipliziert (visuell äquivalent zu Per-Punkt-Opacity gegen schwarzen Hintergrund).
+- [**Quaternion[^quat]-Trackball-Rotation[^trackball]**](https://raw.org/code/trackball-rotation-using-quaternions/) ohne Gimbal Lock[^gimbal], ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
 - **Pan** (Shift+Drag / Rechtsklick / 2-Finger-Drag): laterale Verschiebung in Kamera-Koordinaten.
 - **Auto-Rotation** mit 3 s Pause nach manueller Interaktion.
 
 ### Dateien
 
-| Datei                                                                                  | Beschreibung                                                                                                                                                                                                                                         |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html`                                                                           | Main Thread: Three.js-Rendering, Kamerasteuerung, UI, Variantenwechsel, Worker-Verwaltung                                                                                                                                                            |
-| `worker.js`                                                                            | Web Worker: alle drei Rektifikationsvarianten (`rectifyTopological`, `rectifyHull` mit eigenem 3D-Convex-Hull-Algorithmus, `rectifyHybrid`), Deviation-Berechnung, Triangulierung. Wird in der App dreimal instanziiert (eine Instanz pro Variante). |
-| `cube-rectification.html`                                                              | Standalone — eine einzige HTML-Datei mit dem Worker-Code als inline `<script type="text/worker">`. Alle drei Worker-Instanzen werden über Data-URLs aus diesem inline Code erzeugt; funktioniert ohne Server auch per `file://`.                     |
-| `regenerate.py`                                                                        | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags.                    |
-| `README.md`                                                                            | Diese Datei.                                                                                                                                                                                                                                         |
-| `.gitignore`                                                                           | Lokales Referenzmaterial (`papers/`) ausschließen.                                                                                                                                                                                                   |
-| `favicon.png` / `favicon-32.png`                                                       | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund)                                                                                                                                                                                     |
-| `og-image.jpg`                                                                         | [Open-Graph](https://ogp.me/)-Vorschaubild für WhatsApp / Telegram / Social Media (1292×1520, JPEG)                                                                                                                                                  |
-| `topologische-rektifikation.jpg` / `convex-hull.jpg` / `hybrid.jpg` / `kugelmodus.jpg` | Screenshots für die README (drei Polyeder-Varianten + Topo-Kugel-Modus)                                                                                                                                                                              |
+| Datei                                                                                  | Beschreibung                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`                                                                           | Main Thread: Three.js-Rendering, Kamerasteuerung, UI, Variantenwechsel, Worker-Verwaltung                                                                                                                                                                              |
+| `worker.js`                                                                            | Web Worker: alle drei Rektifikationsvarianten (`rectifyTopological`, `rectifyHull` mit Konflikt-Listen-basiertem 3D-Convex-Hull-Algorithmus, `rectifyHybrid`), Deviation-Berechnung, Triangulierung. Wird in der App dreimal instanziiert (eine Instanz pro Variante). |
+| `cube-rectification.html`                                                              | Standalone — eine einzige HTML-Datei mit dem Worker-Code als inline `<script type="text/worker">`. Alle drei Worker-Instanzen werden über Data-URLs aus diesem inline Code erzeugt; funktioniert ohne Server auch per `file://`.                                       |
+| `regenerate.py`                                                                        | Erzeugt `cube-rectification.html` aus `index.html` + `worker.js`: ersetzt den `new Worker(...)`-Aufruf durch eine Data-URL/Blob-URL-Variante, bettet den Worker-Code inline ein, inlinet Favicons als Base64 und ergänzt OG-Tags.                                      |
+| `README.md`                                                                            | Diese Datei.                                                                                                                                                                                                                                                           |
+| `.gitignore`                                                                           | Lokales Referenzmaterial (`papers/`) ausschließen.                                                                                                                                                                                                                     |
+| `favicon.png` / `favicon-32.png`                                                       | Favicons (64×64 / 32×32, RGBA PNG mit transparentem Hintergrund)                                                                                                                                                                                                       |
+| `og-image.jpg`                                                                         | [Open-Graph](https://ogp.me/)-Vorschaubild für WhatsApp / Telegram / Social Media (1292×1520, JPEG)                                                                                                                                                                    |
+| `topologische-rektifikation.jpg` / `convex-hull.jpg` / `hybrid.jpg` / `kugelmodus.jpg` | Screenshots für die README (drei Polyeder-Varianten + Topo-Kugel-Modus)                                                                                                                                                                                                |
 
 ### Lokal starten
 
@@ -644,34 +648,52 @@ Dank an **Dr. rer. nat. Gregor Peltri** (HTWK Leipzig) für die ursprüngliche P
 
 MIT
 
-[^tess]: **Tessellierung** (auch Pflasterung, Parkettierung) — lückenlose und überlappungsfreie Zerlegung einer Fläche in Polygone. Beispiele: das Schachbrett (Quadrat-Tessellierung der Ebene), die Bienenwabe (Hexagon-Tessellierung), die Triangulierung eines Polygons. Im Kontext hier: die konkrete Aufteilung einer flachen Region in mehrere Polygone, im Gegensatz zur Sichtweise „eine ungeteilte Region".
+[^tess]: **Tessellierung** (auch Pflasterung, Parkettierung) — lückenlose und überlappungsfreie Zerlegung einer Fläche in Polygone. Beispiele: das Schachbrett (Quadrat-Tessellierung der Ebene), die Bienenwabe (Hexagon-Tessellierung), die Triangulierung eines Polygons. Im Kontext hier: die konkrete Aufteilung einer flachen Region in mehrere Polygone, im Gegensatz zur Sichtweise „eine ungeteilte Region“ ([Wikipedia](https://de.wikipedia.org/wiki/Parkettierung)).
 
-[^quad]: **Quad** = Viereck (englisch _quadrilateral_, Kurzform _quad_). Im 3D-Grafik- und Polyeder-Jargon kurz und gebräuchlich; schließt schiefe, gewölbte (nicht-planare) und unregelmäßige Vierecke mit ein, im Unterschied zum „Quadrat" (= Viereck mit gleichen Seiten und 90°-Winkeln).
+[^quad]: **Quad** = Viereck (englisch _quadrilateral_, Kurzform _quad_). Im 3D-Grafik- und Polyeder-Jargon kurz und gebräuchlich; schließt schiefe, gewölbte (nicht-planare) und unregelmäßige Vierecke mit ein, im Unterschied zum „Quadrat“ (= Viereck mit gleichen Seiten und 90°-Winkeln) ([Wikipedia](https://de.wikipedia.org/wiki/Viereck)).
 
-[^quasi]: **quasiregulär** — Polyeder, bei dem sowohl alle Vertices als auch alle Kanten unter der Symmetriegruppe äquivalent sind (vertex-transitiv _und_ kantentransitiv), aber nicht notwendig alle Flächen. Beispiel: das Kuboktaeder. Strenger als „regulär" ist nur der Begriff der platonischen Körper (zusätzlich auch flächentransitiv).
+[^quasi]: **quasiregulär** — Polyeder, bei dem sowohl alle Vertices als auch alle Kanten unter der Symmetriegruppe äquivalent sind (vertex-transitiv _und_ kantentransitiv), aber nicht notwendig alle Flächen. Beispiel: das Kuboktaeder. Strenger als „regulär“ ist nur der Begriff der platonischen Körper (zusätzlich auch flächentransitiv).
 
-[^vertex]: **Vertex** (Plural _Vertices_) — Eckpunkt eines Polygons oder Polyeders. In der 3D-Grafik gebräuchlicher als „Ecke".
+[^vertex]: **Vertex** (Plural _Vertices_) — Eckpunkt eines Polygons oder Polyeders. In der 3D-Grafik gebräuchlicher als „Ecke“.
 
-[^inzidenz]: **Inzidenz / Inzidenzstruktur** — die kombinatorische Information „welcher Vertex liegt auf welcher Kante, welche Kante grenzt an welche Fläche". Im Gegensatz zu den geometrischen Koordinaten.
+[^inzidenz]: **Inzidenz / Inzidenzstruktur** — die kombinatorische Information „welcher Vertex liegt auf welcher Kante, welche Kante grenzt an welche Fläche“. Im Gegensatz zu den geometrischen Koordinaten ([Wikipedia](<https://de.wikipedia.org/wiki/Inzidenz_(Geometrie)>)).
 
-[^vfig]: **Vertex-Figur** — das Polygon, das beim „Abschneiden" einer Polyederecke entsteht. Bei einer Ecke vom Grad _d_ (= _d_ einlaufende Kanten) ist die Vertex-Figur ein _d_-Eck aus den Mittelpunkten dieser Kanten.
+[^vfig]: **Vertex-Figur** — das Polygon, das beim „Abschneiden“ einer Polyederecke entsteht. Bei einer Ecke vom Grad _d_ (= _d_ einlaufende Kanten) ist die Vertex-Figur ein _d_-Eck aus den Mittelpunkten dieser Kanten ([Wikipedia](https://en.wikipedia.org/wiki/Vertex_figure)).
 
-[^koplanar]: **koplanar** — in einer gemeinsamen Ebene liegend. Drei Punkte sind immer koplanar (definieren eine Ebene); 4+ Punkte nur, wenn der vierte (und alle weiteren) zufällig in derselben Ebene liegt.
+[^koplanar]: **koplanar** — in einer gemeinsamen Ebene liegend. Drei Punkte sind immer koplanar (definieren eine Ebene); 4+ Punkte nur, wenn der vierte (und alle weiteren) zufällig in derselben Ebene liegt ([Wikipedia](https://de.wikipedia.org/wiki/Koplanarit%C3%A4t)).
 
-[^mesh]: **Mesh** — Polygonnetz; in der 3D-Grafik die Sammlung aller Flächen, Kanten und Vertices, die ein Objekt definieren. Hier synonym mit „Polyeder-Topologie".
+[^mesh]: **Mesh** — Polygonnetz; in der 3D-Grafik die Sammlung aller Flächen, Kanten und Vertices, die ein Objekt definieren. Hier synonym mit „Polyeder-Topologie“ ([Wikipedia](https://de.wikipedia.org/wiki/Polygonnetz)).
 
-[^ktrans]: **kantentransitiv** — Eigenschaft einer Symmetriegruppe, jede Kante auf jede andere abbilden zu können. D. h. alle Kanten sind „gleich" im symmetrischen Sinn.
+[^ktrans]: **kantentransitiv** — Eigenschaft einer Symmetriegruppe, jede Kante auf jede andere abbilden zu können. D. h. alle Kanten sind „gleich“ im symmetrischen Sinn.
 
 [^ressym]: **residuelle Symmetrie** — die nach mehreren Iterationen lokal noch erhaltene Untergruppe der ursprünglichen Würfel-Symmetrie O<sub>h</sub>. Erzwingt geometrische Eigenschaften wie Koplanarität bei hochsymmetrischen Konfigurationen.
 
-[^bahn]: **Bahn** (Orbit) — Menge aller Punkte, die durch Anwendung der Symmetriegruppe aufeinander abgebildet werden. Generische O<sub>h</sub>-Bahnen haben die volle Gruppenordnung 48; höhersymmetrische Positionen liefern Teiler (24, 12, 8, 6).
+[^bahn]: **Bahn** (Orbit) — Menge aller Punkte, die durch Anwendung der Symmetriegruppe aufeinander abgebildet werden. Generische O<sub>h</sub>-Bahnen haben die volle Gruppenordnung 48; höhersymmetrische Positionen liefern Teiler (24, 12, 8, 6) ([Wikipedia](https://de.wikipedia.org/wiki/Gruppenoperation)).
 
-[^dyad]: **dyadisch rational** — Bruch mit Zweierpotenz im Nenner (Form _a / 2<sup>n</sup>_). Beispiele: ½, 3/8, 5/16. Solche Zahlen lassen sich nach Multiplikation mit 2<sup>n</sup> als ganze Zahlen exakt darstellen.
+[^dyad]: **dyadisch rational** — Bruch mit Zweierpotenz im Nenner (Form _a / 2<sup>n</sup>_). Beispiele: ½, 3/8, 5/16. Solche Zahlen lassen sich nach Multiplikation mit 2<sup>n</sup> als ganze Zahlen exakt darstellen ([Wikipedia](https://en.wikipedia.org/wiki/Dyadic_rational)).
 
-[^skal]: **Skalarprodukt** — _a·b = a₁b₁ + a₂b₂ + a₃b₃_; ergibt eine Zahl (Skalar), die u. a. messen kann, ob zwei Vektoren in dieselbe Richtung zeigen.
+[^skal]: **Skalarprodukt** — _a·b = a₁b₁ + a₂b₂ + a₃b₃_; ergibt eine Zahl (Skalar), die u. a. messen kann, ob zwei Vektoren in dieselbe Richtung zeigen ([Wikipedia](https://de.wikipedia.org/wiki/Skalarprodukt)).
 
-[^cross]: **Cross-Product** (Kreuzprodukt) — _a × b_; ergibt einen Vektor, der senkrecht auf _a_ und _b_ steht. Hier verwendet, um Flächennormalen aus zwei Kantenvektoren zu berechnen.
+[^cross]: **Cross-Product** (Kreuzprodukt) — _a × b_; ergibt einen Vektor, der senkrecht auf _a_ und _b_ steht. Hier verwendet, um Flächennormalen aus zwei Kantenvektoren zu berechnen ([Wikipedia](https://de.wikipedia.org/wiki/Kreuzprodukt)).
 
-[^det]: **Determinante** — eine Zahl, die einer quadratischen Matrix zugeordnet ist. Hier: die 3×3-Determinante det(_v₁_, _v₂_, _v₃_) ist das (vorzeichenbehaftete) Volumen des von den drei Vektoren aufgespannten Parallelepipeds; = 0 ⇔ Vektoren liegen in einer Ebene.
+[^det]: **Determinante** — eine Zahl, die einer quadratischen Matrix zugeordnet ist. Hier: die 3×3-Determinante det(_v₁_, _v₂_, _v₃_) ist das (vorzeichenbehaftete) Volumen des von den drei Vektoren aufgespannten Parallelepipeds; = 0 ⇔ Vektoren liegen in einer Ebene ([Wikipedia](https://de.wikipedia.org/wiki/Determinante)).
 
-[^safe]: **Safe-Integer** — JavaScript repräsentiert alle Zahlen als 64-Bit-Floats. Ganzzahlen unterhalb 2<sup>53</sup> sind exakt darstellbar; darüber gibt es Lücken (z. B. 2<sup>53</sup> + 1 wird auf 2<sup>53</sup> gerundet). `Number.isSafeInteger()` testet darauf.
+[^safe]: **Safe-Integer** — JavaScript repräsentiert alle Zahlen als 64-Bit-Floats. Ganzzahlen unterhalb 2<sup>53</sup> sind exakt darstellbar; darüber gibt es Lücken (z. B. 2<sup>53</sup> + 1 wird auf 2<sup>53</sup> gerundet). `Number.isSafeInteger()` testet darauf ([MDN](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger)).
+
+[^konfliktlisten]: **Konflikt-Listen** — Datenstruktur für inkrementelle geometrische Algorithmen: jede Fläche f speichert die noch unverarbeiteten Punkte, die sie sehen; jeder Punkt einen Rückzeiger auf seine aktuelle Konflikt-Fläche. Bei Hinzufügen eines Punktes muss nicht über alle Flächen iteriert werden, sondern nur über die Nachbarn der bekannten Konflikt-Fläche (Flood-Fill). Macht aus O(n²) erwartet O(n log n).
+
+[^floodfill]: **Flood-Fill** — Algorithmus, der ausgehend von einem Startknoten alle erreichbaren Nachbarknoten in einem Graphen besucht (Breitensuche oder Tiefensuche), solange ein Kriterium erfüllt ist. Namensgebend: Eimer-Werkzeug in Mal-Programmen, das eine zusammenhängende Region einfärbt ([Wikipedia](https://de.wikipedia.org/wiki/Floodfill)).
+
+[^unionfind]: **Union-Find** (auch _Disjoint-Set_) — Datenstruktur, die eine Menge von Elementen in disjunkte Gruppen partitioniert und zwei Operationen unterstützt: `find(x)` liefert den Repräsentanten der Gruppe von x; `union(x,y)` vereinigt die Gruppen von x und y. Mit Path-Compression und Union-by-Rank nahezu konstant pro Operation ([Wikipedia](https://de.wikipedia.org/wiki/Union-Find-Struktur)).
+
+[^stuetz]: **Stützwert / Stützebene** — eine Stützebene eines konvexen Körpers ist eine Ebene, die den Körper berührt, aber nicht durchdringt (alle Körperpunkte liegen auf einer Seite). Der Stützwert _d_ einer Ebene mit Normale _n_ ist die Konstante in der Ebenengleichung _n·x = d_; für eine Hull-Fläche gilt: alle Hull-Punkte _x_ erfüllen _n·x ≤ d_ ([Wikipedia](https://de.wikipedia.org/wiki/St%C3%BCtzhyperebene)).
+
+[^triang]: **Triangulierung** — Zerlegung eines Polygons (oder einer Punktmenge) in Dreiecke. Im Gegensatz zur konvexen Hülle nicht eindeutig: ein Quadrat kann z. B. entlang einer der beiden Diagonalen trianguliert werden. Für GPU-Rendering nötig, da nur Dreiecke direkt darstellbar sind ([Wikipedia](https://de.wikipedia.org/wiki/Triangulierung)).
+
+[^quat]: **Quaternion** — vierdimensionales Zahlsystem (_a + bi + cj + dk_), entdeckt von Hamilton 1843. In der 3D-Grafik gebräuchlich zur Repräsentation und Komposition von Rotationen, da Quaternion-Rotation gimbal-lock-frei und numerisch stabiler ist als die mit Euler-Winkeln ([Wikipedia](https://de.wikipedia.org/wiki/Quaternion)).
+
+[^gimbal]: **Gimbal Lock** — Verlust eines Rotationsfreiheitsgrades bei Euler-Winkel-Darstellung, wenn zwei der drei Achsen parallel ausgerichtet sind (z. B. bei 90°-Pitch). Mechanisch sichtbar bei kardanisch aufgehängten Geräten (Gimbal). Mit Quaternionen tritt das Problem nicht auf ([Wikipedia](https://de.wikipedia.org/wiki/Gimbal_Lock)).
+
+[^trackball]: **Trackball-Rotation** — UI-Pattern für 3D-Rotation: der Mauszeiger wird auf eine virtuelle Kugel projiziert, und das Ziehen zwischen zwei Punkten auf der Kugel definiert eine Rotation (durch die zwei Punkte und das Kugel-Zentrum). Intuitiver als Pitch/Yaw-Schieberegler.
+
+[^crossfade]: **Cross-Fade** — Überblendung zwischen zwei visuellen Zuständen, bei der gleichzeitig der alte Zustand ausgeblendet und der neue eingeblendet wird (Opacity-Animation). In der App: 1 s Übergang zwischen aufeinanderfolgenden Iterationen mit Ease-in-out-Kurve ([Wikipedia EN](https://en.wikipedia.org/wiki/Crossfade)).

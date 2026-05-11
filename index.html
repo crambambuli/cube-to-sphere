@@ -159,10 +159,6 @@
   <body>
     <div id="header">
       <h1>Iterative Rektifikation</h1>
-      <p>
-        Seiten halbieren, Ecken abschneiden &mdash; Ziehen zum Drehen,
-        Pinch/Scroll zum Zoomen
-      </p>
     </div>
 
     <div id="scene-container">
@@ -170,9 +166,7 @@
         Iteration: <span id="s-iter">0</span> Ecken:
         <span id="s-verts">8</span> Kanten: <span id="s-edges">12</span> Radius:
         <span id="s-radius">-</span> Dauer: <span id="s-time">-</span>
-        <span id="s-samples-wrap"
-          >Samples: <span id="s-samples">-</span></span
-        >
+        <span id="s-samples-wrap">Samples: <span id="s-samples">-</span></span>
         Abweichung: <span id="s-dev">-</span>
         <span id="s-faces-wrap">Flächen: <span id="s-faces">6</span></span>
         <span id="s-ngon-wrap">n-Ecke: <span id="s-ngon">4-Eck: 6</span></span>
@@ -349,7 +343,11 @@
         if (hist[iter] || pend.has(iter)) return;
         pend.add(iter);
         computeStartTimes.set(`${variant}:${iter}`, performance.now());
-        workers[variant].postMessage({ iter, variant, polyMaxIter: POLY_MAX_ITER });
+        workers[variant].postMessage({
+          iter,
+          variant,
+          polyMaxIter: POLY_MAX_ITER,
+        });
       }
 
       // ---- Three.js Szene ----
@@ -388,8 +386,8 @@
       const MAX_ITER = IS_MOBILE ? 18 : 20;
       // Höchste Iteration im Polyeder-Modus (Flächen + Kanten + Punkte).
       // Darüber: Kugel-Modus (nur Punkte vor Best-Fit-Kugel). Desktop verträgt
-      // iter 13 (Topo: 49 k Vertices) noch problemlos; Mobil bleibt bei 12.
-      const POLY_MAX_ITER = IS_MOBILE ? 12 : 13;
+      // iter 14 (Topo: 98 k Vertices, Hull: 443 k) noch handhabbar; Mobil bei 12.
+      const POLY_MAX_ITER = IS_MOBILE ? 12 : 14;
 
       // histories[variant][i] = Ergebnis der i-ten Iteration in der jeweiligen Variante.
       // 'topo' = topologische Rektifikation
@@ -458,8 +456,8 @@
       // Hull- und Hybrid-Variante nur bis Iter 12 berechnen (ab Iter 13 ist Kugel-
       // Modus). Die Berechnungszeit wächst stark (Hull Iter 11 ~17s, Iter 12 mehrere
       // Minuten), läuft aber im Hintergrund auf eigenen Worker-Threads weiter.
-      // Hull und Hybrid bis POLY_MAX_ITER (Desktop: 13, Mobil: 12).
-      // Hull iter 13 dauert ~13 min, Hybrid iter 13 ~50 s.
+      // Hull und Hybrid bis POLY_MAX_ITER (Desktop: 14, Mobil: 12).
+      // Mit Konflikt-Listen-Hull: iter 14 ~30 s (Hull) bzw. ~2 s (Hybrid).
       const HULL_MAX_ITER = POLY_MAX_ITER;
       // Vorberechnung der nächsten fehlenden Iteration in jeder Variante.
       // Wird nach jedem Worker-Ergebnis aufgerufen. Drei Worker (workers.topo,
@@ -681,7 +679,17 @@
         const isMobile =
           /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
           window.innerWidth < 768;
-        let maxDots = retryWithFewerDots || (isMobile ? 50000 : 100000);
+        // Im Kugel-Modus (iter > POLY_MAX_ITER) mehr Punkte zeigen, damit die
+        // Punktwolke die Form ausreichend dicht ausfüllt.
+        const inSphereMode = currentIdx > POLY_MAX_ITER;
+        const defaultDots = isMobile
+          ? inSphereMode
+            ? 50000
+            : 50000
+          : inSphereMode
+            ? 200000
+            : 100000;
+        let maxDots = retryWithFewerDots || defaultDots;
         // Polyeder-Modus (Iter 0-12): startet bei 0,010, sinkt in 0,001-Schritten bis 0,001 ab Iter 9.
         // Kugel-Modus (ab Iter 13): konstant 0,003 (Punkte verteilen sich auf größerer Kugelfläche).
         const dotSizes = [
