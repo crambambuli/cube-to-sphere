@@ -595,6 +595,7 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 | Verschieben (Pan)                                 | Shift+Maus ziehen oder Rechtsklick ziehen                         | 2 Finger ziehen   |
 | Zoomen                                            | Scrollrad                                                         | 2-Finger-Pinch    |
 | Rotation stoppen/starten                          | Doppelklick                                                       | Doppeltap         |
+| Vertex-Koordinaten anzeigen                       | Klick auf einen Vertex (nur Vorderseite)                          | Tap auf Vertex    |
 
 Pinch und Pan funktionieren gleichzeitig: der Abstand der beiden Finger steuert den Zoom, die gemeinsame Bewegung den Pan.
 
@@ -663,6 +664,7 @@ Worker-State speichert beides: `vertices` und `topoFaces`. Bei der nächsten Ite
 - [**Quaternion[^quat]-Trackball-Rotation[^trackball]**](https://raw.org/code/trackball-rotation-using-quaternions/) ohne Gimbal Lock[^gimbal], ohne OrbitControls (vermeidet Pointer-Capture-Konflikte). Rotation in alle Richtungen unbegrenzt möglich.
 - **Pan** (Shift+Drag / Rechtsklick / 2-Finger-Drag): laterale Verschiebung in Kamera-Koordinaten.
 - **Auto-Rotation** mit 3 s Pause nach manueller Interaktion.
+- **Vertex-Picking** per [`THREE.Raycaster`](https://threejs.org/docs/#api/en/core/Raycaster) (mit `params.Points.threshold = 0,02` in Welt-Einheiten). Bei einem Klick ohne signifikante Bewegung (Drag-Toleranz 4 px) wird der Strahl gegen das `dotPoints`-Mesh getestet; die Treffer kommen nach Kameradistanz sortiert. Es wird nur der erste front-facing Vertex genommen (Kriterium: Vertex `v` auf der Kamera-zugewandten Hemisphäre der Körper-Mitte, d. h. `v · camPos > 0`). Koordinaten werden in einem Overlay (Monospace-Font, unten links) **verlustfrei in voller Präzision** angezeigt: da Vertex-Koordinaten dyadisch rational mit Nenner 2<sup>iter</sup> sind und damit als Float64 exakt darstellbar bleiben, liefert `Number.prototype.toString()` die kürzeste runde-zurück-exakte Dezimaldarstellung — keine künstliche Rundung, keine unnötigen Nachkommastellen. Bei Iterationswechsel wird das Overlay ausgeblendet, da der Vertex-Index für die alte Vertex-Menge gilt.
 
 ### Dateien
 

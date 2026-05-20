@@ -109,6 +109,23 @@
         color: #7ec8e3;
         font-weight: bold;
       }
+      #vertex-info {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        z-index: 6;
+        background: rgba(22, 33, 62, 0.85);
+        color: #e0e0ff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: clamp(0.7rem, 2.2vw, 0.85rem);
+        pointer-events: none;
+        display: none;
+      }
+      #vertex-info b {
+        color: #7ec8e3;
+      }
       #s-progress {
         display: inline-block;
         min-width: 14em;
@@ -182,6 +199,7 @@
     </div>
 
     <div id="scene-container">
+      <div id="vertex-info"></div>
       <div id="stats">
         Iteration: <span id="s-iter">0</span> Ecken:
         <span id="s-verts">8</span> Kanten: <span id="s-edges">12</span> Radius:
@@ -864,6 +882,10 @@
       function showCurrent() {
         updateStats(!history[currentIdx]);
 
+        // Vertex-Info ausblenden — Index gilt nur für die alte Vertex-Menge
+        const vInfo = document.getElementById("vertex-info");
+        if (vInfo) vInfo.style.display = "none";
+
         // Bei jeder Navigation den Vorberechnungs-Lookahead anstoßen — sonst
         // bleibt die Vorberechnung auf dem Lookahead-Stand der vorherigen
         // Position stehen und holt iter (currentIdx + LOOKAHEAD) nicht nach.
@@ -1095,12 +1117,72 @@
       });
 
       let panning = false; // Shift-Taste oder Rechtsklick → Pan statt Rotation
+      let downX0 = 0,
+        downY0 = 0;
       renderer.domElement.addEventListener("pointerdown", (e) => {
         dragging = true;
         panning = e.shiftKey || e.button === 2;
         lastX = e.clientX;
         lastY = e.clientY;
+        downX0 = e.clientX;
+        downY0 = e.clientY;
         pauseAutoRotate();
+      });
+
+      // Vertex-Picking per Klick: zeigt Koordinaten des nächsten Vertex an.
+      // Nur Vertices auf der Kamera-zugewandten Hemisphäre der Körper-Mitte
+      // (Origin); rückseitige werden gefiltert, auch wenn sie näher am Klick-
+      // Strahl liegen sollten.
+      const raycaster = new THREE.Raycaster();
+      raycaster.params.Points.threshold = 0.02;
+      const vertexInfoEl = document.getElementById("vertex-info");
+      renderer.domElement.addEventListener("pointerup", (e) => {
+        // Nur als Klick werten, wenn der Pointer nicht gedragged wurde
+        if (Math.hypot(e.clientX - downX0, e.clientY - downY0) > 4) return;
+        if (e.button !== 0) return; // nur Links-Klick
+        if (dotMeshes.length === 0) return;
+        const dotPoints = dotMeshes[0];
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          -((e.clientY - rect.top) / rect.height) * 2 + 1,
+        );
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObject(dotPoints);
+        // Nur Vertex auf der Kamera-zugewandten Hemisphäre akzeptieren:
+        // Vertex v ist „vorne“, wenn v · camPos > 0 (Origin = Körpermitte).
+        const positions = dotPoints.userData.candidatePositions;
+        const camP = camera.position;
+        let hit = null;
+        for (const h of hits) {
+          const i = h.index;
+          const x = positions[3 * i];
+          const y = positions[3 * i + 1];
+          const z = positions[3 * i + 2];
+          if (x * camP.x + y * camP.y + z * camP.z > 0) {
+            hit = h;
+            break;
+          }
+        }
+        if (!hit) {
+          vertexInfoEl.style.display = "none";
+          return;
+        }
+        const i = hit.index;
+        const x = positions[3 * i];
+        const y = positions[3 * i + 1];
+        const z = positions[3 * i + 2];
+        // Koordinaten sind dyadisch rational (Nenner 2^iter) und damit als
+        // Float64 exakt darstellbar. `toString()` liefert die kürzeste
+        // Dezimaldarstellung, die exakt zurückgerundet wird — also volle
+        // verlustfreie Präzision ohne unnötige Nachkommastellen.
+        const fmt = (n) => n.toString().replace(".", ",");
+        vertexInfoEl.innerHTML =
+          `<b>Vertex:</b> ` +
+          `x = ${fmt(x)}, ` +
+          `y = ${fmt(y)}, ` +
+          `z = ${fmt(z)}`;
+        vertexInfoEl.style.display = "block";
       });
       // Rechtsklick-Kontextmenü unterdrücken
       renderer.domElement.addEventListener("contextmenu", (e) =>
