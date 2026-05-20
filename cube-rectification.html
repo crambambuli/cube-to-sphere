@@ -2607,45 +2607,52 @@ self.onmessage = async function (e) {
       });
 
       // Vertex-Picking per Klick: zeigt Koordinaten des nächsten Vertex an.
-      // Nur Vertices auf der Kamera-zugewandten Hemisphäre der Körper-Mitte
-      // (Origin); rückseitige werden gefiltert, auch wenn sie näher am Klick-
-      // Strahl liegen sollten.
-      const raycaster = new THREE.Raycaster();
-      raycaster.params.Points.threshold = 0.02;
+      // Screen-space-Picking: jeder front-facing Vertex wird in Pixel-Koordinaten
+      // projiziert und der mit dem kleinsten Pixel-Abstand zum Klick gewinnt.
+      // Vorteil gegenüber Raycaster-Threshold-in-Welt-Einheiten: bei kleinen
+      // Vertex-Clustern (z. B. den geschrumpften Eck-Dreiecken ab Iter 6) lassen
+      // sich benachbarte Vertices visuell sauber unterscheiden.
+      const PICK_MAX_PX = 12; // maximaler Pixel-Abstand für gültigen Treffer
       const vertexInfoEl = document.getElementById("vertex-info");
+      const _projV = new THREE.Vector3();
       renderer.domElement.addEventListener("pointerup", (e) => {
-        // Nur als Klick werten, wenn der Pointer nicht gedragged wurde
         if (Math.hypot(e.clientX - downX0, e.clientY - downY0) > 4) return;
-        if (e.button !== 0) return; // nur Links-Klick
+        if (e.button !== 0) return;
         if (dotMeshes.length === 0) return;
         const dotPoints = dotMeshes[0];
-        const rect = renderer.domElement.getBoundingClientRect();
-        const mouse = new THREE.Vector2(
-          ((e.clientX - rect.left) / rect.width) * 2 - 1,
-          -((e.clientY - rect.top) / rect.height) * 2 + 1,
-        );
-        raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObject(dotPoints);
-        // Nur Vertex auf der Kamera-zugewandten Hemisphäre akzeptieren:
-        // Vertex v ist „vorne“, wenn v · camPos > 0 (Origin = Körpermitte).
         const positions = dotPoints.userData.candidatePositions;
+        const N = positions.length / 3;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        const halfW = rect.width / 2,
+          halfH = rect.height / 2;
         const camP = camera.position;
-        let hit = null;
-        for (const h of hits) {
-          const i = h.index;
-          const x = positions[3 * i];
-          const y = positions[3 * i + 1];
-          const z = positions[3 * i + 2];
-          if (x * camP.x + y * camP.y + z * camP.z > 0) {
-            hit = h;
-            break;
+        let bestIdx = -1,
+          bestD2 = Infinity;
+        for (let k = 0; k < N; k++) {
+          const x = positions[3 * k];
+          const y = positions[3 * k + 1];
+          const z = positions[3 * k + 2];
+          // Front-Facing: Vertex auf der Kamera-zugewandten Hemisphäre
+          if (x * camP.x + y * camP.y + z * camP.z <= 0) continue;
+          _projV.set(x, y, z).project(camera);
+          if (_projV.z < -1 || _projV.z > 1) continue;
+          const px = (_projV.x + 1) * halfW;
+          const py = (1 - _projV.y) * halfH;
+          const dx = px - clickX;
+          const dy = py - clickY;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            bestIdx = k;
           }
         }
-        if (!hit) {
+        if (bestIdx < 0 || bestD2 > PICK_MAX_PX * PICK_MAX_PX) {
           vertexInfoEl.style.display = "none";
           return;
         }
-        const i = hit.index;
+        const i = bestIdx;
         const x = positions[3 * i];
         const y = positions[3 * i + 1];
         const z = positions[3 * i + 2];
