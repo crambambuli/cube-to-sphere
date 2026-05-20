@@ -216,9 +216,11 @@
     </div>
 
     <div id="controls">
+      <button id="btn-prev2" disabled>&larr;&larr; −2</button>
       <button id="btn-prev" disabled>&larr; Zurück</button>
       <div id="iteration-label">Iteration 0</div>
       <button id="btn-next">Weiter &rarr;</button>
+      <button id="btn-next2">+2 &rarr;&rarr;</button>
       <button
         id="btn-variant"
         title="Variante umschalten: Topo → Hull → Hybrid (Shift+Klick: rückwärts)"
@@ -2336,6 +2338,9 @@ self.onmessage = async function (e) {
           : `Iteration ${currentIdx}`;
         document.getElementById("btn-prev").disabled = currentIdx === 0;
         document.getElementById("btn-next").disabled = currentIdx >= MAX_ITER;
+        document.getElementById("btn-prev2").disabled = currentIdx < 2;
+        document.getElementById("btn-next2").disabled =
+          currentIdx >= MAX_ITER - 1;
         // Variante-Button nur im Polyeder-Modus (≤ HULL_MAX_ITER) sichtbar.
         // Im Kugel-Modus werden Hull/Hybrid nicht berechnet.
         document.getElementById("btn-variant").style.display =
@@ -2422,12 +2427,13 @@ self.onmessage = async function (e) {
       }
 
       // ---- Steuerung ----
-      function goNext() {
-        if (currentIdx >= MAX_ITER) return;
-        currentIdx++;
-        // Hull/Hybrid enden bei iter 12, Topo geht bis MAX_ITER. Wer in Hull/Hybrid-
-        // Modus über iter 12 hinaus klickt, hat sonst nichts zum Anzeigen —
-        // automatisch auf Topo umschalten.
+      // Verschiebt currentIdx um delta (positiv = vorwärts, negativ = zurück),
+      // clampt auf [0, MAX_ITER]. Wer in Hull/Hybrid über HULL_MAX_ITER hinaus
+      // springt, wird auf Topo umgeschaltet (sonst gibts nichts anzuzeigen).
+      function step(delta) {
+        const target = Math.max(0, Math.min(MAX_ITER, currentIdx + delta));
+        if (target === currentIdx) return;
+        currentIdx = target;
         if (
           (currentVariant === "hull" || currentVariant === "hybrid") &&
           currentIdx > HULL_MAX_ITER
@@ -2440,6 +2446,9 @@ self.onmessage = async function (e) {
         }
         showCurrent();
       }
+      function goNext() {
+        step(1);
+      }
 
       // Anzeige-Text für den Variante-Button
       function variantLabel(v) {
@@ -2448,10 +2457,7 @@ self.onmessage = async function (e) {
         if (v === "hybrid") return "Variante: Hybrid";
       }
       function goPrev() {
-        if (currentIdx > 0) {
-          currentIdx--;
-          showCurrent();
-        }
+        step(-1);
       }
 
       // Button-Events: sowohl pointerdown als auch click für maximale Kompatibilität
@@ -2474,6 +2480,12 @@ self.onmessage = async function (e) {
       });
       btnEvent("btn-prev", () => {
         goPrev();
+      });
+      btnEvent("btn-next2", () => {
+        step(2);
+      });
+      btnEvent("btn-prev2", () => {
+        step(-2);
       });
 
       // Variante umschalten: zyklisch topo → hull → hybrid → topo (vorwärts)

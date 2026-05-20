@@ -590,6 +590,7 @@ Auf Mobilgeräten (erkannt via User-Agent und Viewport-Breite < 768px) gelten re
 | ------------------------------------------------- | ----------------------------------------------------------------- | ----------------- |
 | Nächste Iteration                                 | Weiter-Button oder → oder Leertaste                               | Weiter-Button     |
 | Vorherige Iteration                               | Zurück-Button oder ←                                              | Zurück-Button     |
+| Zwei Iterationen vor / zurück                     | „+2 →→“-Button bzw. „←← −2“-Button                                | dito              |
 | Variante umschalten (Topo → Hull → Hybrid → Topo) | „Variante“-Button (Shift+Klick: rückwärts; nur im Polyeder-Modus) | „Variante“-Button |
 | Körper drehen                                     | Maus ziehen                                                       | 1 Finger ziehen   |
 | Verschieben (Pan)                                 | Shift+Maus ziehen oder Rechtsklick ziehen                         | 2 Finger ziehen   |
